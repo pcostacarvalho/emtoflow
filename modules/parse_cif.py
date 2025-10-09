@@ -11,5 +11,6 @@ def get_LatticeVectors(cif_file):
     c = structure.lattice.c
     matrix = structure.lattice.matrix
     cart_coords = np.array([i.coords for i in structure.sites])
+    atoms = [i.specie for i in structure.sites]
 
-    return matrix, cart_coords, a, b, c
+    return matrix, cart_coords, a, b, c, atoms

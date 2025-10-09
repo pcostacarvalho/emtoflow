@@ -10,10 +10,22 @@
 
 import argparse
 import os
-from modules.parse_cif import get_structure
+from pathlib import Path
+import sys
+
+# Add project root to Python path
+script_path = os.path.abspath(__file__)
+bin_dir = os.path.dirname(script_path)
+project_root = os.path.dirname(bin_dir)
+sys.path.insert(0, project_root)
+
+print(f"DEBUG: Project root: {project_root}")
+print(f"DEBUG: sys.path: {sys.path}")
+
+from modules.parse_cif import get_LatticeVectors
 
 
-def create_kstr_input(output_folder, job_name, NL, NQ3, DMAX, LAT A, B, C, lattice_vectors, lattice_positions):
+def create_kstr_input(output_folder, job_name, NL, NQ3, DMAX, LAT, A, B, C, lattice_vectors, lattice_positions):
     """
     Generate a KSTR input file for EMTO based on the given structural parameters.
     """
@@ -66,29 +78,32 @@ parser.add_argument("--JobName",
                     required=True, 
                     type=str, 
                     help="Name of the EMTO job.")
-parser.add_argument("--NL", 
-                    required=True, 
-                    type=int, 
-                    help="Maximum number of orbitals.")
 parser.add_argument("--DMAX", 
                     required=True, 
-                    type=int, 
+                    type=float, 
                     help="Maximum distance")
 parser.add_argument("--LAT", 
                     required=True, 
                     type=int, 
                     help="Bravais lattice type.")
-parser.add_argument("--NQ3", 
-                    required=True, 
-                    type=int, 
-                    help="Number of atoms in the unit cell .")
 
 args = parser.parse_args()
 
 # Read the cif file and get the lattice parameters and atomic positions
 cif_filename = os.path.join(args.output_folder, args.JobName + '.cif')
 
-LatticeVectors, AtomicPositions, a, b, c = get_structure(cif_filename)
+LatticeVectors, AtomicPositions, a, b, c, atoms = get_LatticeVectors(cif_filename)
+
+NLs = []
+for atom in set(atoms):
+    if 'f' in atom.electronic_structure:
+        NLs.append(3)
+    elif 'd' in atom.electronic_structure:
+        NLs.append(2) 
+    elif 'p' in atom.electronic_structure:      
+        NLs.append(1)
+
+NL = max(NLs)
 
 # Generate file
 create_kstr_input(
@@ -96,8 +111,8 @@ create_kstr_input(
     job_name=args.JobName,
     DMAX=args.DMAX,
     LAT=args.LAT,
-    NL=args.NL,
-    NQ3=args.NQ3,
+    NL=NL,
+    NQ3=len(AtomicPositions),
     A=a/a,
     B=b/a,
     C=c/a,
