@@ -1,17 +1,10 @@
 import numpy as np
+import os
 
+#######################################################################################
 
-def create_kstr_input(
-    filename,
-    job_name,
-    DMAX,
-    LAT,
-    NL,
-    NQ3,
-    A, B, C,
-    lattice_vectors,
-    lattice_positions,
-):
+def create_kstr_input(path, id_name, DMAX, LAT, NL, NQ3,
+    A, B, C, lattice_vectors, lattice_positions):
     """
     Create a KSTR input file for EMTO.
 
@@ -34,7 +27,7 @@ def create_kstr_input(
     """
 
     template = f"""KSTR      HP......=N                               xx xxx xx
-JOBNAM...={job_name:<10} MSGL.=  1 MODE...=B STORE..=Y HIGH...=Y
+JOBNAM...={id_name:<10} MSGL.=  1 MODE...=B STORE..=Y HIGH...=Y
 DIR001=./
 DIR006=
 Slope and Madelung matrices
@@ -60,18 +53,14 @@ A........= {A:.7f} B.......= {B:.7f} C.......={C:.8f}
 LAMDA....=    2.5000 AMAX....=    4.5000 BMAX....=    4.5000
 """
     
-    with open(filename, "w") as f:
+    with open(f"{path}/smx/{id_name}.dat", "w") as f:
         f.write(template)
 
-    print(f"KSTR input file '{filename}' created successfully.")
+    print(f"KSTR input file '{path}/smx/{id_name}.dat' created successfully.")
 
+#######################################################################################
 
-def create_shape_input(
-    filename,
-    job_name,
-    smx_file,
-    NQ3,
-):
+def create_shape_input(path, id_name, NQ3):
     """
     Create a SHAPE input file for EMTO.
 
@@ -88,8 +77,8 @@ def create_shape_input(
     """
 
     template = f"""SHAPE     HP......=N
-JOBNAM...={job_name:<10} MSGL.=  1
-FOR001={smx_file}
+JOBNAM...={id_name:<10} MSGL.=  1
+FOR001=f"../smx/{id_name}.tfh"
 DIR002=./
 DIR006=./
 Lmax..= 30 NSR..=129 NFI..= 11
@@ -101,20 +90,14 @@ NPRN..=  0 IVEF.=  3
     for i in range(1, NQ3 + 1):
         template += f"ASR({i}).= 1.0\n"
 
-    with open(filename, "w") as f:
+    with open(f"{path}/shp/{id_name}.dat", "w") as f:
         f.write(template)
 
-    print(f"SHAPE input file '{filename}' created successfully.")
+    print(f"SHAPE input file '{path}/shp/{id_name}.dat' created successfully.")
 
+#######################################################################################
 
-def create_kgrn_input(
-    filename,
-    job_name,
-    SWS,
-    smx_tfh_file,
-    smx_mdl_file,
-    shp_file,
-):
+def create_kgrn_input(path, id_name, SWS):
     """
     Create a KGRN (self-consistent KKR) input file for EMTO.
 
@@ -137,16 +120,16 @@ def create_kgrn_input(
     """
 
     template = f"""KGRN      HP..= 0   !                              xx xxx xx
-JOBNAM...={job_name}
+JOBNAM...={id_name}
 MSGL.=1 STRT.=A FUNC.=SCA EXPAN=1 FCD.=Y GPM.=N FSM.=N
-FOR001={smx_tfh_file}
-FOR002={smx_mdl_file}
+FOR001=f"./smx/{id_name}.tfh"
+FOR002=f"./smx/{id_name}.mdl"
 DIR003=./pot/
 DIR006=
 DIR010=./chd/
 DIR011=./tmp
-DIR021={job_name}.gpm.dat
-DIR022={shp_file}
+DIR021={id_name}.gpm.dat
+DIR022=f"./shp/{id_name}.shp"
 FOR098=/home/x_pamca/postdoc_proj/emto/jij_EMTO/kgrn_new2020/ATOM.cfg
 Self-consistent KKR calculation 
 **********************************************************************
@@ -166,10 +149,14 @@ EFGS...=  0.000 HX....=  0.101 NX...=  5 NZ0..= 16 KPOLE=  0
 Sort:  information for alloy:                                        *
 ******************************SS-screeining*|***Magnetic structure ***
 Symb  IQ  IT ITA NRM  CONC      a_scr b_scr |Teta    Phi    FXM  m(split)
-Pt     1   1   1   1  1.000000  0.750 1.100  0.0000  0.0000  N   0.4000
-Pt     2   1   1   1  1.000000  0.750 1.100  0.0000  0.0000  N   0.4000
-Fe     3   2   1   1  1.000000  0.750 1.100  0.0000  0.0000  N   2.0000
-Fe     4   2   1   1  1.000000  0.750 1.100  0.0000  0.0000  N   2.0000
+Pt     1   1   1   1  0.500000  0.750 1.100  0.0000  0.0000  N   0.4000
+Pt     2   1   1   1  0.500000  0.750 1.100  0.0000  0.0000  N   0.4000
+Fe     3   2   1   1  0.500000  0.750 1.100  0.0000  0.0000  N   2.0000
+Fe     4   2   1   1  0.500000  0.750 1.100  0.0000  0.0000  N   2.0000
+Pt     1   1   2   1  0.500000  0.750 1.100  0.0000  0.0000  N  -0.4000
+Pt     2   1   2   1  0.500000  0.750 1.100  0.0000  0.0000  N  -0.4000
+Fe     3   2   2   1  0.500000  0.750 1.100  0.0000  0.0000  N  -2.0000
+Fe     4   2   2   1  0.500000  0.750 1.100  0.0000  0.0000  N  -2.0000
 **********************************************************************
 Spin-spiral wave vector:
 qx....= 0.000000 qy....= 0.000000 qz....= 0.000000
@@ -182,18 +169,14 @@ DX.......=  0.030000 DR1.....=  0.001000 TEST....=  1.00E-12
 TESTE....=  1.00E-07 TESTY...=  1.00E-08 TESTV...=  1.00E-07
 """
 
-    with open(filename, "w") as f:
+    with open(f"{path}/{id_name}.dat", "w") as f:
         f.write(template)
 
-    print(f"KGRN input file '{filename}' created successfully.")
+    print(f"KGRN input file '{path}/{id_name}.dat' created successfully.")
 
+#######################################################################################
 
-def create_kfcd_input(
-    name,
-    filename,
-    job_name,
-    shp_file
-):
+def create_kfcd_input(path, id_name):
     """
     Create a KFCD input file for EMTO.
 
@@ -208,22 +191,23 @@ def create_kfcd_input(
     """
 
     template = f"""KFCD      HP......=N sno..=100                     xx xxx xx
-JOBNAM...={job_name:<10}                         MSGL.=  1
-STRNAM...={name}
+JOBNAM...={id_name:<10}                         MSGL.=  1
+STRNAM...={id_name}
 DIR001=../smx/
 DIR002=../chd/
-FOR003={shp_file}
+FOR003=f"../shp/{id_name}.shp"
 DIR004=../smx/
 DIR006=
 Lmaxs.= 30 NTH..= 41 NFI..= 81
 OVCOR.=  Y UBG..=  N NPRN.=  0 NRM..=  0
 """
 
-    with open(filename, "w") as f:
+    with open(f"{path}/fcd/{id_name}.dat", "w") as f:
         f.write(template)
 
-    print(f"KFCD input file '{filename}' created successfully.")
+    print(f"KFCD input file '{path}/fcd/{id_name}.dat' created successfully.")
 
+#######################################################################################
 
 def create_job_ca(
     folder,
@@ -249,13 +233,13 @@ def create_job_ca(
 #SBATCH -t 00:30:00
 #SBATCH -J fept_{folder}
 
-echo "Running folder {folder}"
+echo "Running {folder}"
 echo ""
 
 cd smx
 
 echo "Running KSTR:"
-kstr.exe < fept_{folder}.dat > smx.log
+#kstr.exe < fept_{folder}.dat > smx.log
 
 if [ $? -ne 0 ]; then
     echo "KSTR failed!"
@@ -270,7 +254,7 @@ grep -A1 "Primv" smx.log
 cd ../shp
 
 echo "Running SHAPE:"
-shape.exe < fept_{folder}.dat > shp.log
+#shape.exe < fept_{folder}.dat > shp.log
 
 if [ $? -ne 0 ]; then
     echo "SHAPE failed!"
@@ -456,13 +440,264 @@ Y_axes...=V H
 
 
 
-def compute_equilibrium_ca(ratios, energies):
-    # Fit a quadratic polynomial: E = a*x^2 + b*x + c
-    coeffs = np.polyfit(ratios, energies, 2)
-    a, b, c = coeffs
+def create_inputs(params):
 
-    # Compute equilibrium c/a (minimum of parabola)
-    ca_eq = -b / (2 * a)
-    E_eq = np.polyval(coeffs, ca_eq)
+    path=params["path"]
+    ratios=params["ratios"]
+    name_id=params["name_id"]
+    sws=params["sws"]
+    NL=params["NL"]
+    NQ3=params["NQ3"]
+    B=params["B"]
+    DMAX=params["DMAX"]
+    LAT=params["LAT"]
+    fractional_coors=params["fractional_coors"]
 
-    return ca_eq, E_eq, coeffs
+    # Subfolders to create inside each ratio folder
+    subfolders = ['smx', 'shp', 'pot', 'chd', 'fcd']
+
+    os.makedirs(path, exist_ok=True)
+
+    for subfolder in subfolders:
+        subfolder_path = os.path.join(path, subfolder)
+        os.makedirs(subfolder_path, exist_ok=True)
+
+    for r in ratios:
+        lattice_vectors =  np.array([[1.0,  0.0, 0.0], [0.0,  1.0, 0.0], [0.0,  0.0, r]])
+        cart_coords = fractional_coors @ lattice_vectors
+        filer=f"{name_id}_{r:.2f}"
+
+        create_kstr_input(
+            path=path,
+            id_name=f"{filer}",
+            NL=NL, NQ3=NQ3,
+            A=1, B=B, C=r,
+            DMAX=DMAX, LAT=LAT,
+            lattice_vectors=lattice_vectors,
+            lattice_positions=cart_coords)
+
+        create_shape_input(path=path, id_name=f"{filer}",NQ3=NQ3)
+
+        for v in sws:
+            filev=filer+f"_{v:.2f}"
+        
+            create_kgrn_input(path=path, id_name=f"{filev}",SWS=v)
+
+            create_kfcd_input(path=path, id_name=f"{filev}")
+
+    
+
+    #         if len(sws) == 1:
+                
+    #             create_job_ca(
+    #             folder=f"{filev}",
+    #             filename=f"{path}/run_{filev}.sh")
+        
+
+    # if len(sws) > 1:
+        
+    #     create_job_volume(
+    #     name=f"{name_id}",
+    #     filename=f"run_{name_id}.sh",
+    #     volumes=" ".join([f"{j:.2f}" for j in sws]))
+
+
+def write_serial_sbatch(path,ratios, volumes, job_name, prcs=1, time="00:30:00", account="naiss2025-1-38", id_name="fept"):
+    """Write serial SBATCH script for volume optimization."""
+    
+        # Format numbers to 2 decimal places
+    ratios_str = ' '.join(f"{r:.2f}" for r in ratios)
+    volumes_str = ' '.join(f"{v:.2f}" for v in volumes)
+
+    script = f"""#! /bin/bash -l
+#SBATCH -A {account}
+#SBATCH --exclusive
+#SBATCH -n {prcs}
+#SBATCH -t {time}
+#SBATCH -J {job_name}
+
+id_name="{id_name}"
+
+for r in {ratios_str}; do
+
+    cd smx
+
+    echo "Running KSTR:"
+    kstr.exe < ${{id_name}}_${{r}}.dat > smx_${{r}}.log
+
+    if [ $? -ne 0 ]; then
+        echo "KSTR failed!"
+        exit 1
+    else
+        echo "DONE!"
+    fi
+
+    echo "Info about DMAX:"
+    grep -A1 "Primv" smx_${{r}}.log
+
+    cd ../shp
+
+    echo "Running SHAPE:"
+    shape.exe < ${{id_name}}_${{r}}.dat > shp_${{r}}.log
+
+    if [ $? -ne 0 ]; then
+        echo "SHAPE failed!"
+        exit 1
+    else
+        echo "DONE!"
+    fi
+
+    cd ../
+
+    for v in {volumes_str}; do
+
+        echo "Running KGRN:"
+        mpirun -n {prcs}  kgrn_mpi.x < {id_name}_${{r}}_${{v}}.dat > kgrn_${{r}}_${{v}}.log
+
+        if [ $? -ne 0 ]; then
+            echo "KGRN failed!"
+            exit 1
+        else
+            echo "DONE!"
+        fi
+
+        cd fcd/ 
+
+        echo "Running KFCD:"
+        kfcd.exe < {id_name}_${{r}}_${{v}}.dat > kfcd_${{r}}_${{v}}.log
+
+        if [ $? -ne 0 ]; then
+            echo "KFCD failed!"
+            exit 1
+        else
+            echo "DONE!"
+        fi
+
+        cd ../
+        
+    done
+
+done
+"""
+    
+    with open(f"{path}/{job_name}.sh", "w") as f:
+        f.write(script)
+
+
+def write_parallel_sbatch(path, ratios, volumes, job_name, prcs=1, time="00:30:00", account="naiss2025-1-38", id_name="fept"):
+    """Write parallel SBATCH scripts with proper dependencies."""
+    
+    # Stage 1: KSTR and SHAPE (one per ratio)
+    for r in ratios: 
+        r_fmt = f"{r:.2f}"
+        r_var = r_fmt.replace('.', '_')
+        
+        script = f"""#! /bin/bash -l
+#SBATCH -A {account}
+#SBATCH --exclusive
+#SBATCH -n {prcs}
+#SBATCH -t {time}
+#SBATCH -J {job_name}_prep_r{r_fmt}
+
+id_name="{id_name}"
+r={r_fmt}
+
+cd smx
+
+echo "Running KSTR:"
+kstr.exe < ${{id_name}}_${{r}}.dat > smx_${{r}}.log
+
+if [ $? -ne 0 ]; then
+    echo "KSTR failed!"
+    exit 1
+else
+    echo "DONE!"
+fi
+
+echo "Info about DMAX:"
+grep -A1 "Primv" smx_${{r}}.log
+
+cd ../shp
+
+echo "Running SHAPE:"
+shape.exe < ${{id_name}}_${{r}}.dat > shp_${{r}}.log
+
+if [ $? -ne 0 ]; then
+    echo "SHAPE failed!"
+    exit 1
+else
+    echo "DONE!"
+fi
+
+cd ../
+"""
+        
+        with open(f"{path}/{job_name}_prep_r{r_fmt}.sh", "w") as f:
+            f.write(script)
+    
+    # Stage 2: KGRN and KFCD (one per r,v pair, depends on Stage 1)
+    for r in ratios:  
+        r_fmt = f"{r:.2f}"
+        r_var = r_fmt.replace('.', '_')
+        
+        for v in volumes:  
+            v_fmt = f"{v:.2f}"
+            
+            script = f"""#! /bin/bash -l
+#SBATCH -A {account}
+#SBATCH --exclusive
+#SBATCH -n {prcs}
+#SBATCH -t {time}
+#SBATCH -J {job_name}_r{r_fmt}_v{v_fmt}
+#SBATCH --dependency=afterok:$PREP_R{r_var}_JOBID
+
+id_name="{id_name}"
+r={r_fmt}
+v={v_fmt}
+
+echo "Running KGRN:"
+mpirun -n {prcs} kgrn_mpi.x < {id_name}_${{r}}_${{v}}.dat > kgrn_${{r}}_${{v}}.log
+
+if [ $? -ne 0 ]; then
+    echo "KGRN failed!"
+    exit 1
+else
+    echo "DONE!"
+fi
+
+cd fcd/ 
+
+echo "Running KFCD:"
+kfcd.exe < {id_name}_${{r}}_${{v}}.dat > kfcd_${{r}}_${{v}}.log
+
+if [ $? -ne 0 ]; then
+    echo "KFCD failed!"
+    exit 1
+else
+    echo "DONE!"
+fi
+
+cd ../
+"""
+            
+            with open(f"{path}/{job_name}_r{r_fmt}_v{v_fmt}.sh", "w") as f:
+                f.write(script)
+    
+    # Write submission script
+    submit_script = "#!/bin/bash\n# Submit preparation jobs and store job IDs\n"
+    
+    for r in ratios:  
+        r_fmt = f"{r:.2f}"
+        r_var = r_fmt.replace('.', '_')
+        submit_script += f'PREP_R{r_var}_JOBID=$(sbatch --parsable {job_name}_prep_r{r_fmt}.sh)\n'
+    
+    submit_script += "\n# Submit computation jobs with dependencies\n"
+    for r in ratios:  
+        r_fmt = f"{r:.2f}"
+        r_var = r_fmt.replace('.', '_')
+        for v in volumes: 
+            v_fmt = f"{v:.2f}"
+            submit_script += f'sbatch --dependency=afterok:$PREP_R{r_var}_JOBID {job_name}_r{r_fmt}_v{v_fmt}.sh\n'
+    
+    with open(f"{path}/submit_{job_name}.sh", "w") as f:
+        f.write(submit_script)
