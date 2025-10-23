@@ -4,7 +4,7 @@ from itertools import product
 
 def parse_prn_file(filepath):
     """
-    Parse a .prn file and extract neighbor shell information.
+    Parse a .prn file and extract neighbor shell information for IQ = 1 only.
     
     Parameters:
     -----------
@@ -21,33 +21,45 @@ def parse_prn_file(filepath):
     with open(filepath, 'r') as f:
         content = f.read()
     
-    # Find the table section
     lines = content.split('\n')
     
     shell_data = []
     cumulative_vectors = 0
     current_shell = 0
     
-    # Pattern to match data lines: IS IN IR JQ D ...
-    pattern = r'^\s+(\d+)\s+\d+\s+\d+\s+\d+\s+([\d.]+)\s+'
+    # Flag to track if we're in the IQ = 1 section
+    in_iq1_section = False
     
     for line in lines:
-        match = re.match(pattern, line)
-        if match:
-            shell_num = int(match.group(1))
-            d_value = float(match.group(2))
+        # Start capturing when we find "IQ =  1"
+        if 'IQ =  1' in line and 'QP' in line:
+            in_iq1_section = True
+            continue
+        
+        # Stop capturing when we find the next "IQ =" (IQ = 2, 3, etc.)
+        if in_iq1_section and re.search(r'IQ\s*=\s*[2-9]', line):
+            break
+        
+        # Pattern to match data lines: IS IN IR JQ D ...
+        if in_iq1_section:
+            pattern = r'^\s+(\d+)\s+\d+\s+\d+\s+\d+\s+([\d.]+)\s+'
+            match = re.match(pattern, line)
             
-            # Each line represents one neighbor (vector)
-            cumulative_vectors += 1
-            
-            # When shell number changes, record the shell
-            if shell_num != current_shell:
-                current_shell = shell_num
-                shell_data.append({
-                    'D': d_value,
-                    'shell': shell_num,
-                    'cumulative_vectors': cumulative_vectors
-                })
+            if match:
+                shell_num = int(match.group(1))
+                d_value = float(match.group(2))
+                
+                # Each line represents one neighbor (vector)
+                cumulative_vectors += 1
+                
+                # When shell number changes, record the shell
+                if shell_num != current_shell:
+                    current_shell = shell_num
+                    shell_data.append({
+                        'D': d_value,
+                        'shell': shell_num,
+                        'cumulative_vectors': cumulative_vectors
+                    })
     
     return shell_data
 
