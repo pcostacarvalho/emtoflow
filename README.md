@@ -11,7 +11,6 @@ Python toolkit for automating the creation of input files for [EMTO](http://emto
 - [Core Modules](#core-modules)
 - [Workflows](#workflows)
 - [Examples](#examples)
-- [DMAX Optimization](#dmax-optimization)
 - [Equation of State Analysis](#equation-of-state-analysis)
 - [Contributing](#contributing)
 - [License](#license)
@@ -31,10 +30,8 @@ This toolkit automates the creation of these files from crystallographic informa
 **Key Features:**
 - ✅ Automatic input file generation from CIF files
 - ✅ Support for c/a ratio and volume (SWS) parameter sweeps
-- ✅ DMAX optimization for consistent neighbor shells
 - ✅ Equation of state fitting (polynomial, Birch-Murnaghan, Murnaghan)
 - ✅ SLURM job script generation (serial and parallel modes)
-- ✅ Auto-detection of orbital angular momentum quantum number (NL) from electronic structure
 
 ---
 
@@ -149,10 +146,10 @@ EMTO_input_automation/
 Provides functions to generate all EMTO input files:
 
 **Input File Generators:**
-- `create_kstr_input()` - KSTR input (slope and Madelung matrices)
-- `create_shape_input()` - SHAPE input (atomic sphere radii)
-- `create_kgrn_input()` - KGRN input (self-consistent KKR calculation)
-- `create_kfcd_input()` - KFCD input (full charge density)
+- `create_kstr_input()` - KSTR input 
+- `create_shape_input()` - SHAPE input 
+- `create_kgrn_input()` - KGRN input 
+- `create_kfcd_input()` - KFCD input 
 - `create_eos_input()` - EOS input file for equation of state fitting
 
 **Job Script Generators:**
@@ -178,30 +175,6 @@ matrix, cart_coords, a, b, c, atoms = get_LatticeVectors("structure.cif")
 - `a, b, c`: Lattice parameters (Å)
 - `atoms`: List of atom species (pymatgen Species objects)
 
-### `modules/dmax_optimizer.py`
-
-Optimize DMAX parameter to ensure consistent neighbor shells across different c/a ratios:
-
-```python
-from modules.dmax_optimizer import find_optimal_dmax, print_optimization_summary
-
-# Define .prn files for each c/a ratio
-prn_files = {
-    0.92: "./output/smx/fept_0.92.prn",
-    0.96: "./output/smx/fept_0.96.prn",
-    1.00: "./output/smx/fept_1.00.prn",
-}
-
-# Find optimal DMAX values
-optimal_dmax = find_optimal_dmax(
-    prn_files,
-    target_vectors=100,
-    shell_tolerance=1,
-    vector_tolerance=15
-)
-
-print_optimization_summary(optimal_dmax)
-```
 
 ### `modules/eos.py`
 
@@ -298,45 +271,6 @@ python bin/skr_input.py output_folder --JobName fept --DMAX 1.3 --LAT 5
 # Requires fept.cif in output_folder/
 ```
 
-### Example 3: DMAX Optimization Workflow
-
-```python
-# Step 1: Create initial inputs with guess DMAX
-create_inputs(params)
-
-# Step 2: Run KSTR to generate .prn files
-# (submit jobs or run locally)
-
-# Step 3: Optimize DMAX
-from modules.dmax_optimizer import find_optimal_dmax, update_kstr_files
-
-prn_files = {r: f"./output/smx/fept_{r:.2f}.prn" for r in params["ratios"]}
-optimal_dmax = find_optimal_dmax(prn_files)
-
-# Step 4: Update KSTR files
-update_kstr_files("./output", optimal_dmax, "fept")
-
-# Step 5: Re-run KSTR with optimized DMAX
-```
-
----
-
-## DMAX Optimization
-
-The DMAX parameter controls the cutoff distance for neighbor shells in KSTR calculations. When performing c/a ratio sweeps, different ratios may include different numbers of neighbor shells for the same DMAX, leading to inconsistent results.
-
-**Solution:** The `dmax_optimizer` module finds DMAX values that give:
-- Consistent shell numbers across all c/a ratios
-- Target number of neighbor vectors (~100)
-- Minimal deviation from target
-
-**Key Functions:**
-- `parse_prn_file()` - Extract shell information from KSTR output
-- `find_optimal_dmax()` - Find optimal DMAX for each ratio
-- `update_kstr_files()` - Update KSTR input files with optimized values
-- `print_optimization_summary()` - Display results table
-
----
 
 ## Equation of State Analysis
 
@@ -412,6 +346,32 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 2. Add docstrings to all functions
 3. Test with multiple materials/structures
 4. Update README with new features
+
+## TODO
+
+### Pending Implementations
+
+- [ ] **Complete the extraction of the structure from CIF for KSTR**
+  - Enhance `create_kstr_input_from_cif()` to handle more crystal systems
+  - Add validation for lattice parameters
+  - Improve error handling for malformed CIF files
+
+- [ ] **Use CIF to create KGRN input file**
+  - Implement `create_kgrn_input_from_cif()` wrapper function
+  - Auto-extract atom information from CIF
+  - Generate KGRN atom section automatically (currently hardcoded)
+
+- [ ] **Consider different concentrations for alloys**
+  - Implement `create_kgrn_input_alloy()` for flexible alloy compositions
+  - Support concentration sweeps for binary/ternary alloys
+  - Add validation for concentration constraints (sum to 1.0 per site)
+  - Handle ferromagnetic and antiferromagnetic configurations
+
+- [ ] **Implement DMAX workflow**
+  - Create automated workflow: `optimize_dmax_workflow()`
+  - Integrate DMAX optimization into main `create_emto_inputs()` function
+  - Add option to run KSTR → optimize DMAX → update files → re-run KSTR
+  - Document best practices for DMAX optimization parameters
 
 ---
 
