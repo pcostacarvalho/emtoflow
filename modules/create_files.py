@@ -78,7 +78,7 @@ def create_shape_input(path, id_name, NQ3):
 
     template = f"""SHAPE     HP......=N
 JOBNAM...={id_name:<10} MSGL.=  1
-FOR001=f"../smx/{id_name}.tfh"
+FOR001=../smx/{id_name}.tfh
 DIR002=./
 DIR006=./
 Lmax..= 30 NSR..=129 NFI..= 11
@@ -97,7 +97,7 @@ NPRN..=  0 IVEF.=  3
 
 #######################################################################################
 
-def create_kgrn_input(path, id_name, SWS):
+def create_kgrn_input(path, id_namev, id_namer, SWS):
     """
     Create a KGRN (self-consistent KKR) input file for EMTO.
 
@@ -120,16 +120,16 @@ def create_kgrn_input(path, id_name, SWS):
     """
 
     template = f"""KGRN      HP..= 0   !                              xx xxx xx
-JOBNAM...={id_name}
+JOBNAM...={id_namev}
 MSGL.=1 STRT.=A FUNC.=SCA EXPAN=1 FCD.=Y GPM.=N FSM.=N
-FOR001=f"./smx/{id_name}.tfh"
-FOR002=f"./smx/{id_name}.mdl"
+FOR001=./smx/{id_namer}.tfh
+FOR002=./smx/{id_namer}.mdl
 DIR003=./pot/
 DIR006=
 DIR010=./chd/
 DIR011=./tmp
-DIR021={id_name}.gpm.dat
-DIR022=f"./shp/{id_name}.shp"
+DIR021={id_namev}.gpm.dat
+DIR022=./shp/{id_namer}.shp
 FOR098=/home/x_pamca/postdoc_proj/emto/jij_EMTO/kgrn_new2020/ATOM.cfg
 Self-consistent KKR calculation 
 **********************************************************************
@@ -143,7 +143,7 @@ ZMSH...= E NZ1..= 16 NZ2..= 16 NZ3..= 16 NRES.=  4 NZD..=999
 DEPTH..=  1.100 IMAGZ.=  0.005 EPS...=  0.200 ELIM..= -1.000
 AMIX...=  0.010 VMIX..=   0.70 EFMIX.=  0.900 VMTZ..=  0.000
 TOLE...= 1.d-07 TOLEF.= 1.d-06 TOLCPA= 1.d-06 TFERMI=  300.0 (K)
-SWS....= {SWS:>6} MMOM..=  0.000
+SWS....= {SWS:>6.2f} MMOM..=  0.000
 EFGS...=  0.000 HX....=  0.101 NX...=  5 NZ0..= 16 KPOLE=  0
 **********************************************************************
 Sort:  information for alloy:                                        *
@@ -169,14 +169,14 @@ DX.......=  0.030000 DR1.....=  0.001000 TEST....=  1.00E-12
 TESTE....=  1.00E-07 TESTY...=  1.00E-08 TESTV...=  1.00E-07
 """
 
-    with open(f"{path}/{id_name}.dat", "w") as f:
+    with open(f"{path}/{id_namev}.dat", "w") as f:
         f.write(template)
 
-    print(f"KGRN input file '{path}/{id_name}.dat' created successfully.")
+    print(f"KGRN input file '{path}/{id_namev}.dat' created successfully.")
 
 #######################################################################################
 
-def create_kfcd_input(path, id_name):
+def create_kfcd_input(path, id_namer, id_namev):
     """
     Create a KFCD input file for EMTO.
 
@@ -191,21 +191,21 @@ def create_kfcd_input(path, id_name):
     """
 
     template = f"""KFCD      HP......=N sno..=100                     xx xxx xx
-JOBNAM...={id_name:<10}                         MSGL.=  1
-STRNAM...={id_name}
+JOBNAM...={id_namev:<10}                         MSGL.=  1
+STRNAM...={id_namer}
 DIR001=../smx/
 DIR002=../chd/
-FOR003=f"../shp/{id_name}.shp"
+FOR003=../shp/{id_namer}.shp
 DIR004=../smx/
 DIR006=
 Lmaxs.= 30 NTH..= 41 NFI..= 81
 OVCOR.=  Y UBG..=  N NPRN.=  0 NRM..=  0
 """
 
-    with open(f"{path}/fcd/{id_name}.dat", "w") as f:
+    with open(f"{path}/fcd/{id_namev}.dat", "w") as f:
         f.write(template)
 
-    print(f"KFCD input file '{path}/fcd/{id_name}.dat' created successfully.")
+    print(f"KFCD input file '{path}/fcd/{id_namev}.dat' created successfully.")
 
 #######################################################################################
 
@@ -481,9 +481,9 @@ def create_inputs(params):
         for v in sws:
             filev=filer+f"_{v:.2f}"
         
-            create_kgrn_input(path=path, id_name=f"{filev}",SWS=v)
+            create_kgrn_input(path=path, id_namev=f"{filev}", id_namer=f"{filer}" ,SWS=v)
 
-            create_kfcd_input(path=path, id_name=f"{filev}")
+            create_kfcd_input(path=path, id_namev=f"{filev}", id_namer=f"{filer}")
 
     
 
@@ -520,6 +520,8 @@ id_name="{id_name}"
 
 for r in {ratios_str}; do
 
+    echo "c/a ratio: $r"
+
     cd smx
 
     echo "Running KSTR:"
@@ -550,6 +552,8 @@ for r in {ratios_str}; do
     cd ../
 
     for v in {volumes_str}; do
+
+        echo "WSW: $v"
 
         echo "Running KGRN:"
         mpirun -n {prcs}  kgrn_mpi.x < {id_name}_${{r}}_${{v}}.dat > kgrn_${{r}}_${{v}}.log
