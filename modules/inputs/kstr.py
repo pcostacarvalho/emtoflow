@@ -30,9 +30,9 @@ DIR001=./
 DIR006=
 Slope and Madelung matrices
 NL.....= {NL:>1} NLH...= 9 NLW...= 9 NDER..= 6 ITRANS= 3 NPRN..= 1
-(K*W)^2..=   0.00000 DMAX....=    {DMAX:>6} RWATS...=      0.10
+(K*W)^2..=   0.00000 DMAX....=    {DMAX:>6.3f} RWATS...=      0.10
 NQ3...= {NQ3:>2} LAT...= {LAT:>1} IPRIM.= 0 NGHBP.=13 NQR2..= 0        80
-A........= {A:.7f} B.......= {B:.7f} C.......={C:.8f}
+A........= {A:>.7f} B.......= {B:>.7f} C.......= {C:>.7f}
 """
 
     # Add lattice vectors
