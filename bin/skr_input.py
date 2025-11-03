@@ -39,9 +39,9 @@ def create_kstr_input(output_folder, job_name, NL, NQ3, DMAX, LAT, A, B, C, latt
         "DIR006=",
         "Slope and Madelung matrices",
         f"NL.....= {NL:>1} NLH...= 9 NLW...= 9 NDER..= 6 ITRANS= 3 NPRN..= 1",
-        f"(K*W)^2..=   0.00000 DMAX....=    {DMAX:>6} RWATS...=      0.10",
+        f"(K*W)^2..=   0.00000 DMAX....=    {DMAX:>6.2f} RWATS...=      0.10",
         f"NQ3...= {NQ3:>2} LAT...= {LAT:>1} IPRIM.= 0 NGHBP.=13 NQR2..= 0        80",
-        f"A........= {A:.7f} B.......= {B:.7f} C.......={C:.8f}",
+        f"A........= {A:.7f} B.......= {B:.7f} C.......={C:.7f}",
     ]
 
     # Add lattice vectors
@@ -58,7 +58,7 @@ def create_kstr_input(output_folder, job_name, NL, NQ3, DMAX, LAT, A, B, C, latt
         lines.append("a/w......= 0.70 0.70 0.70 0.70")
 
     lines.extend([f"NL_mdl.= {2*NL + 1}",
-                "LAMDA....=    2.5000 AMAX....=    4.5000 BMAX....=    4.5000"])
+                "LAMDA....=    2.5000 AMAX....=    4.5000 BMAX....=    4.5000",""])
  
 
     # Write to file
@@ -86,6 +86,10 @@ parser.add_argument("--LAT",
                     required=True, 
                     type=int, 
                     help="Bravais lattice type.")
+parser.add_argument("--NL", 
+                    required=False, 
+                    type=int, 
+                    help="Maximum number of orbitals")
 
 args = parser.parse_args()
 
@@ -94,16 +98,19 @@ cif_filename = os.path.join(args.output_folder, args.JobName + '.cif')
 
 LatticeVectors, AtomicPositions, a, b, c, atoms = get_LatticeVectors(cif_filename)
 
-NLs = []
-for atom in set(atoms):
-    if 'f' in atom.electronic_structure:
-        NLs.append(3)
-    elif 'd' in atom.electronic_structure:
-        NLs.append(2) 
-    elif 'p' in atom.electronic_structure:      
-        NLs.append(1)
+if not args.NL:
+    NLs = []
+    for atom in set(atoms):
+        if 'f' in atom.electronic_structure:
+            NLs.append(3)
+        elif 'd' in atom.electronic_structure:
+            NLs.append(2) 
+        elif 'p' in atom.electronic_structure:      
+            NLs.append(1)
 
-NL = max(NLs)
+    NL = max(NLs)
+else:
+    NL = args.NL
 
 # Generate file
 create_kstr_input(
