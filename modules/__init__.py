@@ -10,6 +10,7 @@ This package provides tools for automating EMTO input file creation:
 """
 
 from .workflows import create_emto_inputs
+from .dos import DOSParser, DOSPlotter
 
 __all__ = [
     'create_emto_inputs',
