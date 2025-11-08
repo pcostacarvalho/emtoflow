@@ -2,16 +2,17 @@ import numpy as np
 import os
 from modules.parse_cif import get_LatticeVectors
 from modules.inputs.kstr import create_kstr_input
-
+from modules.lat_detector import get_emto_lattice_info
 
 def create_kstr_input_from_cif(
     cif_file,
     output_path,
     job_name,
     dmax,
-    lat,
+    ca_ratio=None,
+    lat = None,
     nl=None
-):
+    ):
     """
     Create a KSTR input file from a CIF file.
     
@@ -28,8 +29,8 @@ def create_kstr_input_from_cif(
         Name of the EMTO job
     dmax : float
         Maximum distance parameter
-    lat : int
-        Bravais lattice type
+    lat : int, optional
+        Bravais lattice type (1-14). If None, will be auto-detected from CIF.
     nl : int, optional
         Number of layers. If not provided, will be auto-determined from 
         electronic structure (f->3, d->2, p->1)
@@ -39,10 +40,47 @@ def create_kstr_input_from_cif(
     dict : Dictionary containing extracted parameters (NL, NQ3, a, b, c, atoms)
     """
     
-    # Parse CIF file
-    lattice_matrix, atomic_positions, a, b, c, atoms = get_LatticeVectors(cif_file)
+    # Get all lattice info including auto-detected LAT
+    lattice_info = get_emto_lattice_info(cif_file)
     
-    # Determine NL
+    # Use provided LAT or auto-detected
+    if lat is None:
+        lat = lattice_info['lat']
+        print(f"Auto-detected LAT={lat} ({lattice_info['lattice_name']})")
+    else:
+        print(f"Using provided LAT={lat}")
+        if lat != lattice_info['lat']:
+            print(f"WARNING: Provided LAT={lat} differs from auto-detected LAT={lattice_info['lat']} ({lattice_info['lattice_name']})")
+    
+    # Extract data from lattice_info
+    # lattice_matrix = lattice_info['matrix']
+    lattice_matrix = np.array([lattice_info['BSX'], lattice_info['BSY'], lattice_info['BSZ']])
+    # atomic_positions = lattice_info['coords']
+
+    a = lattice_info['a']
+    b = lattice_info['b']
+    c = lattice_info['c']
+
+    atoms = lattice_info['atoms']
+    
+    
+    # Normalize to lattice parameter 'a'
+    A = a / a  # = 1.0
+    B = b / a
+    
+    if ca_ratio is None:
+        C = lattice_info['c']/a
+    else:
+        C = ca_ratio
+        # Scale ALL z-components proportionally
+        scale_factor = ca_ratio / lattice_info['coa']
+        lattice_matrix = lattice_matrix.copy()
+        lattice_matrix[:, 2] = lattice_matrix[:, 2] * scale_factor
+        
+    # normalized_lattice = lattice_matrix / a
+    atomic_positions = lattice_info['fractional_coords'] @ lattice_matrix
+
+        # Determine NL
     if nl is None:
         # Auto-determine from electronic structure
         NLs = []
@@ -62,13 +100,6 @@ def create_kstr_input_from_cif(
     
     NQ3 = len(atomic_positions)
     
-    # Normalize to lattice parameter 'a'
-    A = a / a  # = 1.0
-    B = b / a
-    C = c / a
-    normalized_lattice = lattice_matrix / a
-    normalized_positions = atomic_positions / a
-    
     # Create output directory structure
     os.makedirs(output_path, exist_ok=True)
     os.makedirs(f"{output_path}/smx", exist_ok=True)  # NEW LINE
@@ -84,8 +115,8 @@ def create_kstr_input_from_cif(
         A=A,
         B=B,
         C=C,
-        lattice_vectors=normalized_lattice,
-        lattice_positions=normalized_positions
+        lattice_vectors=lattice_matrix,
+        lattice_positions=atomic_positions
     )
     
     return {
@@ -94,5 +125,7 @@ def create_kstr_input_from_cif(
         'a': a,
         'b': b,
         'c': c,
-        'atoms': [atom.symbol for atom in atoms]
+        'atoms': [atom.symbol for atom in atoms],
+        'lat': lat,
+        'lattice_name': lattice_info['lattice_name']
     }

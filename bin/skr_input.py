@@ -90,6 +90,11 @@ parser.add_argument("--NL",
                     required=False, 
                     type=int, 
                     help="Maximum number of orbitals")
+parser.add_argument("--LAT", 
+                    required=False,      # Changed from True
+                    default=None,        # Added
+                    type=int, 
+                    help="Bravais lattice type (1-14). Auto-detected from CIF if not provided.")
 
 args = parser.parse_args()
 
@@ -97,6 +102,16 @@ args = parser.parse_args()
 cif_filename = os.path.join(args.output_folder, args.JobName + '.cif')
 
 LatticeVectors, AtomicPositions, a, b, c, atoms = get_LatticeVectors(cif_filename)
+
+# Auto-detect LAT if not provided
+if args.LAT is None:
+    from modules.lat_detector import detect_lat_from_cif
+    lat, lattice_name, crystal_system, centering = detect_lat_from_cif(cif_filename)
+    print(f"Auto-detected LAT={lat} ({lattice_name})")
+else:
+    lat = args.LAT
+    print(f"Using provided LAT={lat}")
+
 
 if not args.NL:
     NLs = []
@@ -117,7 +132,7 @@ create_kstr_input(
     output_folder=args.output_folder,
     job_name=args.JobName,
     DMAX=args.DMAX,
-    LAT=args.LAT,
+    LAT=lat,
     NL=NL,
     NQ3=len(AtomicPositions),
     A=a/a,

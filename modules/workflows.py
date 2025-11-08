@@ -15,9 +15,9 @@ def create_emto_inputs(
     output_path,
     job_name,
     dmax,
-    lat,
     ca_ratios,
     sws_values,
+    lat= None,
     from_cif=False,
     cif_file=None,
     nl=None,
@@ -47,8 +47,9 @@ def create_emto_inputs(
         Job identifier (e.g., 'fept')
     dmax : float
         Maximum distance parameter for KSTR
-    lat : int
-        Bravais lattice type
+    lat : int, optional
+        Bravais lattice type (1-14). If None and from_cif=True, will be auto-detected.
+        Required when from_cif=False.
     ca_ratios : list of float
         List of c/a ratios to sweep
     sws_values : list of float
@@ -74,12 +75,12 @@ def create_emto_inputs(
     
     Examples
     --------
-    # Mode 1: From CIF (new way)
+    # Mode 1: From CIF (new way - LAT auto-detected)
     create_emto_inputs(
         output_path="./fept_sweep",
         job_name="fept",
         dmax=1.3,
-        lat=5,
+        lat=None,  # Auto-detected from CIF
         ca_ratios=[0.92, 0.96, 1.00],
         sws_values=[2.60, 2.65, 2.70],
         from_cif=True,
@@ -103,13 +104,14 @@ def create_emto_inputs(
     )
     """
     
-    # ==================== INPUT VALIDATION ====================
+# ==================== INPUT VALIDATION ====================
     if from_cif:
         if cif_file is None:
             raise ValueError("cif_file must be provided when from_cif=True")
+        # LAT is optional when from_cif=True (will be auto-detected)
     else:
-        if any(x is None for x in [fractional_coords, NL, NQ3, B]):
-            raise ValueError("fractional_coords, NL, NQ3, B must be provided when from_cif=False")
+        if any(x is None for x in [fractional_coords, NL, NQ3, B, lat]):
+            raise ValueError("fractional_coords, NL, NQ3, B, lat must be provided when from_cif=False")
     
     # ==================== CREATE DIRECTORY STRUCTURE ====================
     subfolders = ['smx', 'shp', 'pot', 'chd', 'fcd', 'tmp']
@@ -132,6 +134,8 @@ def create_emto_inputs(
         
         # ==================== MODE 1: FROM CIF ====================
         if from_cif:
+            if lat is None:
+                print(f"    LAT will be auto-detected from CIF")
             # Use the CIF-aware function - it handles everything
             info = create_kstr_input_from_cif(
                 cif_file=cif_file,
@@ -139,7 +143,8 @@ def create_emto_inputs(
                 job_name=file_id_ratio,
                 dmax=dmax,
                 lat=lat,
-                nl=nl
+                nl=nl,
+                ca_ratio=ratio
             )
             
             # Extract info for SHAPE/KGRN/KFCD creation
