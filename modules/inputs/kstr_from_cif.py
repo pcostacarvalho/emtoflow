@@ -2,46 +2,61 @@ import numpy as np
 import os
 from modules.parse_cif import get_LatticeVectors
 from modules.inputs.kstr import create_kstr_input
-from modules.lat_detector import get_emto_lattice_info
+from modules.lat_detector import get_emto_lattice_info, parse_emto_structure
 
 def create_kstr_input_from_cif(
-    cif_file,
-    output_path,
-    job_name,
-    dmax,
+    cif_file=None,
+    output_path=None,
+    job_name=None,
+    dmax=None,
     ca_ratio=None,
-    lat = None,
-    nl=None
+    lat=None,
+    nl=None,
+    structure=None
     ):
     """
-    Create a KSTR input file from a CIF file.
-    
+    Create a KSTR input file from a CIF file or pre-parsed structure.
+
     This is a wrapper around create_kstr_input() that automatically extracts
-    lattice vectors and atomic positions from the CIF file.
-    
+    lattice vectors and atomic positions from the CIF file or uses a pre-parsed
+    structure dict for efficiency.
+
     Parameters
     ----------
-    cif_file : str
-        Path to CIF file
+    cif_file : str, optional
+        Path to CIF file (required if structure is None)
     output_path : str
         Folder to save the generated .dat file
     job_name : str
         Name of the EMTO job
     dmax : float
         Maximum distance parameter
+    ca_ratio : float, optional
+        Override c/a ratio (scales z-coordinates)
     lat : int, optional
-        Bravais lattice type (1-14). If None, will be auto-detected from CIF.
+        Bravais lattice type (1-14). If None, will be auto-detected.
     nl : int, optional
-        Number of layers. If not provided, will be auto-determined from 
+        Number of layers. If not provided, will be auto-determined from
         electronic structure (f->3, d->2, p->1)
-    
+    structure : dict, optional
+        Pre-parsed structure dict from parse_emto_structure(). If provided,
+        cif_file will be ignored. This improves efficiency when creating
+        multiple inputs from the same CIF.
+
     Returns
     -------
     dict : Dictionary containing extracted parameters (NL, NQ3, a, b, c, atoms)
     """
-    
-    # Get all lattice info including auto-detected LAT
-    lattice_info = get_emto_lattice_info(cif_file)
+
+    # Get structure info from pre-parsed dict or parse CIF
+    if structure is not None:
+        # Use pre-parsed structure (efficient for multiple calls)
+        lattice_info = structure
+    else:
+        # Parse CIF (backward compatibility)
+        if cif_file is None:
+            raise ValueError("Either cif_file or structure must be provided")
+        lattice_info = get_emto_lattice_info(cif_file)
     
     # Use provided LAT or auto-detected
     if lat is None:

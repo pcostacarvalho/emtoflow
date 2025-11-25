@@ -9,6 +9,7 @@ from modules.inputs import (
     write_serial_sbatch,
     write_parallel_sbatch
 )
+from modules.lat_detector import parse_emto_structure
 
 
 def create_emto_inputs(
@@ -110,6 +111,15 @@ def create_emto_inputs(
             raise ValueError("cif_file must be provided when from_cif=True")
         # LAT is optional when from_cif=True (will be auto-detected)
     else:
+        # Legacy mode - only partially supported
+        import warnings
+        warnings.warn(
+            "Legacy mode (from_cif=False) is deprecated and only supports KSTR creation. "
+            "KGRN/SHAPE/KFCD generators now require full structure information from CIF. "
+            "Please use from_cif=True for complete workflow support.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         if any(x is None for x in [fractional_coords, NL, NQ3, B, lat]):
             raise ValueError("fractional_coords, NL, NQ3, B, lat must be provided when from_cif=False")
     
@@ -118,12 +128,29 @@ def create_emto_inputs(
     os.makedirs(output_path, exist_ok=True)
     for subfolder in subfolders:
         os.makedirs(os.path.join(output_path, subfolder), exist_ok=True)
-    
+
     print(f"Created directory structure in: {output_path}")
-    
+
+    # ==================== PARSE CIF ONCE (IF APPLICABLE) ====================
+    structure = None
+    if from_cif:
+        print(f"\nParsing CIF file: {cif_file}")
+        structure = parse_emto_structure(cif_file)
+        print(f"  Detected lattice: LAT={structure['lat']} ({structure['lattice_name']})")
+        print(f"  Number of atoms: NQ3={structure['NQ3']}")
+        print(f"  Maximum NL: {structure['NL']}")
+
+        # Override with user-provided values if specified
+        if lat is not None:
+            structure['lat'] = lat
+            print(f"  Using user-provided LAT={lat}")
+        if nl is not None:
+            structure['NL'] = nl
+            print(f"  Using user-provided NL={nl}")
+
     # ==================== SWEEP OVER C/A RATIOS ====================
     print(f"\nCreating input files for {len(ca_ratios)} c/a ratios and {len(sws_values)} SWS values...")
-    
+
     # Store metadata for return
     metadata = {}
     
@@ -134,26 +161,24 @@ def create_emto_inputs(
         
         # ==================== MODE 1: FROM CIF ====================
         if from_cif:
-            if lat is None:
-                print(f"    LAT will be auto-detected from CIF")
-            # Use the CIF-aware function - it handles everything
+            # Use pre-parsed structure (parsed once at the beginning)
             info = create_kstr_input_from_cif(
-                cif_file=cif_file,
+                structure=structure,
                 output_path=output_path,
                 job_name=file_id_ratio,
                 dmax=dmax,
-                lat=lat,
-                nl=nl,
+                lat=structure['lat'],
+                nl=structure['NL'],
                 ca_ratio=ratio
             )
-            
-            # Extract info for SHAPE/KGRN/KFCD creation
-            if not metadata:  # Store once
+
+            # Extract metadata for return (store once)
+            if not metadata:
                 metadata = {
-                    'NL': info['NL'],
-                    'NQ3': info['NQ3'],
-                    'B': info['b'] / info['a'],
-                    'atoms': info['atoms']
+                    'NL': structure['NL'],
+                    'NQ3': structure['NQ3'],
+                    'B': structure['boa'],
+                    'atoms': [atom['symbol'] for atom in structure['atom_info']]
                 }
         
         # ==================== MODE 2: WITH PARAMETERS ====================
@@ -193,30 +218,62 @@ def create_emto_inputs(
                 }
         
         # ==================== CREATE SHAPE INPUT (BOTH MODES) ====================
-        create_shape_input(
-            path=output_path,
-            id_name=file_id_ratio,
-            NQ3=metadata['NQ3']
-        )
-        
+        if from_cif:
+            # Use structure dict for CIF mode
+            create_shape_input(
+                structure=structure,
+                path=output_path,
+                id_name=file_id_ratio
+            )
+        else:
+            # Use metadata for legacy mode
+            create_shape_input(
+                structure={'NQ3': metadata['NQ3']},  # Minimal structure dict
+                path=output_path,
+                id_name=file_id_ratio
+            )
+
         # ==================== SWEEP OVER SWS VALUES ====================
         for sws in sws_values:
             file_id_full = f"{file_id_ratio}_{sws:.2f}"
-            
+
             # Create KGRN input
-            create_kgrn_input(
-                path=output_path,
-                id_namev=file_id_full,
-                id_namer=file_id_ratio,
-                SWS=sws
-            )
-            
+            if from_cif:
+                create_kgrn_input(
+                    structure=structure,
+                    path=output_path,
+                    id_namev=file_id_full,
+                    id_namer=file_id_ratio,
+                    SWS=sws
+                )
+            else:
+                # For legacy mode, create minimal structure dict
+                legacy_structure = {
+                    'atom_info': []  # Would need to be populated for legacy mode
+                }
+                create_kgrn_input(
+                    structure=legacy_structure,
+                    path=output_path,
+                    id_namev=file_id_full,
+                    id_namer=file_id_ratio,
+                    SWS=sws
+                )
+
             # Create KFCD input
-            create_kfcd_input(
-                path=output_path,
-                id_namer=file_id_ratio,
-                id_namev=file_id_full
-            )
+            if from_cif:
+                create_kfcd_input(
+                    structure=structure,
+                    path=output_path,
+                    id_namer=file_id_ratio,
+                    id_namev=file_id_full
+                )
+            else:
+                create_kfcd_input(
+                    structure={},  # Minimal structure dict (not used by KFCD)
+                    path=output_path,
+                    id_namer=file_id_ratio,
+                    id_namev=file_id_full
+                )
     # ==================== CREATE JOB SCRIPTS ====================
     if create_job_script:
         print(f"\nCreating {job_mode} job script...")
