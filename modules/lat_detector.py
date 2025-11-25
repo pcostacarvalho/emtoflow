@@ -10,6 +10,111 @@ from pymatgen.core import Structure
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 
 
+# ==================== MAGNETIC MOMENT DATABASE ====================
+# Default magnetic moments for common elements (in Bohr magnetons)
+DEFAULT_MAGNETIC_MOMENTS = {
+    # 3d transition metals
+    'Fe': 2.0,
+    'Co': 1.5,
+    'Ni': 0.6,
+    'Mn': 3.0,
+    'Cr': 2.5,
+    'V': 2.0,
+    'Ti': 1.5,
+    'Sc': 1.0,
+
+    # 4d transition metals
+    'Ru': 1.0,
+    'Rh': 0.5,
+    'Pd': 0.3,
+    'Tc': 1.5,
+    'Mo': 1.0,
+    'Nb': 1.0,
+    'Zr': 1.0,
+    'Y': 1.0,
+
+    # 5d transition metals
+    'Pt': 0.4,
+    'Ir': 0.3,
+    'Os': 0.5,
+    'Re': 1.0,
+    'W': 0.5,
+    'Ta': 0.5,
+    'Hf': 0.5,
+
+    # Rare earths
+    'Gd': 7.0,
+    'Tb': 6.0,
+    'Dy': 5.0,
+    'Ho': 4.0,
+    'Er': 3.0,
+    'Tm': 2.0,
+    'Nd': 3.0,
+    'Sm': 5.0,
+
+    # Actinides
+    'U': 2.0,
+    'Pu': 5.0,
+}
+
+# Default fallback for elements not in database
+DEFAULT_MOMENT_FALLBACK = 0.1
+
+
+def get_default_magnetic_moment(element_symbol):
+    """
+    Get default magnetic moment for an element.
+
+    Parameters
+    ----------
+    element_symbol : str
+        Element symbol (e.g., 'Fe', 'Pt')
+
+    Returns
+    -------
+    float
+        Default magnetic moment in Bohr magnetons
+    """
+    return DEFAULT_MAGNETIC_MOMENTS.get(element_symbol, DEFAULT_MOMENT_FALLBACK)
+
+
+def get_inequivalent_atoms(structure):
+    """
+    Determine inequivalent atoms (IT) from symmetry analysis.
+
+    Atoms are inequivalent if they cannot be transformed into each other
+    by symmetry operations of the space group.
+
+    Parameters
+    ----------
+    structure : Structure
+        Pymatgen Structure object
+
+    Returns
+    -------
+    dict
+        Mapping from site index to IT number (starting from 1)
+        Example: {0: 1, 1: 1, 2: 2, 3: 2} means atoms 0,1 are IT=1 and atoms 2,3 are IT=2
+    """
+    sga = SpacegroupAnalyzer(structure)
+    symmetrized_structure = sga.get_symmetrized_structure()
+
+    # Get equivalent sites - atoms in the same list are symmetrically equivalent
+    equivalent_sites = symmetrized_structure.equivalent_indices
+
+    # Create mapping: site_index -> IT number
+    site_to_it = {}
+    it_counter = 1
+
+    # Each group of equivalent sites gets the same IT number
+    for equiv_group in equivalent_sites:
+        for site_idx in equiv_group:
+            site_to_it[site_idx] = it_counter
+        it_counter += 1
+
+    return site_to_it
+
+
 def map_to_lat_number(crystal_system, centering):
     """
     Map crystal system + centering to EMTO LAT number.
@@ -241,58 +346,145 @@ def generate_emto_primitive_vectors(lat, a, b, c, alpha=90.0, beta=90.0, gamma=9
     return BSX, BSY, BSZ, boa, coa
 
 
-def get_emto_lattice_info(cif_file):
+def parse_emto_structure(cif_file, user_magnetic_moments=None):
     """
-    Complete function to extract all EMTO lattice info from CIF.
-    
-    This is the main function you should use.
-    
+    Complete function to parse CIF and extract all EMTO structure information.
+
+    This is the main function for the new workflow. It parses the CIF once
+    and returns all information needed for KSTR, SHAPE, KGRN, and KFCD input generation.
+
     Parameters
     ----------
     cif_file : str
         Path to CIF file
-    
+    user_magnetic_moments : dict, optional
+        User-provided magnetic moments per element symbol.
+        Example: {'Fe': 2.5, 'Pt': 0.3}
+        If not provided, uses default database values.
+
     Returns
     -------
     dict
-        Dictionary containing:
-        - lat: EMTO lattice number
-        - lattice_name: Human-readable name
+        Comprehensive structure dictionary containing:
+
+        **Lattice information:**
+        - lat: EMTO lattice number (1-14)
+        - lattice_name: Human-readable name (e.g., 'Simple tetragonal')
         - a, b, c: Lattice parameters (Angstrom)
-        - alpha, beta, gamma: Angles (degrees)
+        - alpha, beta, gamma: Crystallographic angles (degrees)
         - boa, coa: Ratios b/a and c/a
         - BSX, BSY, BSZ: Primitive vectors (normalized to a)
-        - crystal_system: Crystal system
-        - centering: Centering type
+        - crystal_system: Crystal system (e.g., 'tetragonal')
+        - centering: Centering type ('P', 'I', 'F', 'C', 'R')
+
+        **Atomic information:**
+        - NQ3: Total number of atoms in unit cell
+        - NL: Number of angular momentum layers (auto-determined)
+        - atoms: List of element symbols ['Pt', 'Pt', 'Fe', 'Fe']
+        - unique_elements: List of unique elements ['Fe', 'Pt']
+        - fractional_coords: Fractional coordinates (Nx3 array)
+        - coords: Cartesian coordinates (Nx3 array, Angstrom)
+
+        **KGRN-specific information:**
+        - atom_info: List of dicts, one per atom, containing:
+            - IQ: Atom index (1-based)
+            - symbol: Element symbol (e.g., 'Fe')
+            - IT: Inequivalent atom type (from symmetry analysis)
+            - ITA: Alloy component index (always 1 for ordered structures)
+            - conc: Concentration (always 1.0 for ordered structures)
+            - default_moment: Default magnetic moment (Bohr magnetons)
+            - a_scr: Screening parameter a (default 0.750)
+            - b_scr: Screening parameter b (default 1.100)
+
+        **Raw data (for advanced use):**
         - matrix: 3x3 lattice matrix from pymatgen
-        - coords: Atomic coordinates
-        - atoms: List of atomic species
+        - structure: Pymatgen Structure object (conventional cell)
+
+    Examples
+    --------
+    >>> structure = parse_emto_structure('FePt.cif')
+    >>> print(f"LAT={structure['lat']}, NQ3={structure['NQ3']}, NL={structure['NL']}")
+    >>> for atom in structure['atom_info']:
+    ...     print(f"IQ={atom['IQ']} {atom['symbol']} IT={atom['IT']}")
     """
     from modules.parse_cif import get_LatticeVectors
-    
+
+    # ==================== BASIC LATTICE EXTRACTION ====================
     # Get lattice parameters from existing function
-    matrix, coords, a, b, c, atoms = get_LatticeVectors(cif_file)
-    
-    # Get angles from the conventional structure
+    matrix, coords, a, b, c, atoms_species = get_LatticeVectors(cif_file)
+
+    # Get angles and structure from pymatgen
     structure = Structure.from_file(cif_file)
     sga = SpacegroupAnalyzer(structure)
     conv_structure = sga.get_conventional_standard_structure()
-    
-    sites_frac = conv_structure.frac_coords
 
+    sites_frac = conv_structure.frac_coords
     alpha = conv_structure.lattice.alpha
     beta = conv_structure.lattice.beta
     gamma = conv_structure.lattice.gamma
-    
-    # Detect LAT number
+
+    # ==================== LAT DETECTION ====================
     lat, lattice_name, crystal_system, centering = detect_lat_from_cif(cif_file)
-    
+
     # Generate primitive vectors using EMTO formulas
     BSX, BSY, BSZ, boa, coa = generate_emto_primitive_vectors(
         lat, a, b, c, alpha, beta, gamma
     )
-    
+
+    # ==================== ATOM INFORMATION ====================
+    # Convert pymatgen Species to symbols
+    atoms = [str(atom.symbol) for atom in atoms_species]
+    unique_elements = sorted(set(atoms))  # Sorted for consistency
+    NQ3 = len(atoms)
+
+    # Determine NL from electronic structure
+    NLs = []
+    for atom_symbol in set(atoms):
+        # Get pymatgen Element object for electronic structure
+        from pymatgen.core import Element
+        elem = Element(atom_symbol)
+        electronic_str = elem.electronic_structure
+
+        if 'f' in electronic_str:
+            NLs.append(3)
+        elif 'd' in electronic_str:
+            NLs.append(2)
+        elif 'p' in electronic_str:
+            NLs.append(1)
+        else:
+            NLs.append(1)  # Default to s,p (NL=1)
+
+    NL = max(NLs) if NLs else 2  # Default to 2 if can't determine
+
+    # ==================== INEQUIVALENT ATOMS (IT) ====================
+    site_to_it = get_inequivalent_atoms(conv_structure)
+
+    # ==================== BUILD ATOM_INFO LIST ====================
+    atom_info = []
+
+    for iq in range(NQ3):
+        symbol = atoms[iq]
+
+        # Get magnetic moment (user-provided or default)
+        if user_magnetic_moments and symbol in user_magnetic_moments:
+            moment = user_magnetic_moments[symbol]
+        else:
+            moment = get_default_magnetic_moment(symbol)
+
+        atom_info.append({
+            'IQ': iq + 1,  # 1-based indexing for EMTO
+            'symbol': symbol,
+            'IT': site_to_it[iq],  # From symmetry analysis
+            'ITA': 1,  # Always 1 for ordered structures
+            'conc': 1.0,  # Always 1.0 for ordered structures
+            'default_moment': moment,
+            'a_scr': 0.750,  # Default screening parameter
+            'b_scr': 1.100,  # Default screening parameter
+        })
+
+    # ==================== RETURN COMPREHENSIVE DICTIONARY ====================
     return {
+        # Lattice information
         'lat': lat,
         'lattice_name': lattice_name,
         'a': a,
@@ -308,10 +500,55 @@ def get_emto_lattice_info(cif_file):
         'BSZ': BSZ,
         'crystal_system': crystal_system,
         'centering': centering,
-        'matrix': matrix,
-        'coords': coords,
+
+        # Atomic information
+        'NQ3': NQ3,
+        'NL': NL,
         'atoms': atoms,
-        'fractional_coords': sites_frac
+        'unique_elements': unique_elements,
+        'fractional_coords': sites_frac,
+        'coords': coords,
+
+        # KGRN-specific
+        'atom_info': atom_info,
+
+        # Raw data
+        'matrix': matrix,
+        'structure': conv_structure,
+    }
+
+
+# Backward compatibility alias
+def get_emto_lattice_info(cif_file):
+    """
+    DEPRECATED: Use parse_emto_structure() instead.
+
+    This function is kept for backward compatibility but returns
+    the old subset of information only.
+    """
+    full_info = parse_emto_structure(cif_file)
+
+    # Return only the old keys for backward compatibility
+    return {
+        'lat': full_info['lat'],
+        'lattice_name': full_info['lattice_name'],
+        'a': full_info['a'],
+        'b': full_info['b'],
+        'c': full_info['c'],
+        'alpha': full_info['alpha'],
+        'beta': full_info['beta'],
+        'gamma': full_info['gamma'],
+        'boa': full_info['boa'],
+        'coa': full_info['coa'],
+        'BSX': full_info['BSX'],
+        'BSY': full_info['BSY'],
+        'BSZ': full_info['BSZ'],
+        'crystal_system': full_info['crystal_system'],
+        'centering': full_info['centering'],
+        'matrix': full_info['matrix'],
+        'coords': full_info['coords'],
+        'atoms': [str(a) for a in full_info['atoms']],  # Keep as strings
+        'fractional_coords': full_info['fractional_coords']
     }
 
 
