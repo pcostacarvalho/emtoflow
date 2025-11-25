@@ -414,9 +414,10 @@ def parse_emto_structure(cif_file, user_magnetic_moments=None):
     matrix, coords, a, b, c, atoms_species = get_LatticeVectors(cif_file)
 
     # Get angles and structure from pymatgen
+    # IMPORTANT: EMTO requires CONVENTIONAL cell, not primitive!
     structure = Structure.from_file(cif_file)
     sga = SpacegroupAnalyzer(structure)
-    conv_structure = sga.get_conventional_standard_structure()
+    conv_structure = sga.get_conventional_standard_structure()  # NOT get_primitive_standard_structure()
 
     sites_frac = conv_structure.frac_coords
     alpha = conv_structure.lattice.alpha
