@@ -10,8 +10,7 @@ This module provides functions to create input files for different EMTO programs
 - Jobs: SLURM batch scripts
 """
 
-from .kstr import create_kstr_input
-from .kstr_from_cif import create_kstr_input_from_cif  # NEW
+from .kstr import create_kstr_input  # NEW
 from .shape import create_shape_input
 from .kgrn import create_kgrn_input
 from .kfcd import create_kfcd_input
@@ -25,7 +24,6 @@ from .jobs_tetralith import (
 
 __all__ = [
     'create_kstr_input',
-    'create_kstr_input_from_cif',  # NEW
     'create_shape_input',
     'create_kgrn_input',
     'create_kfcd_input',

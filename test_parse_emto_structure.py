@@ -7,7 +7,7 @@ from modules.lat_detector import parse_emto_structure
 import json
 
 # Test with FePt CIF file
-cif_file = './testing/FePt.cif'
+cif_file = './testing/K6Si2O7.cif'
 
 print("="*70)
 print("Testing parse_emto_structure() with FePt.cif")
