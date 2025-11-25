@@ -437,22 +437,22 @@ def parse_emto_structure(cif_file, user_magnetic_moments=None):
     unique_elements = sorted(set(atoms))  # Sorted for consistency
     NQ3 = len(atoms)
 
-    # Determine NL from electronic structure
+    # Determine NL from element block (valence electrons)
     NLs = []
     for atom_symbol in set(atoms):
-        # Get pymatgen Element object for electronic structure
         from pymatgen.core import Element
         elem = Element(atom_symbol)
-        electronic_str = elem.electronic_structure
 
-        if 'f' in electronic_str:
+        # Determine NL based on element block (valence electrons)
+        # f-block: lanthanoids and actinoids with valence f-electrons
+        if elem.is_lanthanoid or elem.is_actinoid:
             NLs.append(3)
-        elif 'd' in electronic_str:
+        # d-block: transition metals with valence d-electrons
+        elif elem.is_transition_metal:
             NLs.append(2)
-        elif 'p' in electronic_str:
-            NLs.append(1)
+        # s,p-block: main group elements
         else:
-            NLs.append(1)  # Default to s,p (NL=1)
+            NLs.append(1)
 
     NL = max(NLs) if NLs else 2  # Default to 2 if can't determine
 
