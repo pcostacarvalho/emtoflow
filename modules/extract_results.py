@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -13,56 +13,101 @@ class IterationData:
     dos_ef: float
     magnetic_moments: List[float]  # Per atom
     total_magnetic_moment: float
+    # New: weighted magnetic moments per unique IQ
+    weighted_magnetic_moments: Dict[int, float] = None
+
+    def __post_init__(self):
+        if self.weighted_magnetic_moments is None:
+            self.weighted_magnetic_moments = {}
 
 
 @dataclass
 class EMTOResults:
     """Container for EMTO calculation results."""
-    
+
     # Convergence data
     total_energy: Optional[float] = None
     free_energy: Optional[float] = None
     kinetic_energy: Optional[float] = None
-    
+
     # Iteration history
     iterations: List[IterationData] = None
-    
-    # Magnetic moments
-    magnetic_moments: Dict[str, float] = None  # Per atom type
+
+    # Magnetic moments - now keyed by (IQ, ITA, atom_name)
+    magnetic_moments: Dict[Tuple[int, int, str], float] = None
     total_magnetic_moment: Optional[float] = None
-    
-    # Energy by functional (from KFCD)
-    energies_by_functional: Dict[str, Dict[str, float]] = None
-    
+
+    # Concentrations - keyed by (IQ, ITA)
+    concentrations: Dict[Tuple[int, int], float] = None
+
+    # Weighted magnetic moments per IQ (sum over ITAs weighted by concentration)
+    weighted_magnetic_moments: Dict[int, float] = None
+
+    # Energy by functional - now keyed by (IQ, ITA, atom_name)
+    energies_by_functional: Dict[Tuple, Dict[str, float]] = None
+
+    # IQ to element mapping
+    iq_to_element: Dict[int, str] = None
+
     # Additional info
-    atoms: List[str] = None
-    
+    atoms: List[Tuple[int, int, str]] = None  # List of (IQ, ITA, atom_name)
+
     def __post_init__(self):
         if self.iterations is None:
             self.iterations = []
         if self.magnetic_moments is None:
             self.magnetic_moments = {}
+        if self.concentrations is None:
+            self.concentrations = {}
+        if self.weighted_magnetic_moments is None:
+            self.weighted_magnetic_moments = {}
         if self.energies_by_functional is None:
             self.energies_by_functional = {}
+        if self.iq_to_element is None:
+            self.iq_to_element = {}
         if self.atoms is None:
             self.atoms = []
 
 
-def parse_kgrn(filepath: str) -> EMTOResults:
-    """Parse KGRN output file (.prn)."""
-    
+def parse_kgrn(filepath: str, concentrations: Dict[Tuple[int, int], float] = None,
+               iq_to_element: Dict[int, str] = None) -> EMTOResults:
+    """Parse KGRN output file (.prn).
+
+    Args:
+        filepath: Path to KGRN output file
+        concentrations: Optional dict of (IQ, ITA) -> concentration.
+                       If not provided, will try to extract from file.
+        iq_to_element: Optional dict of IQ -> element name mapping from KFCD
+    """
+
     results = EMTOResults()
-    
+
     with open(filepath, 'r') as f:
         lines = f.readlines()
-    
+
     content = ''.join(lines)
-    
+
+    # Use provided concentrations or try to extract from file
+    if concentrations:
+        results.concentrations = concentrations.copy()
+    else:
+        # Extract concentrations from file (may not exist in KGRN output)
+        conc_pattern = re.compile(r'IQ\s+=\s+(\d+).*?ITA\s+=\s+(\d+).*?CONC\s+=\s+([\d.]+)', re.DOTALL)
+        for match in conc_pattern.finditer(content):
+            iq = int(match.group(1))
+            ita = int(match.group(2))
+            conc = float(match.group(3))
+            results.concentrations[(iq, ita)] = conc
+
+    # Use provided IQ to element mapping
+    if iq_to_element:
+        results.iq_to_element = iq_to_element.copy()
+
     # Extract iteration convergence data
     i = 0
     while i < len(lines):
         line = lines[i]
-        
+
         # Look for iteration lines
         if 'Wmsg: Iteration' in line and 'Etot' in line:
             match = re.search(r'Iteration\s+(\d+)\s+Etot\s+=\s+([-\d.]+)\s+err\s+=\s+([-\d.]+)', line)
@@ -70,7 +115,7 @@ def parse_kgrn(filepath: str) -> EMTOResults:
                 iteration = int(match.group(1))
                 energy = float(match.group(2))
                 error = float(match.group(3))
-                
+
                 # Extract Fermi energy and DOS from next line
                 fermi_energy = 0.0
                 dos_ef = 0.0
@@ -82,24 +127,43 @@ def parse_kgrn(filepath: str) -> EMTOResults:
                         fermi_energy = float(ef_match.group(1))
                     if dos_match:
                         dos_ef = float(dos_match.group(1))
-                
+
                 # Extract magnetic moments from next lines
                 magm_line = None
                 total_magm = 0.0
+                magnetic_moments = []
+
                 if i + 2 < len(lines):
                     magm_line = lines[i + 2]
                     if 'Magm.=' in magm_line:
                         magm_matches = re.findall(r'([-\d.]+)', magm_line.split('Magm.=')[1])
                         magnetic_moments = [float(m) for m in magm_matches]
-                    else:
-                        magnetic_moments = []
-                    
+
                     # Total magnetic moment
                     if i + 3 < len(lines) and 'Total magm.' in lines[i + 3]:
                         total_match = re.search(r'Total magm\.=\s+([-\d.]+)', lines[i + 3])
                         if total_match:
                             total_magm = float(total_match.group(1))
-                
+
+                # Calculate weighted magnetic moments per unique IQ
+                weighted_magm = {}
+                if magnetic_moments and results.concentrations:
+                    # Group magnetic moments by IQ
+                    # Assuming magnetic_moments list corresponds to IQ ordering with multiple ITAs
+                    n_iqs = len(magnetic_moments) // 2  # Assuming 2 ITAs per IQ
+
+                    for idx, magm in enumerate(magnetic_moments):
+                        # Determine IQ and ITA from position
+                        # This assumes ordering: IQ1-ITA1, IQ1-ITA2, IQ2-ITA1, IQ2-ITA2, ...
+                        iq = (idx // 2) + 1
+                        ita = (idx % 2) + 1
+
+                        conc = results.concentrations.get((iq, ita), 0.0)
+
+                        if iq not in weighted_magm:
+                            weighted_magm[iq] = 0.0
+                        weighted_magm[iq] += magm * conc
+
                 iter_data = IterationData(
                     iteration=iteration,
                     energy=energy,
@@ -107,141 +171,260 @@ def parse_kgrn(filepath: str) -> EMTOResults:
                     fermi_energy=fermi_energy,
                     dos_ef=dos_ef,
                     magnetic_moments=magnetic_moments,
-                    total_magnetic_moment=total_magm
+                    total_magnetic_moment=total_magm,
+                    weighted_magnetic_moments=weighted_magm
                 )
                 results.iterations.append(iter_data)
-        
+
         i += 1
-    
+
     # Extract final total energies
     total_energy_match = re.search(r'Total energy\s+([-\d.]+)', content)
     if total_energy_match:
         results.total_energy = float(total_energy_match.group(1))
-    
+
     free_energy_match = re.search(r'Free\s+energy\s+([-\d.]+)', content)
     if free_energy_match:
         results.free_energy = float(free_energy_match.group(1))
-    
+
     kinetic_match = re.search(r'Kinetic energy\s+([-\d.]+)', content, re.MULTILINE)
     if kinetic_match:
         results.kinetic_energy = float(kinetic_match.group(1))
-    
+
     # Extract final magnetic moments per atom
-    atom_section = re.finditer(r'Atom:(\w+)\s+.*?Magn\. mom\.\s+=\s+([-\d.]+)', content, re.DOTALL)
-    for match in atom_section:
-        atom = match.group(1)
-        mag_moment = float(match.group(2))
-        results.magnetic_moments[atom] = mag_moment
-        if atom not in results.atoms:
-            results.atoms.append(atom)
-    
+    # KGRN format: "Atom:Pt" or "Atom:Fe" followed by "Magn. mom. = value"
+
+    atom_moments = []  # List of (atom_name, mag_moment)
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if re.match(r'\s*Atom:\w+\s*$', line):
+            atom_match = re.search(r'Atom:(\w+)', line)
+            if atom_match and i + 1 < len(lines):
+                atom = atom_match.group(1)
+                next_line = lines[i + 1]
+                magm_match = re.search(r'Magn\.\s+mom\.\s+=\s+([-\d.]+)', next_line)
+                if magm_match:
+                    mag_moment = float(magm_match.group(1))
+                    atom_moments.append((atom, mag_moment))
+        i += 1
+
+    # Map atom moments to (IQ, ITA, atom) using iq_to_element mapping
+    if atom_moments and results.concentrations and results.iq_to_element:
+        # Build element to IQs mapping (one element can have multiple IQs)
+        element_to_iqs = {}
+        for iq, element in results.iq_to_element.items():
+            if element not in element_to_iqs:
+                element_to_iqs[element] = []
+            element_to_iqs[element].append(iq)
+
+        # Group concentrations by IQ
+        iqs_sorted = sorted(set(iq for iq, ita in results.concentrations.keys()))
+
+        # Map each atom moment to the correct (IQ, ITA, atom)
+        atom_idx = 0
+        for iq in iqs_sorted:
+            element = results.iq_to_element.get(iq)
+            if element:
+                # Get all ITAs for this IQ
+                itas_for_iq = sorted([ita for (iq_key, ita) in results.concentrations.keys() if iq_key == iq])
+
+                for ita in itas_for_iq:
+                    if atom_idx < len(atom_moments):
+                        atom, mag_moment = atom_moments[atom_idx]
+
+                        # Verify that the atom matches the expected element
+                        if atom == element:
+                            key = (iq, ita, atom)
+                            results.magnetic_moments[key] = mag_moment
+                            if key not in results.atoms:
+                                results.atoms.append(key)
+
+                        atom_idx += 1
+
+    # Calculate weighted magnetic moments from final values
+    for (iq, ita, atom), magm in results.magnetic_moments.items():
+        conc = results.concentrations.get((iq, ita), 0.0)
+        if iq not in results.weighted_magnetic_moments:
+            results.weighted_magnetic_moments[iq] = 0.0
+        results.weighted_magnetic_moments[iq] += magm * conc
+
     return results
 
 
 def parse_kfcd(filepath: str) -> EMTOResults:
     """Parse KFCD output file (.prn)."""
-    
+
     results = EMTOResults()
-    
+
     with open(filepath, 'r') as f:
         lines = f.readlines()
-    
-    # Extract magnetic moments per IQ
+
+    # Extract concentrations
+    for line in lines:
+        if 'IQ =' in line and 'ITA =' in line and 'CONC =' in line:
+            iq_match = re.search(r'IQ\s+=\s+(\d+)', line)
+            ita_match = re.search(r'ITA\s+=\s+(\d+)', line)
+            conc_match = re.search(r'CONC\s+=\s+([\d.]+)', line)
+
+            if iq_match and ita_match and conc_match:
+                iq = int(iq_match.group(1))
+                ita = int(ita_match.group(1))
+                conc = float(conc_match.group(1))
+                results.concentrations[(iq, ita)] = conc
+
+    # Extract magnetic moments per IQ with ITA context
+    current_iq = None
+    current_ita = None
+    current_atom = None
+
     for i, line in enumerate(lines):
+        # Track current IQ, ITA, and atom from section headers
+        if 'IQ =' in line and 'ITA =' in line:
+            iq_match = re.search(r'IQ\s+=\s+(\d+)', line)
+            ita_match = re.search(r'ITA\s+=\s+(\d+)', line)
+            atom_match = re.search(r'\((\w+)\s*\)', line)
+
+            if iq_match:
+                current_iq = int(iq_match.group(1))
+            if ita_match:
+                current_ita = int(ita_match.group(1))
+            if atom_match:
+                current_atom = atom_match.group(1)
+
+        # Extract magnetic moment with tracked IQ, ITA, and atom
         if 'Magnetic moment for IQ' in line:
             match = re.search(r'IQ\s+=\s+(\d+)\s+is\s+([-\d.]+)', line)
             if match:
                 iq = int(match.group(1))
                 mag_moment = float(match.group(2))
-                results.magnetic_moments[f'IQ{iq}'] = mag_moment
-    
+
+                # Use tracked ITA and atom
+                if current_ita is not None and current_atom is not None:
+                    key = (iq, current_ita, current_atom)
+                    results.magnetic_moments[key] = mag_moment
+
+                    if key not in results.atoms:
+                        results.atoms.append(key)
+
+    # Build IQ to element mapping from atoms
+    for (iq, ita, atom) in results.atoms:
+        if iq not in results.iq_to_element:
+            results.iq_to_element[iq] = atom
+
+    # Calculate weighted magnetic moments per IQ
+    for (iq, ita, atom), magm in results.magnetic_moments.items():
+        conc = results.concentrations.get((iq, ita), 0.0)
+        if iq not in results.weighted_magnetic_moments:
+            results.weighted_magnetic_moments[iq] = 0.0
+        results.weighted_magnetic_moments[iq] += magm * conc
+
     # Extract total FCD magnetic moment
     for line in lines:
         if 'Total FCD magnetic moment per unit cell' in line:
             match = re.search(r'([-\d.]+)\s+mu_B', line)
             if match:
                 results.total_magnetic_moment = float(match.group(1))
-    
-    # Extract energy by functional for each atom
+
+    # Extract energy by functional for each atom with IQ and ITA
     i = 0
     while i < len(lines):
         line = lines[i]
-        
+
         # Look for atom section headers
         if 'IQ =' in line and 'ITA =' in line and 'CONC =' in line:
-            # Extract atom name
+            # Extract IQ, ITA, and atom name
+            iq_match = re.search(r'IQ\s+=\s+(\d+)', line)
+            ita_match = re.search(r'ITA\s+=\s+(\d+)', line)
             atom_match = re.search(r'\((\w+)\s*\)', line)
-            if atom_match:
+
+            if iq_match and ita_match and atom_match:
+                iq = int(iq_match.group(1))
+                ita = int(ita_match.group(1))
                 atom = atom_match.group(1)
-                iq_match = re.search(r'IQ\s+=\s+(\d+)', line)
-                iq = iq_match.group(1) if iq_match else 'unknown'
-                
-                if atom not in results.atoms:
-                    results.atoms.append(atom)
-                
+
+                atom_key = (iq, ita, atom)
+
                 # Parse energy values
-                atom_key = f'{atom}_IQ{iq}'
                 results.energies_by_functional[atom_key] = {}
-                
+
                 # Look ahead for energy lines
                 for j in range(i+1, min(i+20, len(lines))):
                     energy_line = lines[j]
-                    
+
                     # Extract LDA, GGA, LAG total energies
                     if 'Tot LDA' in energy_line:
                         match = re.search(r'Tot LDA\s+([-\d.]+)', energy_line)
                         if match:
                             results.energies_by_functional[atom_key]['LDA'] = float(match.group(1))
-                    
+
                     elif 'Tot GGA' in energy_line:
                         match = re.search(r'Tot GGA\s+([-\d.]+)', energy_line)
                         if match:
                             results.energies_by_functional[atom_key]['GGA'] = float(match.group(1))
-                    
+
                     elif 'Tot LAG' in energy_line:
                         match = re.search(r'Tot LAG\s+([-\d.]+)', energy_line)
                         if match:
                             results.energies_by_functional[atom_key]['LAG'] = float(match.group(1))
-        
+
         # Extract total system energies
         if '*Total energy:' in line:
             for j in range(i+1, min(i+15, len(lines))):
                 energy_line = lines[j]
-                
+
                 if 'TOT-LDA' in energy_line:
                     match = re.search(r'TOT-LDA\s+([-\d.]+)', energy_line)
                     if match:
                         if 'system' not in results.energies_by_functional:
                             results.energies_by_functional['system'] = {}
                         results.energies_by_functional['system']['LDA'] = float(match.group(1))
-                
+
                 elif 'TOT-GGA' in energy_line:
                     match = re.search(r'TOT-GGA\s+([-\d.]+)', energy_line)
                     if match:
                         if 'system' not in results.energies_by_functional:
                             results.energies_by_functional['system'] = {}
                         results.energies_by_functional['system']['GGA'] = float(match.group(1))
-                
+
                 elif 'TOT-LAG' in energy_line:
                     match = re.search(r'TOT-LAG\s+([-\d.]+)', energy_line)
                     if match:
                         if 'system' not in results.energies_by_functional:
                             results.energies_by_functional['system'] = {}
                         results.energies_by_functional['system']['LAG'] = float(match.group(1))
-        
+
         i += 1
-    
+
     return results
 
 
 def generate_report(kgrn_results: EMTOResults, kfcd_results: EMTOResults) -> str:
     """Generate a comprehensive report from KGRN and KFCD results."""
-    
+
     report = []
     report.append("="*80)
     report.append("EMTO CALCULATION RESULTS REPORT")
     report.append("="*80)
-    
+
+    # IQ to Element mapping
+    if kgrn_results.iq_to_element or kfcd_results.iq_to_element:
+        report.append("\n### IQ TO ELEMENT MAPPING")
+        report.append("-"*80)
+        iq_map = kgrn_results.iq_to_element if kgrn_results.iq_to_element else kfcd_results.iq_to_element
+        for iq, element in sorted(iq_map.items()):
+            report.append(f"IQ={iq}: {element}")
+
+    # Concentrations
+    if kgrn_results.concentrations or kfcd_results.concentrations:
+        report.append("\n### CONCENTRATIONS")
+        report.append("-"*80)
+        conc = kgrn_results.concentrations if kgrn_results.concentrations else kfcd_results.concentrations
+        iq_map = kgrn_results.iq_to_element if kgrn_results.iq_to_element else kfcd_results.iq_to_element
+        for (iq, ita), conc_val in sorted(conc.items()):
+            element = iq_map.get(iq, "?")
+            report.append(f"IQ={iq} ({element}), ITA={ita}: {conc_val:.4f}")
+
     # Convergence History
     if kgrn_results.iterations:
         report.append("\n### CONVERGENCE HISTORY (KGRN)")
@@ -249,41 +432,40 @@ def generate_report(kgrn_results: EMTOResults, kfcd_results: EMTOResults) -> str
         report.append(f"\n{'Iter':>4} {'Energy (Ry/site)':>18} {'Error':>12} {'EF (Ry)':>10} "
                      f"{'Total Magm (μB)':>16}")
         report.append("-"*80)
-        
+
         for iter_data in kgrn_results.iterations:
             report.append(f"{iter_data.iteration:>4} {iter_data.energy:>18.8f} "
                          f"{iter_data.error:>12.8f} {iter_data.fermi_energy:>10.6f} "
                          f"{iter_data.total_magnetic_moment:>16.4f}")
-        
+
         # Summary statistics
         if len(kgrn_results.iterations) > 0:
             first_iter = kgrn_results.iterations[0]
             last_iter = kgrn_results.iterations[-1]
             energy_change = last_iter.energy - first_iter.energy
             magm_change = last_iter.total_magnetic_moment - first_iter.total_magnetic_moment
-            
+
             report.append("-"*80)
             report.append(f"Total iterations: {len(kgrn_results.iterations)}")
             report.append(f"Energy change:    {energy_change:18.8f} Ry/site")
             report.append(f"Magm change:      {magm_change:18.4f} μB")
             report.append(f"Final error:      {last_iter.error:18.8f}")
-        
-        # Per-atom magnetic moment evolution
-        report.append("\n### MAGNETIC MOMENT EVOLUTION PER ATOM")
+
+        # Per-atom magnetic moment evolution (raw values)
+        report.append("\n### MAGNETIC MOMENT EVOLUTION (RAW VALUES)")
         report.append("-"*80)
-        
-        # Determine number of atoms from first iteration
+
         if kgrn_results.iterations and kgrn_results.iterations[0].magnetic_moments:
             n_atoms = len(kgrn_results.iterations[0].magnetic_moments)
-            
+
             # Header
             header = f"{'Iter':>4} "
             for i in range(n_atoms):
-                header += f"{'Atom'+str(i+1)+' (μB)':>14} "
+                header += f"{'Site'+str(i+1)+' (μB)':>14} "
             header += f"{'Total (μB)':>14}"
             report.append(header)
             report.append("-"*80)
-            
+
             # Data rows
             for iter_data in kgrn_results.iterations:
                 row = f"{iter_data.iteration:>4} "
@@ -291,7 +473,32 @@ def generate_report(kgrn_results: EMTOResults, kfcd_results: EMTOResults) -> str
                     row += f"{magm:>14.4f} "
                 row += f"{iter_data.total_magnetic_moment:>14.4f}"
                 report.append(row)
-    
+
+        # Weighted magnetic moment evolution per unique IQ
+        if kgrn_results.iterations and kgrn_results.iterations[0].weighted_magnetic_moments:
+            report.append("\n### WEIGHTED MAGNETIC MOMENT EVOLUTION PER IQ")
+            report.append("-"*80)
+
+            # Get all unique IQs
+            all_iqs = sorted(set(iq for iter_data in kgrn_results.iterations
+                               for iq in iter_data.weighted_magnetic_moments.keys()))
+
+            # Header
+            header = f"{'Iter':>4} "
+            for iq in all_iqs:
+                element = kgrn_results.iq_to_element.get(iq, "?")
+                header += f"{'IQ'+str(iq)+f' ({element})':>18} "
+            report.append(header)
+            report.append("-"*80)
+
+            # Data rows
+            for iter_data in kgrn_results.iterations:
+                row = f"{iter_data.iteration:>4} "
+                for iq in all_iqs:
+                    magm = iter_data.weighted_magnetic_moments.get(iq, 0.0)
+                    row += f"{magm:>18.4f} "
+                report.append(row)
+
     # Final Convergence Information
     report.append("\n### FINAL CONVERGENCE VALUES (KGRN)")
     report.append("-"*80)
@@ -301,75 +508,117 @@ def generate_report(kgrn_results: EMTOResults, kfcd_results: EMTOResults) -> str
         report.append(f"Free Energy:     {kgrn_results.free_energy:15.6f} Ry/site")
     if kgrn_results.kinetic_energy:
         report.append(f"Kinetic Energy:  {kgrn_results.kinetic_energy:15.6f} Ry")
-    
+
     # Final Magnetic Moments
     report.append("\n### FINAL MAGNETIC MOMENTS")
     report.append("-"*80)
-    
+
     if kgrn_results.magnetic_moments:
-        report.append("\nFrom KGRN (per atom type):")
-        for atom, moment in kgrn_results.magnetic_moments.items():
-            report.append(f"  {atom:>6s}: {moment:8.4f} μB")
-    
+        report.append("\nFrom KGRN (per IQ, ITA, atom):")
+        for (iq, ita, atom), moment in sorted(kgrn_results.magnetic_moments.items()):
+            conc = kgrn_results.concentrations.get((iq, ita), 0.0)
+            report.append(f"  IQ={iq}, ITA={ita} ({atom:>2s}), CONC={conc:.2f}: {moment:8.4f} μB")
+
+    if kgrn_results.weighted_magnetic_moments:
+        report.append("\nWeighted Magnetic Moments per IQ (KGRN):")
+        for iq, moment in sorted(kgrn_results.weighted_magnetic_moments.items()):
+            element = kgrn_results.iq_to_element.get(iq, "?")
+            report.append(f"  IQ={iq} ({element}): {moment:8.4f} μB")
+
     if kfcd_results.magnetic_moments:
-        report.append("\nFrom KFCD (per site):")
-        for site, moment in kfcd_results.magnetic_moments.items():
-            report.append(f"  {site:>6s}: {moment:8.4f} μB")
-    
+        report.append("\nFrom KFCD (per IQ, ITA, atom):")
+        for (iq, ita, atom), moment in sorted(kfcd_results.magnetic_moments.items()):
+            conc = kfcd_results.concentrations.get((iq, ita), 0.0)
+            report.append(f"  IQ={iq}, ITA={ita} ({atom:>2s}), CONC={conc:.2f}: {moment:8.4f} μB")
+
+    if kfcd_results.weighted_magnetic_moments:
+        report.append("\nWeighted Magnetic Moments per IQ (KFCD):")
+        for iq, moment in sorted(kfcd_results.weighted_magnetic_moments.items()):
+            element = kfcd_results.iq_to_element.get(iq, "?")
+            report.append(f"  IQ={iq} ({element}): {moment:8.4f} μB")
+
     if kfcd_results.total_magnetic_moment:
         report.append(f"\nTotal Magnetic Moment (KFCD): {kfcd_results.total_magnetic_moment:8.4f} μB")
-    
+
+        # Verify calculation
+        if kfcd_results.weighted_magnetic_moments:
+            calculated_total = sum(kfcd_results.weighted_magnetic_moments.values())
+            report.append(f"Calculated from weighted sum:  {calculated_total:8.4f} μB")
+
     # Energy by Functional
     report.append("\n### ENERGIES BY FUNCTIONAL (KFCD)")
     report.append("-"*80)
-    
+
     # System total energies
     if 'system' in kfcd_results.energies_by_functional:
         report.append("\nTotal System Energies:")
         for functional, energy in kfcd_results.energies_by_functional['system'].items():
             report.append(f"  {functional:>6s}: {energy:15.6f} Ry")
-    
+
     # Per-atom energies
     report.append("\nPer-Site Energies:")
-    for site, functionals in kfcd_results.energies_by_functional.items():
-        if site != 'system':
-            report.append(f"\n  {site}:")
-            for functional, energy in functionals.items():
-                report.append(f"    {functional:>6s}: {energy:15.6f} Ry")
-    
+
+    # Separate system energies from atom energies
+    atom_energies = {k: v for k, v in kfcd_results.energies_by_functional.items()
+                     if k != 'system' and isinstance(k, tuple)}
+
+    for key in sorted(atom_energies.keys()):
+        functionals = atom_energies[key]
+        if len(key) == 3:
+            iq, ita, atom = key
+            report.append(f"\n  IQ={iq}, ITA={ita} ({atom}):")
+        else:
+            report.append(f"\n  {key}:")
+        for functional, energy in functionals.items():
+            report.append(f"    {functional:>6s}: {energy:15.6f} Ry")
+
     # Atoms present
     report.append("\n### SYSTEM COMPOSITION")
     report.append("-"*80)
-    all_atoms = sorted(set(kgrn_results.atoms + kfcd_results.atoms))
-    report.append(f"Atoms: {', '.join(all_atoms)}")
-    
+    if kgrn_results.atoms:
+        report.append("From KGRN:")
+        for iq, ita, atom in sorted(kgrn_results.atoms):
+            conc = kgrn_results.concentrations.get((iq, ita), 0.0)
+            report.append(f"  IQ={iq}, ITA={ita}: {atom} (CONC={conc:.2f})")
+
+    if kfcd_results.atoms:
+        report.append("\nFrom KFCD:")
+        for iq, ita, atom in sorted(kfcd_results.atoms):
+            conc = kfcd_results.concentrations.get((iq, ita), 0.0)
+            report.append(f"  IQ={iq}, ITA={ita}: {atom} (CONC={conc:.2f})")
+
     report.append("\n" + "="*80)
     report.append("\n")
-    
+
     return "\n".join(report)
 
 
-def parse_emto_output(kgrn_file: str, kfcd_file: str) -> str:
+def parse_emto_output(kgrn_file: str, kfcd_file: str):
     """
     Main function to parse EMTO output files and generate report.
-    
+
     Args:
         kgrn_file: Path to KGRN .prn output file
         kfcd_file: Path to KFCD .prn output file
-    
+
     Returns:
-        Formatted report string
+        Tuple of (report string, kgrn_results, kfcd_results)
     """
-    kgrn_results = parse_kgrn(kgrn_file)
+    # Parse KFCD first to get concentrations and IQ->element mapping
     kfcd_results = parse_kfcd(kfcd_file)
-    
+
+    # Parse KGRN with concentrations and mapping from KFCD
+    kgrn_results = parse_kgrn(kgrn_file,
+                              concentrations=kfcd_results.concentrations,
+                              iq_to_element=kfcd_results.iq_to_element)
+
     return generate_report(kgrn_results, kfcd_results), kgrn_results, kfcd_results
 
 
 def save_report(report: str, output_file: str) -> None:
     """
     Save the report to a file.
-    
+
     Args:
         report: Report string to save
         output_file: Path to output file
@@ -383,10 +632,10 @@ if __name__ == "__main__":
     # Example usage
     kgrn_file = "fept_opt_kgrn.prn"
     kfcd_file = "fept_opt_fcd.prn"
-    
+
     # Generate and print report
-    report = parse_emto_output(kgrn_file, kfcd_file)
+    report, kgrn, kfcd = parse_emto_output(kgrn_file, kfcd_file)
     print(report)
-    
+
     # Save to file
     # save_report(report, "emto_report.txt")
