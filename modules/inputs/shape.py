@@ -1,20 +1,21 @@
 import os
 
-def create_shape_input(path, id_name, NQ3):
+def create_shape_input(structure, path, id_name):
     """
-    Create a SHAPE input file for EMTO.
+    Create a SHAPE input file for EMTO from structure dict.
 
     Parameters
     ----------
-    filename : str
-        Name of the output SHAPE file (e.g., 'fept.dat').
-    job_name : str
-        The JOBNAM (e.g., 'fept').
-    smx_file : str
-        Path to the .tfh file (e.g., '../smx/fept.tfh').
-    NQ3 : int
-        Number of atoms (determines number of ASR lines).
+    structure : dict
+        Structure dictionary from parse_emto_structure() containing NQ3
+    path : str
+        Output directory path
+    id_name : str
+        Job ID (e.g., 'fept_0.96')
     """
+
+    # Extract NQ3 from structure
+    NQ3 = structure['NQ3']
 
     template = f"""SHAPE     HP......=N
 JOBNAM...={id_name:<10} MSGL.=  1
