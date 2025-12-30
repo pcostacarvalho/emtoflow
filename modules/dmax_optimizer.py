@@ -1,6 +1,5 @@
 import re
 import os
-from itertools import product
 
 def parse_prn_file(filepath):
     """
@@ -106,104 +105,105 @@ def get_dmax_candidates(shell_data, target_vectors=100, tolerance=10):
     return candidates
 
 
-def match_shells_across_ratios(all_candidates, shell_tolerance=1, target_vectors=100):
+def find_optimal_dmax(prn_files_dict, target_vectors=100, vector_tolerance=10):
     """
-    Find combination of D values where all ratios have compatible shell numbers.
-    
-    Parameters:
-    -----------
-    all_candidates : dict
-        {ratio: [(D, shell, vectors), ...]} for each ratio
-    shell_tolerance : int
-        Maximum difference in shell numbers between ratios
-    target_vectors : int
-        Target number of vectors
-    
-    Returns:
-    --------
-    dict: {ratio: (D_value, shell_number, vector_count)} or None if no solution
-    """
-    ratios = list(all_candidates.keys())
-    
-    # Generate all combinations
-    candidate_lists = [all_candidates[r] for r in ratios]
-    
-    best_solution = None
-    best_score = float('inf')
-    
-    for combo in product(*candidate_lists):
-        # combo is a tuple of (D, shell, vectors) for each ratio
-        shells = [c[1] for c in combo]
-        vectors = [c[2] for c in combo]
-        
-        # Check if shells are within tolerance
-        min_shell = min(shells)
-        max_shell = max(shells)
-        
-        if max_shell - min_shell <= shell_tolerance:
-            # Calculate score: deviation from target vectors
-            score = sum(abs(v - target_vectors) for v in vectors)
-            
-            if score < best_score:
-                best_score = score
-                best_solution = {ratios[i]: combo[i] for i in range(len(ratios))}
-    
-    return best_solution
+    Simplified DMAX optimization: Use first ratio as reference.
 
+    Strategy:
+    1. Parse first ratio's output
+    2. Find DMAX for ~target_vectors
+    3. Use that shell number as reference
+    4. For other ratios, find DMAX giving same shell number
 
-def find_optimal_dmax(prn_files_dict, target_vectors=100, shell_tolerance=1, vector_tolerance=10):
-    """
-    Find optimal DMAX for each ratio.
-    
     Parameters:
     -----------
     prn_files_dict : dict
         {ratio: filepath} mapping, e.g., {0.92: "path/to/file.prn"}
     target_vectors : int
-        Target number of vectors (default 100)
-    shell_tolerance : int
-        Maximum difference in shell numbers between ratios (default 1)
+        Target number of vectors for reference ratio (default 100)
     vector_tolerance : int
-        Acceptable range around target_vectors when finding candidates
-    
+        Acceptable range around target_vectors (default 10)
+
     Returns:
     --------
     dict: {ratio: {'DMAX': value, 'shells': n, 'vectors': m}}
     """
-    # Parse all files
-    all_shell_data = {}
-    for ratio, filepath in prn_files_dict.items():
-        all_shell_data[ratio] = parse_prn_file(filepath)
-    
-    # Get candidates for each ratio
-    all_candidates = {}
-    for ratio, shell_data in all_shell_data.items():
-        all_candidates[ratio] = get_dmax_candidates(
-            shell_data, 
-            target_vectors=target_vectors,
-            tolerance=vector_tolerance
-        )
-    
-    # Find best matching combination
-    solution = match_shells_across_ratios(
-        all_candidates, 
-        shell_tolerance=shell_tolerance,
-        target_vectors=target_vectors
-    )
-    
-    if solution is None:
-        print("Warning: No solution found with given tolerances.")
+    # Sort ratios to ensure consistent ordering
+    ratios = sorted(prn_files_dict.keys())
+
+    if not ratios:
+        print("Error: No ratios provided")
         return None
-    
-    # Format output
-    result = {}
-    for ratio, (dmax, shells, vectors) in solution.items():
-        result[ratio] = {
-            'DMAX': dmax,
-            'shells': shells,
-            'vectors': vectors
+
+    # STEP 1: Parse first ratio and establish reference shell
+    print(f"\nStep 1: Analyzing reference ratio (c/a = {ratios[0]:.2f})...")
+    first_ratio = ratios[0]
+    first_prn = prn_files_dict[first_ratio]
+
+    first_shell_data = parse_prn_file(first_prn)
+    if not first_shell_data:
+        print(f"Error: Could not parse {first_prn}")
+        return None
+
+    # Find DMAX for target vectors in first ratio
+    candidates = get_dmax_candidates(
+        first_shell_data,
+        target_vectors=target_vectors,
+        tolerance=vector_tolerance
+    )
+
+    if not candidates:
+        print(f"Warning: No candidates found for target={target_vectors}±{vector_tolerance}")
+        print(f"Using closest available shell")
+        # Get closest to target
+        candidates = get_dmax_candidates(first_shell_data, target_vectors=target_vectors, tolerance=999)
+
+    # Use first (best) candidate as reference
+    ref_dmax, ref_shell, ref_vectors = candidates[0]
+
+    print(f"  Reference: DMAX={ref_dmax:.6f}, Shell={ref_shell}, Vectors={ref_vectors}")
+    print(f"  Using Shell {ref_shell} as target for all ratios\n")
+
+    # Initialize results with first ratio
+    result = {
+        first_ratio: {
+            'DMAX': ref_dmax,
+            'shells': ref_shell,
+            'vectors': ref_vectors
         }
-    
+    }
+
+    # STEP 2: For each remaining ratio, find DMAX that gives ref_shell
+    print(f"Step 2: Finding DMAX for remaining ratios (target: Shell {ref_shell})...")
+
+    for ratio in ratios[1:]:
+        prn_file = prn_files_dict[ratio]
+
+        print(f"  Processing c/a = {ratio:.2f}...", end=" ")
+
+        shell_data = parse_prn_file(prn_file)
+        if not shell_data:
+            print(f"ERROR: Could not parse {prn_file}")
+            continue
+
+        # Find the entry matching ref_shell
+        matching_entry = None
+        for entry in shell_data:
+            if entry['shell'] == ref_shell:
+                matching_entry = entry
+                break
+
+        if matching_entry:
+            result[ratio] = {
+                'DMAX': matching_entry['D'],
+                'shells': matching_entry['shell'],
+                'vectors': matching_entry['cumulative_vectors']
+            }
+            print(f"DMAX={matching_entry['D']:.6f}, Vectors={matching_entry['cumulative_vectors']}")
+        else:
+            print(f"ERROR: Shell {ref_shell} not found in output")
+            # This shouldn't happen if DMAX_initial was large enough
+
     return result
 
 
@@ -282,6 +282,82 @@ def print_optimization_summary(optimal_dmax):
     print()
 
 
+def save_dmax_optimization_log(optimal_dmax, log_path, job_name, target_vectors):
+    """
+    Save DMAX optimization results to a log file.
+
+    Parameters:
+    -----------
+    optimal_dmax : dict
+        Output from find_optimal_dmax
+    log_path : str
+        Base output directory (log will be saved in log_path/smx/logs/)
+    job_name : str
+        Job name for log filename
+    target_vectors : int
+        Target vector count used
+
+    Returns:
+    --------
+    str: Path to created log file
+    """
+    from datetime import datetime
+
+    # Create logs directory if it doesn't exist
+    logs_dir = os.path.join(log_path, "smx", "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+
+    log_file = os.path.join(logs_dir, f"{job_name}_dmax_optimization.log")
+
+    with open(log_file, 'w') as f:
+        f.write("="*70 + "\n")
+        f.write("DMAX OPTIMIZATION LOG\n")
+        f.write("="*70 + "\n")
+        f.write(f"Job Name: {job_name}\n")
+        f.write(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"Target Vectors: {target_vectors}\n")
+        f.write(f"Number of Ratios: {len(optimal_dmax)}\n")
+        f.write("\n")
+
+        f.write("="*70 + "\n")
+        f.write("OPTIMIZED DMAX VALUES\n")
+        f.write("="*70 + "\n")
+        f.write(f"{'Ratio (c/a)':<15} {'DMAX':<12} {'Shells':<10} {'Vectors':<10}\n")
+        f.write("-"*70 + "\n")
+
+        for ratio in sorted(optimal_dmax.keys()):
+            values = optimal_dmax[ratio]
+            f.write(f"{ratio:<15.2f} {values['DMAX']:<12.6f} "
+                   f"{values['shells']:<10} {values['vectors']:<10}\n")
+
+        f.write("="*70 + "\n")
+
+        # Statistics
+        dmaxes = [v['DMAX'] for v in optimal_dmax.values()]
+        shells = [v['shells'] for v in optimal_dmax.values()]
+        vectors = [v['vectors'] for v in optimal_dmax.values()]
+
+        f.write("\nSTATISTICS\n")
+        f.write("-"*70 + "\n")
+        f.write(f"DMAX Range: {min(dmaxes):.6f} - {max(dmaxes):.6f} "
+               f"(Δ={max(dmaxes)-min(dmaxes):.6f})\n")
+        f.write(f"Shell Range: {min(shells)} - {max(shells)} "
+               f"(Δ={max(shells)-min(shells)})\n")
+        f.write(f"Vector Range: {min(vectors)} - {max(vectors)} "
+               f"(Δ={max(vectors)-min(vectors)})\n")
+        f.write(f"Average Vectors: {sum(vectors)/len(vectors):.1f}\n")
+        f.write("\n")
+
+        # Check consistency
+        if max(shells) - min(shells) == 0:
+            f.write("✓ Perfect shell consistency across all ratios\n")
+        else:
+            f.write("⚠ Shell numbers vary across ratios\n")
+
+    print(f"✓ Optimization log saved: {log_file}")
+    return log_file
+
+
 # Example usage
 if __name__ == "__main__":
     # Example: After running KSTR with initial DMAX guess
@@ -292,10 +368,9 @@ if __name__ == "__main__":
     }
     
     optimal_dmax = find_optimal_dmax(
-        prn_files, 
-        target_vectors=100, 
-        shell_tolerance=1,
-        vector_tolerance=15
+        prn_files,
+        target_vectors=100,
+        vector_tolerance=10
     )
     
     print_optimization_summary(optimal_dmax)
