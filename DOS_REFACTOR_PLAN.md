@@ -275,7 +275,7 @@ Sublattice 2 Atom Fe spin DOWN   # atom_number=3, sublattice=2, atom_index=1
 **New Implementation**:
 ```python
 def get_atom_dos(self, sublattice: int, atom_index: int = 1, orbital: str = 'total',
-                 spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+                 sum_atoms: bool = False, spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """
     Get DOS for a specific atom with orbital selection.
 
@@ -284,7 +284,8 @@ def get_atom_dos(self, sublattice: int, atom_index: int = 1, orbital: str = 'tot
     Column structure: [E, Total, s, p, d]
 
     Note: The same sublattice can appear multiple times in the file (multiple atoms
-    on the same sublattice). Use atom_index to specify which occurrence.
+    on the same sublattice). Use atom_index to specify which occurrence, or use
+    sum_atoms=True to sum all atoms on the sublattice.
 
     Parameters
     ----------
@@ -292,13 +293,17 @@ def get_atom_dos(self, sublattice: int, atom_index: int = 1, orbital: str = 'tot
         Sublattice index (1, 2, 3, ...)
     atom_index : int
         Which atom on this sublattice (1 = first occurrence, 2 = second, etc.)
-        Default: 1
+        Ignored if sum_atoms=True. Default: 1
     orbital : str
         Orbital to extract:
         - 'total': Total DOS for this atom (column 1)
         - 's': s-orbital DOS (column 2)
         - 'p': p-orbital DOS (column 3)
         - 'd': d-orbital DOS (column 4)
+    sum_atoms : bool
+        If True, sum DOS over all atoms on this sublattice (ignores atom_index).
+        WARNING: This summed DOS may not match the IT column data from get_dos('sublattice')
+        due to potential calculation errors in individual atom sections. Default: False
     spin_polarized : bool
         If True, return separate spin channels. If False, sum them.
 
@@ -314,26 +319,14 @@ def get_atom_dos(self, sublattice: int, atom_index: int = 1, orbital: str = 'tot
     >>> parser.get_atom_dos(sublattice=1, atom_index=1, orbital='d')  # 1st Pt atom, d-orbital
     >>> parser.get_atom_dos(sublattice=1, atom_index=2, orbital='d')  # 2nd Pt atom, d-orbital
     >>> parser.get_atom_dos(sublattice=2, atom_index=1, orbital='s')  # 1st Fe atom, s-orbital
+    >>> parser.get_atom_dos(sublattice=1, sum_atoms=True, orbital='d')  # Sum all atoms on sublattice 1
     """
-    # Find the Nth atom on this sublattice (atom_index is 1-based)
+    # Find all atoms on this sublattice
     atoms_on_sublattice = [(atom_num, elem) for atom_num, elem, sub in self.atom_info if sub == sublattice]
 
     if not atoms_on_sublattice:
         available_sublattices = sorted(set(sub for _, _, sub in self.atom_info))
         raise KeyError(f"Sublattice {sublattice} not found. Available sublattices: {available_sublattices}")
-
-    if atom_index < 1 or atom_index > len(atoms_on_sublattice):
-        raise KeyError(f"atom_index {atom_index} out of range. Sublattice {sublattice} has {len(atoms_on_sublattice)} atom(s)")
-
-    # Get the sequential atom_number for this sublattice and atom_index
-    atom_number = atoms_on_sublattice[atom_index - 1][0]  # -1 because atom_index is 1-based
-
-    # Get the atom data
-    down_key = f'atom_{atom_number}_down'
-    up_key = f'atom_{atom_number}_up'
-
-    if down_key not in self.data:
-        raise KeyError(f"Data for sublattice {sublattice}, atom {atom_index} not found")
 
     # Determine column index for orbital
     orbital_map = {
@@ -348,33 +341,99 @@ def get_atom_dos(self, sublattice: int, atom_index: int = 1, orbital: str = 'tot
 
     col_idx = orbital_map[orbital]
 
-    # Extract energy and orbital columns
-    dos_down = np.column_stack([
-        self.data[down_key][:, 0],      # Energy
-        self.data[down_key][:, col_idx]  # Orbital DOS
-    ])
+    if sum_atoms:
+        # Sum over all atoms on this sublattice
+        import warnings
+        warnings.warn(
+            f"Summing atom DOS for sublattice {sublattice}. This may not match "
+            f"get_dos('sublattice', sublattice={sublattice}) due to potential errors "
+            f"in individual atom DOS sections. Use get_dos() for accurate sublattice totals.",
+            UserWarning
+        )
 
-    dos_up = None
-    if up_key in self.data and self.data[up_key] is not None:
-        dos_up = np.column_stack([
-            self.data[up_key][:, 0],      # Energy
-            self.data[up_key][:, col_idx]  # Orbital DOS
+        dos_down_sum = None
+        dos_up_sum = None
+
+        for atom_num, _ in atoms_on_sublattice:
+            down_key = f'atom_{atom_num}_down'
+            up_key = f'atom_{atom_num}_up'
+
+            if down_key not in self.data:
+                continue
+
+            if dos_down_sum is None:
+                dos_down_sum = np.column_stack([
+                    self.data[down_key][:, 0],
+                    self.data[down_key][:, col_idx]
+                ])
+                if up_key in self.data and self.data[up_key] is not None:
+                    dos_up_sum = np.column_stack([
+                        self.data[up_key][:, 0],
+                        self.data[up_key][:, col_idx]
+                    ])
+            else:
+                dos_down_sum[:, 1] += self.data[down_key][:, col_idx]
+                if up_key in self.data and self.data[up_key] is not None and dos_up_sum is not None:
+                    dos_up_sum[:, 1] += self.data[up_key][:, col_idx]
+
+        if spin_polarized:
+            return dos_down_sum, dos_up_sum
+        else:
+            total = dos_down_sum.copy()
+            if dos_up_sum is not None:
+                total[:, 1] += dos_up_sum[:, 1]
+            return total, None
+
+    else:
+        # Get single atom
+        if atom_index < 1 or atom_index > len(atoms_on_sublattice):
+            raise KeyError(f"atom_index {atom_index} out of range. Sublattice {sublattice} has {len(atoms_on_sublattice)} atom(s)")
+
+        # Get the sequential atom_number for this sublattice and atom_index
+        atom_number = atoms_on_sublattice[atom_index - 1][0]  # -1 because atom_index is 1-based
+
+        # Get the atom data
+        down_key = f'atom_{atom_number}_down'
+        up_key = f'atom_{atom_number}_up'
+
+        if down_key not in self.data:
+            raise KeyError(f"Data for sublattice {sublattice}, atom {atom_index} not found")
+
+        # Extract energy and orbital columns
+        dos_down = np.column_stack([
+            self.data[down_key][:, 0],      # Energy
+            self.data[down_key][:, col_idx]  # Orbital DOS
         ])
 
-    if spin_polarized:
-        return dos_down, dos_up
-    else:
-        total = dos_down.copy()
-        if dos_up is not None:
-            total[:, 1] += dos_up[:, 1]
-        return total, None
+        dos_up = None
+        if up_key in self.data and self.data[up_key] is not None:
+            dos_up = np.column_stack([
+                self.data[up_key][:, 0],      # Energy
+                self.data[up_key][:, col_idx]  # Orbital DOS
+            ])
+
+        if spin_polarized:
+            return dos_down, dos_up
+        else:
+            total = dos_down.copy()
+            if dos_up is not None:
+                total[:, 1] += dos_up[:, 1]
+            return total, None
 ```
 
 **Side Effects**:
 - **REMOVES** `get_orbital_dos()` - functionality now in `get_atom_dos()`
 - Changes parameter from `atom_number` (opaque sequential) to `sublattice + atom_index` (matches file structure)
 - Adds `orbital` parameter with options: 'total', 's', 'p', 'd'
+- Adds `sum_atoms` parameter to sum all atoms on a sublattice (with warning)
 - **BREAKS COMPATIBILITY** with code using old `atom_number` parameter
+
+**Note on sum_atoms**:
+- When `sum_atoms=True`, sums DOS from individual atom sections
+- This mimics old `get_sublattice_dos()` behavior but with explicit warning
+- Warning alerts user that summed atom DOS may differ from IT column data
+- Recommended: Use `get_dos('sublattice')` for accurate sublattice totals
+- Use case: When you need orbital-resolved sublattice data despite potential inaccuracy
 
 ---
 
@@ -573,6 +632,10 @@ parser.get_atom_dos(sublattice=1, atom_index=1, orbital='total')  # 1st atom on 
 parser.get_atom_dos(sublattice=1, atom_index=2, orbital='d')      # 2nd atom on sublattice 1, d-orbital
 parser.get_atom_dos(sublattice=2, atom_index=1, orbital='s')      # 1st atom on sublattice 2, s-orbital
 parser.get_atom_dos(sublattice=1, atom_index=1, orbital='p')      # 1st atom on sublattice 1, p-orbital
+
+# Sum all atoms on a sublattice (with warning - may not match IT data)
+parser.get_atom_dos(sublattice=1, sum_atoms=True, orbital='d')    # Sum d-orbital for all atoms on sublattice 1
+# WARNING: This may differ from get_dos('sublattice', sublattice=1) due to errors in atom sections
 
 # Plotting functions updated to use new API
 plotter.plot_total()       # Uses get_dos('total')
