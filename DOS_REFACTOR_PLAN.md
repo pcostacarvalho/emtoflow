@@ -232,15 +232,14 @@ def get_dos(self, data_type: str = 'total', sublattice: Optional[int] = None,
 **Breaking Changes**:
 - **REMOVE** `get_total_dos()` - replaced by `get_dos('total')`
 - **REMOVE** `get_sublattice_dos()` - replaced by `get_dos('sublattice', sublattice=N)`
-- **KEEP** `get_atom_dos()` - still needed for atom-specific orbital-resolved data
-- **KEEP** `get_orbital_dos()` - still needed for specific orbital of specific atom
+- **REMOVE** `get_orbital_dos()` - functionality merged into `get_atom_dos()`
+- **REFACTOR** `get_atom_dos()` - new signature with orbital parameter
 
 **Rationale**:
 - Clear separation of concerns:
   - `get_dos()` → Total DOS section data (no orbital resolution)
-  - `get_atom_dos()` → Individual atom sections (with orbital resolution: s, p, d)
-  - `get_orbital_dos()` → Specific orbital of specific atom
-- Simpler, cleaner API without duplicate functionality
+  - `get_atom_dos()` → Individual atom sections (with orbital selection)
+- No duplicate functionality - one function for atom data
 - Forces users to use correct data source
 
 **Migration Guide**:
@@ -248,9 +247,118 @@ def get_dos(self, data_type: str = 'total', sublattice: Optional[int] = None,
 # OLD → NEW
 parser.get_total_dos()              →  parser.get_dos('total')
 parser.get_sublattice_dos(1)        →  parser.get_dos('sublattice', sublattice=1)
-parser.get_atom_dos(2)              →  parser.get_atom_dos(2)  # NO CHANGE
-parser.get_orbital_dos(2, 'd')      →  parser.get_orbital_dos(2, 'd')  # NO CHANGE
+parser.get_atom_dos(atom_number=2)  →  parser.get_atom_dos(sublattice=2, orbital='total')
+parser.get_orbital_dos(2, 'd')      →  parser.get_atom_dos(sublattice=2, orbital='d')
 ```
+
+---
+
+#### Task 1.3: Refactor get_atom_dos() to use sublattice and orbital parameters
+**File**: `modules/dos.py:135-168` (existing function to be refactored)
+**Design**: Unified interface for accessing atom-specific orbital data
+
+**Current Implementation Issues**:
+- Uses sequential `atom_number` (1, 2, 3, 4...) which doesn't match file structure
+- Separate `get_orbital_dos()` function for single orbital - redundant
+- File structure organizes by: `Sublattice X Atom ELEMENT`
+- Column structure: `[E, Total, s, p, d]`
+
+**New Implementation**:
+```python
+def get_atom_dos(self, sublattice: int, orbital: str = 'total',
+                 spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    """
+    Get DOS for a specific atom (sublattice) with orbital selection.
+
+    Reads from atom-specific sections:
+    'Sublattice X Atom ELEMENT spin DOWN/UP'
+    Column structure: [E, Total, s, p, d]
+
+    Parameters
+    ----------
+    sublattice : int
+        Sublattice index (1, 2, 3, ...)
+    orbital : str
+        Orbital to extract:
+        - 'total': Total DOS for this atom (column 1)
+        - 's': s-orbital DOS (column 2)
+        - 'p': p-orbital DOS (column 3)
+        - 'd': d-orbital DOS (column 4)
+    spin_polarized : bool
+        If True, return separate spin channels. If False, sum them.
+
+    Returns
+    -------
+    dos_down : np.ndarray
+        Spin down data, columns: [E, DOS_value]
+    dos_up : np.ndarray or None
+        Spin up data (None if spin_polarized=False)
+
+    Examples
+    --------
+    >>> parser.get_atom_dos(sublattice=1, orbital='total')  # Total DOS for sublattice 1
+    >>> parser.get_atom_dos(sublattice=1, orbital='d')      # d-orbital DOS for sublattice 1
+    >>> parser.get_atom_dos(sublattice=2, orbital='s')      # s-orbital DOS for sublattice 2
+    """
+    # Map old atom_number (sequential) to sublattice
+    # Find the atom that corresponds to this sublattice
+    atom_number = None
+    for atom_num, elem, sub in self.atom_info:
+        if sub == sublattice:
+            atom_number = atom_num
+            break
+
+    if atom_number is None:
+        available_sublattices = sorted(set(sub for _, _, sub in self.atom_info))
+        raise KeyError(f"Sublattice {sublattice} not found. Available sublattices: {available_sublattices}")
+
+    # Get the atom data
+    down_key = f'atom_{atom_number}_down'
+    up_key = f'atom_{atom_number}_up'
+
+    if down_key not in self.data:
+        raise KeyError(f"Data for sublattice {sublattice} not found")
+
+    # Determine column index for orbital
+    orbital_map = {
+        'total': 1,
+        's': 2,
+        'p': 3,
+        'd': 4
+    }
+
+    if orbital not in orbital_map:
+        raise ValueError(f"orbital must be 'total', 's', 'p', or 'd', got '{orbital}'")
+
+    col_idx = orbital_map[orbital]
+
+    # Extract energy and orbital columns
+    dos_down = np.column_stack([
+        self.data[down_key][:, 0],      # Energy
+        self.data[down_key][:, col_idx]  # Orbital DOS
+    ])
+
+    dos_up = None
+    if up_key in self.data and self.data[up_key] is not None:
+        dos_up = np.column_stack([
+            self.data[up_key][:, 0],      # Energy
+            self.data[up_key][:, col_idx]  # Orbital DOS
+        ])
+
+    if spin_polarized:
+        return dos_down, dos_up
+    else:
+        total = dos_down.copy()
+        if dos_up is not None:
+            total[:, 1] += dos_up[:, 1]
+        return total, None
+```
+
+**Side Effects**:
+- **REMOVES** `get_orbital_dos()` - functionality now in `get_atom_dos()`
+- Changes parameter from `atom_number` (sequential) to `sublattice` (matches file structure)
+- Adds `orbital` parameter with options: 'total', 's', 'p', 'd'
+- **BREAKS COMPATIBILITY** with code using old `atom_number` parameter
 
 ---
 
@@ -374,28 +482,31 @@ This refactor **removes functions** and is a **BREAKING CHANGE**:
 **Removed Functions**:
 1. `get_total_dos()` → **REMOVED** - use `get_dos('total')` instead
 2. `get_sublattice_dos()` → **REMOVED** - use `get_dos('sublattice', sublattice=N)` instead
+3. `get_orbital_dos()` → **REMOVED** - functionality merged into `get_atom_dos()`
 
-**Kept Functions** (no changes):
-1. `get_atom_dos(atom_number)` → Returns `[E, Total, s, p, d]` from atom sections
-2. `get_orbital_dos(atom_number, orbital)` → Returns `[E, orbital_DOS]` for specific orbital
+**Refactored Functions**:
+1. `get_atom_dos()` → **CHANGED SIGNATURE** - now uses sublattice parameter and orbital selection
 
 ### New API Structure
 
 **For Total DOS section data** (no orbital resolution):
-- `get_dos('total')` → Total DOS
-- `get_dos('nos')` → Number of States
-- `get_dos('sublattice', sublattice=N)` → Sublattice N DOS
+- `get_dos('total')` → Total DOS (column 1)
+- `get_dos('nos')` → Number of States (column 2)
+- `get_dos('sublattice', sublattice=N)` → Sublattice N DOS from IT columns
 
 **For individual atom data** (with orbital resolution):
-- `get_atom_dos(atom_number)` → All orbitals (s, p, d) for specific atom
-- `get_orbital_dos(atom_number, orbital)` → Specific orbital for specific atom
+- `get_atom_dos(sublattice, orbital='total')` → All atom DOS or specific orbital
+  - `orbital='total'` → Total DOS for this atom
+  - `orbital='s'` → s-orbital DOS
+  - `orbital='p'` → p-orbital DOS
+  - `orbital='d'` → d-orbital DOS
 
 ### Why No Backward Compatibility?
 - Clean break prevents confusion about data sources
 - Old `get_sublattice_dos()` was summing wrong data (atom sections)
 - New `get_dos('sublattice')` reads correct data (IT columns)
-- Different data structures - wrapper would be misleading
-- Atom-level functions remain unchanged for orbital analysis
+- Old `get_atom_dos()` used sequential atom numbers, new version uses sublattice (matches file structure)
+- Different data structures - wrappers would be misleading
 
 ---
 
@@ -404,24 +515,27 @@ This refactor **removes functions** and is a **BREAKING CHANGE**:
 **Critical Priority**:
 1. Fix **** handling (data loss issue) - `_read_data_block()`
 2. Create unified `get_dos()` function (correctness issue)
-3. **REMOVE** `get_total_dos()` and `get_sublattice_dos()` - breaking change
+3. Refactor `get_atom_dos()` with orbital parameter
+4. **REMOVE** `get_total_dos()`, `get_sublattice_dos()`, and `get_orbital_dos()` - breaking changes
 
 **High Priority**:
-4. Update `plot_partial()` to use `get_dos()` and support dynamic sublattices
-5. Update `plot_total()` to use `get_dos('total')`
-6. Update `plot_sublattice()` to use `get_dos('sublattice', sublattice=N)`
-7. Add input validation
+5. Update `plot_partial()` to use `get_dos()` and support dynamic sublattices
+6. Update `plot_total()` to use `get_dos('total')`
+7. Update `plot_sublattice()` to use `get_dos('sublattice', sublattice=N)`
+8. Update `plot_atom()` to use `get_atom_dos(sublattice, orbital)`
+9. Update `plot_orbital()` to use `get_atom_dos(sublattice, orbital)`
+10. Add input validation
 
 **Medium Priority**:
-8. Update documentation (dos_guide.md)
-9. Add unit tests
-10. Update convenience function `plot_dos()` to use new API
+11. Update documentation (dos_guide.md)
+12. Add unit tests
+13. Update convenience function `plot_dos()` to use new API
 
 **Estimated Impact**:
-- **BREAKING CHANGES**: 2 functions removed (`get_total_dos`, `get_sublattice_dos`)
+- **BREAKING CHANGES**: 3 functions removed (`get_total_dos`, `get_sublattice_dos`, `get_orbital_dos`)
+- **BREAKING CHANGES**: 1 function signature changed (`get_atom_dos`)
 - New functions: 1 (`get_dos`)
-- Functions modified: 4 (plotters: `plot_total`, `plot_partial`, `plot_sublattice`; parser: `_read_data_block`)
-- Functions kept unchanged: 4 (`get_atom_dos`, `get_orbital_dos`, `plot_atom`, `plot_orbital`)
+- Functions modified: 6 (data: `get_atom_dos`, `_read_data_block`; plotters: `plot_total`, `plot_partial`, `plot_sublattice`, `plot_atom`, `plot_orbital`)
 - Test files needed: ~5-10 with different sublattice counts and overflow values
 - Documentation pages: 1 (dos_guide.md)
 
@@ -433,11 +547,14 @@ parser.get_dos('nos')                      # Number of States (column 2)
 parser.get_dos('sublattice', sublattice=1) # Sublattice 1 DOS (column 3)
 parser.get_dos('sublattice', sublattice=2) # Sublattice 2 DOS (column 4)
 
-# Individual atom data (with orbital resolution: s, p, d)
-parser.get_atom_dos(atom_number=1)         # All orbitals for atom 1
-parser.get_orbital_dos(atom_number=1, orbital='d')  # d-orbital for atom 1
+# Individual atom data (with orbital selection)
+parser.get_atom_dos(sublattice=1, orbital='total')  # Total DOS for atom on sublattice 1
+parser.get_atom_dos(sublattice=1, orbital='d')      # d-orbital for atom on sublattice 1
+parser.get_atom_dos(sublattice=2, orbital='s')      # s-orbital for atom on sublattice 2
+parser.get_atom_dos(sublattice=2, orbital='p')      # p-orbital for atom on sublattice 2
 
-# Plotting functions updated to use get_dos()
+# Plotting functions updated to use new API
 plotter.plot_total()       # Uses get_dos('total')
 plotter.plot_partial()     # Uses get_dos('sublattice', sublattice=N) in loop
+plotter.plot_atom(sublattice=1, orbital_resolved=True)  # Uses get_atom_dos(1, orbital=...)
 ```
