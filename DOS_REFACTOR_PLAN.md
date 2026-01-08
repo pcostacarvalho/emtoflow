@@ -150,51 +150,74 @@ def _read_data_block(self, lines: List[str], start_idx: int) -> np.ndarray:
 
 ---
 
-#### Task 1.2: Refactor get_sublattice_dos()
-**File**: `modules/dos.py:208-257`
+#### Task 1.2: Create new get_dos() function (replaces get_total_dos and get_sublattice_dos)
+**File**: `modules/dos.py` (new function)
+**Design**: Unified interface for accessing all data from Total DOS sections
+
 **New Implementation**:
 ```python
-def get_sublattice_dos(self, sublattice: int, spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+def get_dos(self, data_type: str = 'total', sublattice: Optional[int] = None,
+            spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """
-    Get DOS for a specific sublattice (IT) from the Total DOS section.
+    Get DOS data from the Total DOS sections.
 
     Reads directly from 'Total DOS and NOS and partial (IT)' sections.
     Column structure: [E, Total, NOS, IT1, IT2, IT3, ...]
-    For sublattice N: column index = 2 + N
 
     Parameters
     ----------
-    sublattice : int
-        Sublattice index (1, 2, 3, ...)
+    data_type : str
+        Type of data to extract:
+        - 'total': Total DOS (column 1)
+        - 'nos': Number of States (column 2)
+        - 'sublattice': Sublattice/IT DOS (requires sublattice parameter)
+    sublattice : int, optional
+        Sublattice index (1, 2, 3, ...) - required when data_type='sublattice'
     spin_polarized : bool
         If True, return separate spin channels. If False, sum them.
 
     Returns
     -------
     dos_down : np.ndarray
-        Spin down DOS, columns: [E, sublattice_DOS]
+        Spin down data, columns: [E, DOS_value]
     dos_up : np.ndarray or None
-        Spin up DOS (None if spin_polarized=False)
+        Spin up data (None if spin_polarized=False)
+
+    Examples
+    --------
+    >>> parser.get_dos('total')  # Get total DOS
+    >>> parser.get_dos('nos')     # Get number of states
+    >>> parser.get_dos('sublattice', sublattice=1)  # Get sublattice 1 DOS
+    >>> parser.get_dos('sublattice', sublattice=2)  # Get sublattice 2 DOS
     """
-    # Validate sublattice exists
-    num_sublattices = self.data['total_down'].shape[1] - 3  # Subtract E, Total, NOS
-    if sublattice < 1 or sublattice > num_sublattices:
-        raise KeyError(f"Sublattice {sublattice} not found. Available: 1-{num_sublattices}")
+    # Determine column index
+    if data_type == 'total':
+        col_idx = 1
+    elif data_type == 'nos':
+        col_idx = 2
+    elif data_type == 'sublattice':
+        if sublattice is None:
+            raise ValueError("Must specify sublattice when data_type='sublattice'")
+        # Validate sublattice exists
+        num_sublattices = self.data['total_down'].shape[1] - 3  # Subtract E, Total, NOS
+        if sublattice < 1 or sublattice > num_sublattices:
+            raise KeyError(f"Sublattice {sublattice} not found. Available: 1-{num_sublattices}")
+        # Column index: 2 (skip E, Total, NOS) + sublattice
+        col_idx = 2 + sublattice
+    else:
+        raise ValueError(f"data_type must be 'total', 'nos', or 'sublattice', got '{data_type}'")
 
-    # Column index for this sublattice: 2 (skip E, Total, NOS) + sublattice
-    col_idx = 2 + sublattice
-
-    # Extract energy and sublattice columns
+    # Extract energy and data columns
     dos_down = np.column_stack([
-        self.data['total_down'][:, 0],  # Energy
-        self.data['total_down'][:, col_idx]  # Sublattice DOS
+        self.data['total_down'][:, 0],      # Energy
+        self.data['total_down'][:, col_idx]  # DOS value
     ])
 
     dos_up = None
     if self.data['total_up'] is not None:
         dos_up = np.column_stack([
-            self.data['total_up'][:, 0],  # Energy
-            self.data['total_up'][:, col_idx]  # Sublattice DOS
+            self.data['total_up'][:, 0],      # Energy
+            self.data['total_up'][:, col_idx]  # DOS value
         ])
 
     if spin_polarized:
@@ -206,33 +229,90 @@ def get_sublattice_dos(self, sublattice: int, spin_polarized: bool = True) -> Tu
         return total, None
 ```
 
+**Backward Compatibility Wrappers**:
+```python
+def get_total_dos(self, spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    """Get total DOS. Wrapper for get_dos('total')."""
+    return self.get_dos('total', spin_polarized=spin_polarized)
+
+def get_sublattice_dos(self, sublattice: int, spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    """Get sublattice DOS. Wrapper for get_dos('sublattice')."""
+    return self.get_dos('sublattice', sublattice=sublattice, spin_polarized=spin_polarized)
+```
+
 **Side Effects**:
-- Changes return value structure from `[E, Total, s, p, d]` to `[E, sublattice_DOS]`
-- **BREAKS COMPATIBILITY** with existing code expecting orbital-resolved data
+- Old `get_total_dos()` and `get_sublattice_dos()` become simple wrappers (no breaking changes)
+- `get_sublattice_dos()` return value changes from `[E, Total, s, p, d]` to `[E, sublattice_DOS]`
+- **BREAKS COMPATIBILITY** with code expecting orbital-resolved data from sublattices
 - Must update `plot_sublattice()` accordingly
 
 ---
 
 ### Phase 2: Major Improvements
 
-#### Task 2.1: Fix plot_partial() for Dynamic Sublattices
+#### Task 2.1: Update plot_partial() to use get_dos() and support dynamic sublattices
 **File**: `modules/dos.py:331-373`
-**Changes**:
-- Auto-detect number of sublattices from data shape
-- Loop through all IT columns
-- Dynamic legend labels
 
----
+**Current Issues**:
+- Hardcoded for exactly 2 sublattices (columns 3 and 4)
+- Directly accesses column indices instead of using data access functions
 
-#### Task 2.2: Add get_nos() Function
-**File**: `modules/dos.py` (new function)
-**Purpose**: Extract NOS (Number of States) data from column 2
+**New Implementation**:
+```python
+def plot_partial(self, spin_polarized: bool = True, figsize: Tuple[float, float] = (8, 6),
+                 save: Optional[str] = None, show: bool = True):
+    """
+    Plot partial DOS (IT contributions) for all sublattices.
 
----
+    Uses get_dos() to extract sublattice data dynamically.
+    """
+    # Auto-detect number of sublattices
+    num_sublattices = self.parser.data['total_down'].shape[1] - 3  # Subtract E, Total, NOS
 
-#### Task 2.3: Add get_total_dos() Options
-**File**: `modules/dos.py:111-133`
-**Purpose**: Add parameter to select Total, NOS, or specific sublattice from total_down/up data
+    if num_sublattices < 1:
+        raise ValueError("No sublattice data found in DOS file")
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # Plot each sublattice
+    colors = plt.cm.tab10.colors  # Use color cycle
+    for sublat in range(1, num_sublattices + 1):
+        dos_down, dos_up = self.parser.get_dos('sublattice', sublattice=sublat,
+                                                 spin_polarized=True)
+        color = colors[(sublat - 1) % len(colors)]
+
+        if spin_polarized and dos_up is not None:
+            ax.plot(dos_up[:, 0], dos_up[:, 1], label=f'IT {sublat}',
+                   linestyle='-', color=color)
+            ax.plot(dos_down[:, 0], -dos_down[:, 1],
+                   linestyle='--', color=color)
+        else:
+            dos_total = dos_down[:, 1] + (dos_up[:, 1] if dos_up is not None else 0)
+            ax.plot(dos_down[:, 0], dos_total, label=f'IT {sublat}', color=color)
+
+    if spin_polarized:
+        ax.axhline(0, color='black', linewidth=0.5)
+
+    ax.axvline(0, color='gray', linestyle='--', alpha=0.5, label='E_F')
+    ax.set_xlabel('Energy (Ry)')
+    ax.set_ylabel('DOS (states/Ry)')
+    ax.legend()
+    ax.set_title(f'Partial DOS ({num_sublattices} sublattices)')
+    plt.tight_layout()
+
+    if save:
+        plt.savefig(save, dpi=300)
+    if show:
+        plt.show()
+
+    return fig, ax
+```
+
+**Benefits**:
+- Works with any number of sublattices (1, 2, 3, 4+)
+- Uses centralized get_dos() for data access
+- Dynamic color cycling
+- Dynamic title shows sublattice count
 
 ---
 
@@ -284,34 +364,57 @@ def get_sublattice_dos(self, sublattice: int, spin_polarized: bool = True) -> Tu
 
 ### Breaking Changes Alert
 The `get_sublattice_dos()` refactor **changes the return format**:
-- **Old**: Returns `[E, Total, s, p, d]` by summing atom data
-- **New**: Returns `[E, sublattice_DOS]` from IT columns
+- **Old**: Returns `[E, Total, s, p, d]` by summing atom data (orbital-resolved)
+- **New**: Returns `[E, sublattice_DOS]` from IT columns (no orbital resolution)
 
-### Compatibility Options:
-1. **Hard Break**: Change function behavior, document in CHANGELOG
-2. **New Function**: Create `get_sublattice_dos_from_it()` and deprecate old one
-3. **Parameter Switch**: Add `source='it'` or `source='atoms'` parameter
+### Compatibility Strategy: Unified get_dos() Function
+**Chosen Approach**: Create new `get_dos()` function, keep old functions as wrappers
 
-**Recommendation**: Option 2 (new function) for safety
+**Benefits**:
+- Single unified interface for all Total DOS section data
+- Backward compatible (old functions still work)
+- Clean API: `get_dos('total')`, `get_dos('nos')`, `get_dos('sublattice', sublattice=N)`
+- Easy to understand and maintain
+
+**Migration**:
+- `get_total_dos()` → becomes wrapper calling `get_dos('total')`
+- `get_sublattice_dos(N)` → becomes wrapper calling `get_dos('sublattice', sublattice=N)`
+- New functionality: `get_dos('nos')` for Number of States
+- All plotting functions updated to use `get_dos()`
 
 ---
 
 ## Summary
 
 **Critical Priority**:
-1. Fix **** handling (data loss issue)
-2. Fix get_sublattice_dos() to use IT columns (correctness issue)
+1. Fix **** handling (data loss issue) - `_read_data_block()`
+2. Create unified `get_dos()` function (correctness issue)
 
 **High Priority**:
-3. Fix plot_partial() hardcoding
-4. Add input validation
+3. Update `plot_partial()` to use `get_dos()` and support dynamic sublattices
+4. Create wrapper functions for backward compatibility
+5. Update `plot_sublattice()` to handle new data format
+6. Add input validation
 
 **Medium Priority**:
-5. Add NOS access functions
-6. Update documentation
-7. Add unit tests
+7. Update documentation (dos_guide.md)
+8. Add unit tests
 
 **Estimated Impact**:
-- Functions affected: 4 (get_sublattice_dos, plot_sublattice, plot_partial, _read_data_block)
+- New functions: 1 (`get_dos`)
+- Functions modified: 5 (wrappers: `get_total_dos`, `get_sublattice_dos`; plotters: `plot_partial`, `plot_sublattice`; parser: `_read_data_block`)
 - Test files needed: ~5-10 with different sublattice counts and overflow values
 - Documentation pages: 1 (dos_guide.md)
+
+**API Examples After Refactor**:
+```python
+# Unified interface
+parser.get_dos('total')                    # Total DOS
+parser.get_dos('nos')                      # Number of States
+parser.get_dos('sublattice', sublattice=1) # Sublattice 1 DOS
+parser.get_dos('sublattice', sublattice=2) # Sublattice 2 DOS
+
+# Backward compatible (still work)
+parser.get_total_dos()          # Calls get_dos('total')
+parser.get_sublattice_dos(1)    # Calls get_dos('sublattice', sublattice=1)
+```
