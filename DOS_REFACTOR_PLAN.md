@@ -247,37 +247,52 @@ def get_dos(self, data_type: str = 'total', sublattice: Optional[int] = None,
 # OLD → NEW
 parser.get_total_dos()              →  parser.get_dos('total')
 parser.get_sublattice_dos(1)        →  parser.get_dos('sublattice', sublattice=1)
-parser.get_atom_dos(atom_number=2)  →  parser.get_atom_dos(sublattice=2, orbital='total')
-parser.get_orbital_dos(2, 'd')      →  parser.get_atom_dos(sublattice=2, orbital='d')
+parser.get_atom_dos(atom_number=1)  →  parser.get_atom_dos(sublattice=1, atom_index=1, orbital='total')
+parser.get_atom_dos(atom_number=2)  →  parser.get_atom_dos(sublattice=1, atom_index=2, orbital='total')
+parser.get_orbital_dos(1, 'd')      →  parser.get_atom_dos(sublattice=1, atom_index=1, orbital='d')
 ```
 
 ---
 
-#### Task 1.3: Refactor get_atom_dos() to use sublattice and orbital parameters
+#### Task 1.3: Refactor get_atom_dos() to use sublattice, atom_index, and orbital parameters
 **File**: `modules/dos.py:135-168` (existing function to be refactored)
 **Design**: Unified interface for accessing atom-specific orbital data
 
 **Current Implementation Issues**:
-- Uses sequential `atom_number` (1, 2, 3, 4...) which doesn't match file structure
+- Uses sequential `atom_number` (1, 2, 3, 4...) which is opaque
 - Separate `get_orbital_dos()` function for single orbital - redundant
-- File structure organizes by: `Sublattice X Atom ELEMENT`
+- File structure: Same sublattice can appear multiple times for different atoms
+- Example: `Sublattice 1 Atom Pt` can appear twice (2 Pt atoms on sublattice 1)
 - Column structure: `[E, Total, s, p, d]`
+
+**File Structure Example**:
+```
+Sublattice 1 Atom Pt spin DOWN   # atom_number=1, sublattice=1, atom_index=1
+Sublattice 1 Atom Pt spin DOWN   # atom_number=2, sublattice=1, atom_index=2
+Sublattice 2 Atom Fe spin DOWN   # atom_number=3, sublattice=2, atom_index=1
+```
 
 **New Implementation**:
 ```python
-def get_atom_dos(self, sublattice: int, orbital: str = 'total',
+def get_atom_dos(self, sublattice: int, atom_index: int = 1, orbital: str = 'total',
                  spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """
-    Get DOS for a specific atom (sublattice) with orbital selection.
+    Get DOS for a specific atom with orbital selection.
 
     Reads from atom-specific sections:
     'Sublattice X Atom ELEMENT spin DOWN/UP'
     Column structure: [E, Total, s, p, d]
 
+    Note: The same sublattice can appear multiple times in the file (multiple atoms
+    on the same sublattice). Use atom_index to specify which occurrence.
+
     Parameters
     ----------
     sublattice : int
         Sublattice index (1, 2, 3, ...)
+    atom_index : int
+        Which atom on this sublattice (1 = first occurrence, 2 = second, etc.)
+        Default: 1
     orbital : str
         Orbital to extract:
         - 'total': Total DOS for this atom (column 1)
@@ -296,28 +311,29 @@ def get_atom_dos(self, sublattice: int, orbital: str = 'total',
 
     Examples
     --------
-    >>> parser.get_atom_dos(sublattice=1, orbital='total')  # Total DOS for sublattice 1
-    >>> parser.get_atom_dos(sublattice=1, orbital='d')      # d-orbital DOS for sublattice 1
-    >>> parser.get_atom_dos(sublattice=2, orbital='s')      # s-orbital DOS for sublattice 2
+    >>> parser.get_atom_dos(sublattice=1, atom_index=1, orbital='d')  # 1st Pt atom, d-orbital
+    >>> parser.get_atom_dos(sublattice=1, atom_index=2, orbital='d')  # 2nd Pt atom, d-orbital
+    >>> parser.get_atom_dos(sublattice=2, atom_index=1, orbital='s')  # 1st Fe atom, s-orbital
     """
-    # Map old atom_number (sequential) to sublattice
-    # Find the atom that corresponds to this sublattice
-    atom_number = None
-    for atom_num, elem, sub in self.atom_info:
-        if sub == sublattice:
-            atom_number = atom_num
-            break
+    # Find the Nth atom on this sublattice (atom_index is 1-based)
+    atoms_on_sublattice = [(atom_num, elem) for atom_num, elem, sub in self.atom_info if sub == sublattice]
 
-    if atom_number is None:
+    if not atoms_on_sublattice:
         available_sublattices = sorted(set(sub for _, _, sub in self.atom_info))
         raise KeyError(f"Sublattice {sublattice} not found. Available sublattices: {available_sublattices}")
+
+    if atom_index < 1 or atom_index > len(atoms_on_sublattice):
+        raise KeyError(f"atom_index {atom_index} out of range. Sublattice {sublattice} has {len(atoms_on_sublattice)} atom(s)")
+
+    # Get the sequential atom_number for this sublattice and atom_index
+    atom_number = atoms_on_sublattice[atom_index - 1][0]  # -1 because atom_index is 1-based
 
     # Get the atom data
     down_key = f'atom_{atom_number}_down'
     up_key = f'atom_{atom_number}_up'
 
     if down_key not in self.data:
-        raise KeyError(f"Data for sublattice {sublattice} not found")
+        raise KeyError(f"Data for sublattice {sublattice}, atom {atom_index} not found")
 
     # Determine column index for orbital
     orbital_map = {
@@ -356,7 +372,7 @@ def get_atom_dos(self, sublattice: int, orbital: str = 'total',
 
 **Side Effects**:
 - **REMOVES** `get_orbital_dos()` - functionality now in `get_atom_dos()`
-- Changes parameter from `atom_number` (sequential) to `sublattice` (matches file structure)
+- Changes parameter from `atom_number` (opaque sequential) to `sublattice + atom_index` (matches file structure)
 - Adds `orbital` parameter with options: 'total', 's', 'p', 'd'
 - **BREAKS COMPATIBILITY** with code using old `atom_number` parameter
 
@@ -495,7 +511,9 @@ This refactor **removes functions** and is a **BREAKING CHANGE**:
 - `get_dos('sublattice', sublattice=N)` → Sublattice N DOS from IT columns
 
 **For individual atom data** (with orbital resolution):
-- `get_atom_dos(sublattice, orbital='total')` → All atom DOS or specific orbital
+- `get_atom_dos(sublattice, atom_index, orbital)` → Atom DOS with orbital selection
+  - `sublattice` → Which sublattice (1, 2, 3, ...)
+  - `atom_index` → Which atom on that sublattice (1, 2, 3, ...)
   - `orbital='total'` → Total DOS for this atom
   - `orbital='s'` → s-orbital DOS
   - `orbital='p'` → p-orbital DOS
@@ -505,7 +523,9 @@ This refactor **removes functions** and is a **BREAKING CHANGE**:
 - Clean break prevents confusion about data sources
 - Old `get_sublattice_dos()` was summing wrong data (atom sections)
 - New `get_dos('sublattice')` reads correct data (IT columns)
-- Old `get_atom_dos()` used sequential atom numbers, new version uses sublattice (matches file structure)
+- Old `get_atom_dos()` used opaque sequential atom_number (1, 2, 3, ...)
+- New `get_atom_dos()` uses sublattice + atom_index (matches file structure)
+- File can have same sublattice multiple times - atom_index disambiguates which occurrence
 - Different data structures - wrappers would be misleading
 
 ---
@@ -548,13 +568,14 @@ parser.get_dos('sublattice', sublattice=1) # Sublattice 1 DOS (column 3)
 parser.get_dos('sublattice', sublattice=2) # Sublattice 2 DOS (column 4)
 
 # Individual atom data (with orbital selection)
-parser.get_atom_dos(sublattice=1, orbital='total')  # Total DOS for atom on sublattice 1
-parser.get_atom_dos(sublattice=1, orbital='d')      # d-orbital for atom on sublattice 1
-parser.get_atom_dos(sublattice=2, orbital='s')      # s-orbital for atom on sublattice 2
-parser.get_atom_dos(sublattice=2, orbital='p')      # p-orbital for atom on sublattice 2
+# atom_index specifies which occurrence of that sublattice (1st, 2nd, etc.)
+parser.get_atom_dos(sublattice=1, atom_index=1, orbital='total')  # 1st atom on sublattice 1
+parser.get_atom_dos(sublattice=1, atom_index=2, orbital='d')      # 2nd atom on sublattice 1, d-orbital
+parser.get_atom_dos(sublattice=2, atom_index=1, orbital='s')      # 1st atom on sublattice 2, s-orbital
+parser.get_atom_dos(sublattice=1, atom_index=1, orbital='p')      # 1st atom on sublattice 1, p-orbital
 
 # Plotting functions updated to use new API
 plotter.plot_total()       # Uses get_dos('total')
 plotter.plot_partial()     # Uses get_dos('sublattice', sublattice=N) in loop
-plotter.plot_atom(sublattice=1, orbital_resolved=True)  # Uses get_atom_dos(1, orbital=...)
+plotter.plot_atom(sublattice=1, atom_index=1, orbital_resolved=True)  # Uses get_atom_dos()
 ```
