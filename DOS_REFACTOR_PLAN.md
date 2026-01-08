@@ -229,22 +229,28 @@ def get_dos(self, data_type: str = 'total', sublattice: Optional[int] = None,
         return total, None
 ```
 
-**Backward Compatibility Wrappers**:
+**Breaking Changes**:
+- **REMOVE** `get_total_dos()` - replaced by `get_dos('total')`
+- **REMOVE** `get_sublattice_dos()` - replaced by `get_dos('sublattice', sublattice=N)`
+- **KEEP** `get_atom_dos()` - still needed for atom-specific orbital-resolved data
+- **KEEP** `get_orbital_dos()` - still needed for specific orbital of specific atom
+
+**Rationale**:
+- Clear separation of concerns:
+  - `get_dos()` → Total DOS section data (no orbital resolution)
+  - `get_atom_dos()` → Individual atom sections (with orbital resolution: s, p, d)
+  - `get_orbital_dos()` → Specific orbital of specific atom
+- Simpler, cleaner API without duplicate functionality
+- Forces users to use correct data source
+
+**Migration Guide**:
 ```python
-def get_total_dos(self, spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-    """Get total DOS. Wrapper for get_dos('total')."""
-    return self.get_dos('total', spin_polarized=spin_polarized)
-
-def get_sublattice_dos(self, sublattice: int, spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-    """Get sublattice DOS. Wrapper for get_dos('sublattice')."""
-    return self.get_dos('sublattice', sublattice=sublattice, spin_polarized=spin_polarized)
+# OLD → NEW
+parser.get_total_dos()              →  parser.get_dos('total')
+parser.get_sublattice_dos(1)        →  parser.get_dos('sublattice', sublattice=1)
+parser.get_atom_dos(2)              →  parser.get_atom_dos(2)  # NO CHANGE
+parser.get_orbital_dos(2, 'd')      →  parser.get_orbital_dos(2, 'd')  # NO CHANGE
 ```
-
-**Side Effects**:
-- Old `get_total_dos()` and `get_sublattice_dos()` become simple wrappers (no breaking changes)
-- `get_sublattice_dos()` return value changes from `[E, Total, s, p, d]` to `[E, sublattice_DOS]`
-- **BREAKS COMPATIBILITY** with code expecting orbital-resolved data from sublattices
-- Must update `plot_sublattice()` accordingly
 
 ---
 
@@ -362,25 +368,34 @@ def plot_partial(self, spin_polarized: bool = True, figsize: Tuple[float, float]
 
 ## Migration Path
 
-### Breaking Changes Alert
-The `get_sublattice_dos()` refactor **changes the return format**:
-- **Old**: Returns `[E, Total, s, p, d]` by summing atom data (orbital-resolved)
-- **New**: Returns `[E, sublattice_DOS]` from IT columns (no orbital resolution)
+### Breaking Changes Alert - No Backward Compatibility
+This refactor **removes functions** and is a **BREAKING CHANGE**:
 
-### Compatibility Strategy: Unified get_dos() Function
-**Chosen Approach**: Create new `get_dos()` function, keep old functions as wrappers
+**Removed Functions**:
+1. `get_total_dos()` → **REMOVED** - use `get_dos('total')` instead
+2. `get_sublattice_dos()` → **REMOVED** - use `get_dos('sublattice', sublattice=N)` instead
 
-**Benefits**:
-- Single unified interface for all Total DOS section data
-- Backward compatible (old functions still work)
-- Clean API: `get_dos('total')`, `get_dos('nos')`, `get_dos('sublattice', sublattice=N)`
-- Easy to understand and maintain
+**Kept Functions** (no changes):
+1. `get_atom_dos(atom_number)` → Returns `[E, Total, s, p, d]` from atom sections
+2. `get_orbital_dos(atom_number, orbital)` → Returns `[E, orbital_DOS]` for specific orbital
 
-**Migration**:
-- `get_total_dos()` → becomes wrapper calling `get_dos('total')`
-- `get_sublattice_dos(N)` → becomes wrapper calling `get_dos('sublattice', sublattice=N)`
-- New functionality: `get_dos('nos')` for Number of States
-- All plotting functions updated to use `get_dos()`
+### New API Structure
+
+**For Total DOS section data** (no orbital resolution):
+- `get_dos('total')` → Total DOS
+- `get_dos('nos')` → Number of States
+- `get_dos('sublattice', sublattice=N)` → Sublattice N DOS
+
+**For individual atom data** (with orbital resolution):
+- `get_atom_dos(atom_number)` → All orbitals (s, p, d) for specific atom
+- `get_orbital_dos(atom_number, orbital)` → Specific orbital for specific atom
+
+### Why No Backward Compatibility?
+- Clean break prevents confusion about data sources
+- Old `get_sublattice_dos()` was summing wrong data (atom sections)
+- New `get_dos('sublattice')` reads correct data (IT columns)
+- Different data structures - wrapper would be misleading
+- Atom-level functions remain unchanged for orbital analysis
 
 ---
 
@@ -389,32 +404,40 @@ The `get_sublattice_dos()` refactor **changes the return format**:
 **Critical Priority**:
 1. Fix **** handling (data loss issue) - `_read_data_block()`
 2. Create unified `get_dos()` function (correctness issue)
+3. **REMOVE** `get_total_dos()` and `get_sublattice_dos()` - breaking change
 
 **High Priority**:
-3. Update `plot_partial()` to use `get_dos()` and support dynamic sublattices
-4. Create wrapper functions for backward compatibility
-5. Update `plot_sublattice()` to handle new data format
-6. Add input validation
+4. Update `plot_partial()` to use `get_dos()` and support dynamic sublattices
+5. Update `plot_total()` to use `get_dos('total')`
+6. Update `plot_sublattice()` to use `get_dos('sublattice', sublattice=N)`
+7. Add input validation
 
 **Medium Priority**:
-7. Update documentation (dos_guide.md)
-8. Add unit tests
+8. Update documentation (dos_guide.md)
+9. Add unit tests
+10. Update convenience function `plot_dos()` to use new API
 
 **Estimated Impact**:
+- **BREAKING CHANGES**: 2 functions removed (`get_total_dos`, `get_sublattice_dos`)
 - New functions: 1 (`get_dos`)
-- Functions modified: 5 (wrappers: `get_total_dos`, `get_sublattice_dos`; plotters: `plot_partial`, `plot_sublattice`; parser: `_read_data_block`)
+- Functions modified: 4 (plotters: `plot_total`, `plot_partial`, `plot_sublattice`; parser: `_read_data_block`)
+- Functions kept unchanged: 4 (`get_atom_dos`, `get_orbital_dos`, `plot_atom`, `plot_orbital`)
 - Test files needed: ~5-10 with different sublattice counts and overflow values
 - Documentation pages: 1 (dos_guide.md)
 
-**API Examples After Refactor**:
+**New API After Refactor**:
 ```python
-# Unified interface
-parser.get_dos('total')                    # Total DOS
-parser.get_dos('nos')                      # Number of States
-parser.get_dos('sublattice', sublattice=1) # Sublattice 1 DOS
-parser.get_dos('sublattice', sublattice=2) # Sublattice 2 DOS
+# Total DOS section data (no orbital resolution)
+parser.get_dos('total')                    # Total DOS (column 1)
+parser.get_dos('nos')                      # Number of States (column 2)
+parser.get_dos('sublattice', sublattice=1) # Sublattice 1 DOS (column 3)
+parser.get_dos('sublattice', sublattice=2) # Sublattice 2 DOS (column 4)
 
-# Backward compatible (still work)
-parser.get_total_dos()          # Calls get_dos('total')
-parser.get_sublattice_dos(1)    # Calls get_dos('sublattice', sublattice=1)
+# Individual atom data (with orbital resolution: s, p, d)
+parser.get_atom_dos(atom_number=1)         # All orbitals for atom 1
+parser.get_orbital_dos(atom_number=1, orbital='d')  # d-orbital for atom 1
+
+# Plotting functions updated to use get_dos()
+plotter.plot_total()       # Uses get_dos('total')
+plotter.plot_partial()     # Uses get_dos('sublattice', sublattice=N) in loop
 ```
