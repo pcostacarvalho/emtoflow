@@ -26,35 +26,37 @@ data.append([np.nan if '*' in x else float(x) for x in vals])
 
 ---
 
-### 2. **CRITICAL: get_sublattice_dos() Using Wrong Data Source**
+### 2. **CRITICAL: Understanding ITA (Interacting Type Atom) vs IT (Sublattice) Data**
 **Location**: `modules/dos.py:208-257`
 
-**Problem**:
-- Currently sums individual atom DOS data (lines 239-249)
-- Individual atom DOS sections may be **incorrectly calculated** by EMTO output
-- Should read directly from "Total DOS and NOS and partial (IT)" sections which contain accurate sublattice contributions
+**Correct Data Structure**:
+- **IT columns** (in Total DOS section): Pre-weighted sublattice total DOS (no orbital resolution)
+  - Column structure: `[E, Total, NOS, IT1, IT2, IT3, ...]`
+  - These are the **correct sublattice totals** already weighted by CPA
 
-**Current Implementation**:
+- **ITA sections** (individual "Atom" sections): Concentration components within each sublattice (with orbital resolution)
+  - Each sublattice (IT) has multiple ITAs representing different concentration components
+  - Example: `IT=1: ITA=1 (Pt), ITA=2 (Pt)` and `IT=2: ITA=1 (Fe), ITA=2 (Fe)`
+  - These are NOT errors - they are **correct individual ITA contributions**
+
+**Relationship**:
 ```python
-# Wrong: Summing potentially incorrect atom data
-for atom_num in atoms_on_sublattice:
-    dos_down, dos_up = self.get_atom_dos(atom_num, spin_polarized=True)
-    dos_down_sum[:, 1:] += dos_down[:, 1:]
+# For sublattice N with concentrations [c1, c2, ...]:
+IT_N_total = c1 * ITA_1_total + c2 * ITA_2_total + ...
+
+# This should match:
+IT_N_total == get_dos('sublattice', sublattice=N)
 ```
 
-**Correct Implementation**:
-```python
-# Should read directly from total_down/total_up columns:
-# Column structure: [E, Total, NOS, IT1, IT2, IT3, ...]
-# For sublattice N: column_index = 2 + N
-dos_down = self.data['total_down'][:, [0, 2+sublattice]]  # [E, sublattice_DOS]
-dos_up = self.data['total_up'][:, [0, 2+sublattice]]
-```
+**Current Problem**:
+- Old `get_sublattice_dos()` sums ITAs without proper concentration weighting
+- No way to get orbital-resolved sublattice DOS (requires weighted ITA sum)
+- Terminology confusion: "atom" sections are actually "ITA" components
 
 **Impact**:
-- All sublattice DOS calculations are potentially **incorrect**
-- Affects downstream analysis and plots
-- Users relying on sublattice data get wrong results
+- Need to rename functions to use ITA terminology for clarity
+- Need to add concentration-weighted summation for orbital-resolved sublattice DOS
+- Need verification function to check weighted ITA sum matches IT column
 
 ---
 
@@ -232,24 +234,28 @@ def get_dos(self, data_type: str = 'total', sublattice: Optional[int] = None,
 **Breaking Changes**:
 - **REMOVE** `get_total_dos()` - replaced by `get_dos('total')`
 - **REMOVE** `get_sublattice_dos()` - replaced by `get_dos('sublattice', sublattice=N)`
-- **REMOVE** `get_orbital_dos()` - functionality merged into `get_atom_dos()`
-- **REFACTOR** `get_atom_dos()` - new signature with orbital parameter
+- **REMOVE** `get_orbital_dos()` - functionality merged into `get_ITA_dos()`
+- **RENAME** `get_atom_dos()` → `get_ITA_dos()` - new signature with ITA_index and concentration parameters
 
 **Rationale**:
 - Clear separation of concerns:
-  - `get_dos()` → Total DOS section data (no orbital resolution)
-  - `get_atom_dos()` → Individual atom sections (with orbital selection)
-- No duplicate functionality - one function for atom data
-- Forces users to use correct data source
+  - `get_dos()` → IT (sublattice) total DOS from Total DOS section (no orbital resolution)
+  - `get_ITA_dos()` → Individual ITA sections (with orbital selection and concentration weighting)
+- Correct terminology: "ITA" (Interacting Type Atom) instead of "atom"
+- Enables orbital-resolved sublattice DOS via concentration-weighted ITA summation
+- Forces users to understand ITA vs IT distinction
 
 **Migration Guide - Data Functions**:
 ```python
 # OLD → NEW
 parser.get_total_dos()              →  parser.get_dos('total')
 parser.get_sublattice_dos(1)        →  parser.get_dos('sublattice', sublattice=1)
-parser.get_atom_dos(atom_number=1)  →  parser.get_atom_dos(sublattice=1, atom_index=1, orbital='total')
-parser.get_atom_dos(atom_number=2)  →  parser.get_atom_dos(sublattice=1, atom_index=2, orbital='total')
-parser.get_orbital_dos(1, 'd')      →  parser.get_atom_dos(sublattice=1, atom_index=1, orbital='d')
+parser.get_atom_dos(atom_number=1)  →  parser.get_ITA_dos(sublattice=1, ITA_index=1, orbital='total')
+parser.get_atom_dos(atom_number=2)  →  parser.get_ITA_dos(sublattice=1, ITA_index=2, orbital='total')
+parser.get_orbital_dos(1, 'd')      →  parser.get_ITA_dos(sublattice=1, ITA_index=1, orbital='d')
+
+# NEW: Orbital-resolved sublattice DOS with concentration weighting
+parser.get_ITA_dos(sublattice=1, orbital='d', sum_ITAs=True, concentrations=[0.5, 0.5])
 ```
 
 **Migration Guide - Plotter Functions**:
@@ -257,70 +263,84 @@ parser.get_orbital_dos(1, 'd')      →  parser.get_atom_dos(sublattice=1, atom_
 # OLD → NEW
 plotter.plot_partial()                          →  plotter.plot_sublattice()  # Renamed, plots all sublattices
 plotter.plot_sublattice(sublattice=1)           →  plotter.plot_sublattice(sublattice=1)  # New implementation using IT data
-plotter.plot_atom(atom_number=1)                →  plotter.plot_atom(sublattice=1, atom_index=1)
+plotter.plot_atom(atom_number=1)                →  plotter.plot_ITA(sublattice=1, ITA_index=1)
 plotter.plot_atom(atom_number=1, orbital_resolved=True)
-                                                →  plotter.plot_atom(sublattice=1, atom_index=1, orbital_resolved=True)
-plotter.plot_orbital(atom_number=1, orbital='d')→  plotter.plot_atom(sublattice=1, atom_index=1, orbital='d')
+                                                →  plotter.plot_ITA(sublattice=1, ITA_index=1, orbital_resolved=True)
+plotter.plot_orbital(atom_number=1, orbital='d')→  plotter.plot_ITA(sublattice=1, ITA_index=1, orbital='d')
 ```
 
 **Migration Guide - Helper Functions**:
 ```python
 # OLD → NEW
-parser.list_sublattices()           →  sorted(set(sub for _, _, sub in parser.list_atoms()))
+parser.list_sublattices()           →  sorted(set(sub for _, _, sub in parser.list_ITAs()))
+parser.list_atoms()                 →  parser.list_ITAs()  # Renamed for clarity
 ```
 
 ---
 
-#### Task 1.3: Refactor get_atom_dos() to use sublattice, atom_index, and orbital parameters
+#### Task 1.3: Rename get_atom_dos() to get_ITA_dos() with concentration-weighted summation
 **File**: `modules/dos.py:135-168` (existing function to be refactored)
-**Design**: Unified interface for accessing atom-specific orbital data
+**Design**: Unified interface for accessing ITA (Interacting Type Atom) orbital data with concentration weighting
 
 **Current Implementation Issues**:
 - Uses sequential `atom_number` (1, 2, 3, 4...) which is opaque
-- Separate `get_orbital_dos()` function for single orbital - redundant
-- File structure: Same sublattice can appear multiple times for different atoms
-- Example: `Sublattice 1 Atom Pt` can appear twice (2 Pt atoms on sublattice 1)
+- Terminology confusion: "atom" should be "ITA" (concentration component)
+- No concentration weighting for orbital-resolved sublattice DOS
+- Separate `get_orbital_dos()` function is redundant
+- File structure: Same sublattice (IT) can have multiple ITAs
+- Example: `Sublattice 1 Atom Pt` can appear twice (2 Pt ITAs on sublattice 1 with different concentrations)
 - Column structure: `[E, Total, s, p, d]`
 
-**File Structure Example**:
+**File Structure Example (ITA ordering)**:
 ```
-Sublattice 1 Atom Pt spin DOWN   # atom_number=1, sublattice=1, atom_index=1
-Sublattice 1 Atom Pt spin DOWN   # atom_number=2, sublattice=1, atom_index=2
-Sublattice 2 Atom Fe spin DOWN   # atom_number=3, sublattice=2, atom_index=1
+# IT ordering: For each IT, all ITAs in numeric order
+Sublattice 1 Atom Pt spin DOWN   # IT=1, ITA=1 (e.g., c=0.7)
+Sublattice 1 Atom Pt spin DOWN   # IT=1, ITA=2 (e.g., c=0.3)
+Sublattice 2 Atom Fe spin DOWN   # IT=2, ITA=1 (e.g., c=0.5)
+Sublattice 2 Atom Fe spin DOWN   # IT=2, ITA=2 (e.g., c=0.5)
+
+# Relationship:
+# IT1_total = 0.7 * ITA1_total + 0.3 * ITA2_total (should match get_dos('sublattice', sublattice=1))
+# IT1_d_orbital = 0.7 * ITA1_d + 0.3 * ITA2_d (only available via weighted ITA sum)
 ```
 
 **New Implementation**:
 ```python
-def get_atom_dos(self, sublattice: int, atom_index: int = 1, orbital: str = 'total',
-                 sum_atoms: bool = False, spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+def get_ITA_dos(self, sublattice: int, ITA_index: int = 1, orbital: str = 'total',
+                sum_ITAs: bool = False, concentrations: Optional[List[float]] = None,
+                spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """
-    Get DOS for a specific atom with orbital selection.
+    Get DOS for a specific ITA (Interacting Type Atom) with orbital selection.
 
-    Reads from atom-specific sections:
+    Reads from ITA-specific sections:
     'Sublattice X Atom ELEMENT spin DOWN/UP'
     Column structure: [E, Total, s, p, d]
 
-    Note: The same sublattice can appear multiple times in the file (multiple atoms
-    on the same sublattice). Use atom_index to specify which occurrence, or use
-    sum_atoms=True to sum all atoms on the sublattice.
+    Note: Each sublattice (IT) can have multiple ITAs representing different concentration
+    components within the CPA. Use ITA_index to specify which ITA (1, 2, ...), or use
+    sum_ITAs=True to compute concentration-weighted orbital-resolved sublattice DOS.
 
     Parameters
     ----------
     sublattice : int
-        Sublattice index (1, 2, 3, ...)
-    atom_index : int
-        Which atom on this sublattice (1 = first occurrence, 2 = second, etc.)
-        Ignored if sum_atoms=True. Default: 1
+        Sublattice (IT) index (1, 2, 3, ...)
+    ITA_index : int
+        Which ITA on this sublattice (1 = first occurrence, 2 = second, etc.)
+        Ignored if sum_ITAs=True. Default: 1
     orbital : str
         Orbital to extract:
-        - 'total': Total DOS for this atom (column 1)
+        - 'total': Total DOS for this ITA (column 1)
         - 's': s-orbital DOS (column 2)
         - 'p': p-orbital DOS (column 3)
         - 'd': d-orbital DOS (column 4)
-    sum_atoms : bool
-        If True, sum DOS over all atoms on this sublattice (ignores atom_index).
-        WARNING: This summed DOS may not match the IT column data from get_dos('sublattice')
-        due to potential calculation errors in individual atom sections. Default: False
+    sum_ITAs : bool
+        If True, compute concentration-weighted sum over all ITAs on this sublattice.
+        Requires concentrations parameter. Default: False
+    concentrations : list of float, optional
+        Concentration weights for each ITA when sum_ITAs=True.
+        Must sum to 1.0 and have length equal to number of ITAs on this sublattice.
+        Required when sum_ITAs=True.
+        Example: [0.7, 0.3] for 2 ITAs on sublattice
     spin_polarized : bool
         If True, return separate spin channels. If False, sum them.
 
@@ -333,15 +353,22 @@ def get_atom_dos(self, sublattice: int, atom_index: int = 1, orbital: str = 'tot
 
     Examples
     --------
-    >>> parser.get_atom_dos(sublattice=1, atom_index=1, orbital='d')  # 1st Pt atom, d-orbital
-    >>> parser.get_atom_dos(sublattice=1, atom_index=2, orbital='d')  # 2nd Pt atom, d-orbital
-    >>> parser.get_atom_dos(sublattice=2, atom_index=1, orbital='s')  # 1st Fe atom, s-orbital
-    >>> parser.get_atom_dos(sublattice=1, sum_atoms=True, orbital='d')  # Sum all atoms on sublattice 1
-    """
-    # Find all atoms on this sublattice
-    atoms_on_sublattice = [(atom_num, elem) for atom_num, elem, sub in self.atom_info if sub == sublattice]
+    >>> parser.get_ITA_dos(sublattice=1, ITA_index=1, orbital='d')  # 1st Pt ITA, d-orbital
+    >>> parser.get_ITA_dos(sublattice=1, ITA_index=2, orbital='d')  # 2nd Pt ITA, d-orbital
+    >>> parser.get_ITA_dos(sublattice=2, ITA_index=1, orbital='s')  # 1st Fe ITA, s-orbital
 
-    if not atoms_on_sublattice:
+    # Orbital-resolved sublattice DOS (weighted sum)
+    >>> parser.get_ITA_dos(sublattice=1, orbital='d', sum_ITAs=True, concentrations=[0.7, 0.3])
+
+    Notes
+    -----
+    When sum_ITAs=True and orbital='total', the weighted sum should match:
+    get_dos('sublattice', sublattice=N) within numerical precision.
+    """
+    # Find all ITAs on this sublattice
+    ITAs_on_sublattice = [(atom_num, elem) for atom_num, elem, sub in self.atom_info if sub == sublattice]
+
+    if not ITAs_on_sublattice:
         available_sublattices = sorted(set(sub for _, _, sub in self.atom_info))
         raise KeyError(f"Sublattice {sublattice} not found. Available sublattices: {available_sublattices}")
 
@@ -358,20 +385,29 @@ def get_atom_dos(self, sublattice: int, atom_index: int = 1, orbital: str = 'tot
 
     col_idx = orbital_map[orbital]
 
-    if sum_atoms:
-        # Sum over all atoms on this sublattice
-        import warnings
-        warnings.warn(
-            f"Summing atom DOS for sublattice {sublattice}. This may not match "
-            f"get_dos('sublattice', sublattice={sublattice}) due to potential errors "
-            f"in individual atom DOS sections. Use get_dos() for accurate sublattice totals.",
-            UserWarning
-        )
+    if sum_ITAs:
+        # Concentration-weighted sum over all ITAs on this sublattice
+        if concentrations is None:
+            raise ValueError(
+                f"concentrations parameter is required when sum_ITAs=True. "
+                f"Sublattice {sublattice} has {len(ITAs_on_sublattice)} ITA(s)."
+            )
+
+        if len(concentrations) != len(ITAs_on_sublattice):
+            raise ValueError(
+                f"concentrations length ({len(concentrations)}) must match number of ITAs "
+                f"on sublattice {sublattice} ({len(ITAs_on_sublattice)})"
+            )
+
+        if not np.isclose(sum(concentrations), 1.0):
+            raise ValueError(
+                f"concentrations must sum to 1.0, got {sum(concentrations)}"
+            )
 
         dos_down_sum = None
         dos_up_sum = None
 
-        for atom_num, _ in atoms_on_sublattice:
+        for (atom_num, _), conc in zip(ITAs_on_sublattice, concentrations):
             down_key = f'atom_{atom_num}_down'
             up_key = f'atom_{atom_num}_up'
 
@@ -381,17 +417,17 @@ def get_atom_dos(self, sublattice: int, atom_index: int = 1, orbital: str = 'tot
             if dos_down_sum is None:
                 dos_down_sum = np.column_stack([
                     self.data[down_key][:, 0],
-                    self.data[down_key][:, col_idx]
+                    conc * self.data[down_key][:, col_idx]
                 ])
                 if up_key in self.data and self.data[up_key] is not None:
                     dos_up_sum = np.column_stack([
                         self.data[up_key][:, 0],
-                        self.data[up_key][:, col_idx]
+                        conc * self.data[up_key][:, col_idx]
                     ])
             else:
-                dos_down_sum[:, 1] += self.data[down_key][:, col_idx]
+                dos_down_sum[:, 1] += conc * self.data[down_key][:, col_idx]
                 if up_key in self.data and self.data[up_key] is not None and dos_up_sum is not None:
-                    dos_up_sum[:, 1] += self.data[up_key][:, col_idx]
+                    dos_up_sum[:, 1] += conc * self.data[up_key][:, col_idx]
 
         if spin_polarized:
             return dos_down_sum, dos_up_sum
@@ -402,19 +438,22 @@ def get_atom_dos(self, sublattice: int, atom_index: int = 1, orbital: str = 'tot
             return total, None
 
     else:
-        # Get single atom
-        if atom_index < 1 or atom_index > len(atoms_on_sublattice):
-            raise KeyError(f"atom_index {atom_index} out of range. Sublattice {sublattice} has {len(atoms_on_sublattice)} atom(s)")
+        # Get single ITA
+        if ITA_index < 1 or ITA_index > len(ITAs_on_sublattice):
+            raise KeyError(
+                f"ITA_index {ITA_index} out of range. "
+                f"Sublattice {sublattice} has {len(ITAs_on_sublattice)} ITA(s)"
+            )
 
-        # Get the sequential atom_number for this sublattice and atom_index
-        atom_number = atoms_on_sublattice[atom_index - 1][0]  # -1 because atom_index is 1-based
+        # Get the sequential atom_number for this sublattice and ITA_index
+        atom_number = ITAs_on_sublattice[ITA_index - 1][0]  # -1 because ITA_index is 1-based
 
-        # Get the atom data
+        # Get the ITA data
         down_key = f'atom_{atom_number}_down'
         up_key = f'atom_{atom_number}_up'
 
         if down_key not in self.data:
-            raise KeyError(f"Data for sublattice {sublattice}, atom {atom_index} not found")
+            raise KeyError(f"Data for sublattice {sublattice}, ITA {ITA_index} not found")
 
         # Extract energy and orbital columns
         dos_down = np.column_stack([
@@ -439,18 +478,102 @@ def get_atom_dos(self, sublattice: int, atom_index: int = 1, orbital: str = 'tot
 ```
 
 **Side Effects**:
-- **REMOVES** `get_orbital_dos()` - functionality now in `get_atom_dos()`
-- Changes parameter from `atom_number` (opaque sequential) to `sublattice + atom_index` (matches file structure)
+- **RENAMES** `get_atom_dos()` → `get_ITA_dos()` for correct terminology
+- **REMOVES** `get_orbital_dos()` - functionality merged into `get_ITA_dos()`
+- Changes parameter from `atom_number` (opaque sequential) to `sublattice + ITA_index` (matches file structure)
 - Adds `orbital` parameter with options: 'total', 's', 'p', 'd'
-- Adds `sum_atoms` parameter to sum all atoms on a sublattice (with warning)
+- Adds `sum_ITAs` parameter for concentration-weighted summation
+- Adds `concentrations` parameter (required when `sum_ITAs=True`)
 - **BREAKS COMPATIBILITY** with code using old `atom_number` parameter
 
-**Note on sum_atoms**:
-- When `sum_atoms=True`, sums DOS from individual atom sections
-- This mimics old `get_sublattice_dos()` behavior but with explicit warning
-- Warning alerts user that summed atom DOS may differ from IT column data
-- Recommended: Use `get_dos('sublattice')` for accurate sublattice totals
-- Use case: When you need orbital-resolved sublattice data despite potential inaccuracy
+**Note on sum_ITAs with concentrations**:
+- When `sum_ITAs=True`, computes concentration-weighted sum of ITA DOS
+- Enables **orbital-resolved sublattice DOS** (not available from IT columns)
+- For `orbital='total'`, weighted sum should match `get_dos('sublattice')` within numerical precision
+- For `orbital='s'/'p'/'d'`, provides orbital-resolved sublattice DOS
+- User must provide correct concentrations from their CPA calculation
+- Concentrations must sum to 1.0 and match number of ITAs on sublattice
+
+**Verification**:
+A separate verification function should be added to check that:
+```python
+weighted_ITA_sum == IT_column_data  # Within numerical tolerance
+```
+
+---
+
+#### Task 1.4: Add verify_ITA_sum() function
+**File**: `modules/dos.py` (new function after `get_ITA_dos()`)
+**Purpose**: Verify that concentration-weighted ITA sum matches IT column data
+
+**New Implementation**:
+```python
+def verify_ITA_sum(self, sublattice: int, concentrations: List[float],
+                   tolerance: float = 1e-6) -> Dict[str, bool]:
+    """
+    Verify that concentration-weighted ITA sum matches IT column data.
+
+    This function checks the relationship:
+    sum(c_i * ITA_i_total) == IT_total (within tolerance)
+
+    Parameters
+    ----------
+    sublattice : int
+        Sublattice (IT) index to verify
+    concentrations : list of float
+        Concentration weights for each ITA (must sum to 1.0)
+    tolerance : float
+        Numerical tolerance for comparison. Default: 1e-6
+
+    Returns
+    -------
+    dict
+        Dictionary with verification results:
+        {
+            'spin_down_match': bool,
+            'spin_up_match': bool,
+            'max_diff_down': float,
+            'max_diff_up': float
+        }
+
+    Examples
+    --------
+    >>> result = parser.verify_ITA_sum(sublattice=1, concentrations=[0.7, 0.3])
+    >>> if result['spin_down_match']:
+    ...     print("Verification passed!")
+    """
+    # Get IT column data
+    it_dos_down, it_dos_up = self.get_dos('sublattice', sublattice=sublattice,
+                                           spin_polarized=True)
+
+    # Get weighted ITA sum
+    ita_sum_down, ita_sum_up = self.get_ITA_dos(sublattice=sublattice, orbital='total',
+                                                  sum_ITAs=True, concentrations=concentrations,
+                                                  spin_polarized=True)
+
+    # Compare
+    max_diff_down = np.max(np.abs(it_dos_down[:, 1] - ita_sum_down[:, 1]))
+    spin_down_match = max_diff_down < tolerance
+
+    max_diff_up = 0.0
+    spin_up_match = True
+    if it_dos_up is not None and ita_sum_up is not None:
+        max_diff_up = np.max(np.abs(it_dos_up[:, 1] - ita_sum_up[:, 1]))
+        spin_up_match = max_diff_up < tolerance
+
+    return {
+        'spin_down_match': spin_down_match,
+        'spin_up_match': spin_up_match,
+        'max_diff_down': max_diff_down,
+        'max_diff_up': max_diff_up
+    }
+```
+
+**Purpose**:
+- Validates that user-provided concentrations are correct
+- Checks data consistency between IT and ITA sections
+- Useful for debugging CPA calculations
+- Provides quantitative difference metrics
 
 ---
 
@@ -559,31 +682,32 @@ def plot_sublattice(self, sublattice: Optional[int] = None, spin_polarized: bool
 
 ---
 
-#### Task 2.2: Update plot_atom() - merge with plot_orbital()
+#### Task 2.2: Rename plot_atom() to plot_ITA() and merge with plot_orbital()
 **Files**:
-- `modules/dos.py:375-435` (plot_atom - update)
+- `modules/dos.py:375-435` (plot_atom - rename to plot_ITA and update)
 - `modules/dos.py:437-485` (plot_orbital - REMOVE)
 
 **Rationale**:
 - `plot_orbital()` is redundant - just calls `plot_atom()` with specific orbital
-- Merge functionality into single `plot_atom()` function with `orbital` parameter
+- Rename `plot_atom()` to `plot_ITA()` for correct terminology
+- Merge functionality into single `plot_ITA()` function with `orbital` parameter
 - Simpler API with one function instead of two
 
 **New Signature**:
 ```python
-def plot_atom(self, sublattice: int, atom_index: int = 1, orbital: str = 'total',
-              orbital_resolved: bool = False, spin_polarized: bool = True,
-              figsize: Tuple[float, float] = (8, 6), save: Optional[str] = None,
-              show: bool = True):
+def plot_ITA(self, sublattice: int, ITA_index: int = 1, orbital: str = 'total',
+             orbital_resolved: bool = False, spin_polarized: bool = True,
+             figsize: Tuple[float, float] = (8, 6), save: Optional[str] = None,
+             show: bool = True):
     """
-    Plot atom-resolved DOS with orbital selection.
+    Plot ITA (Interacting Type Atom) DOS with orbital selection.
 
     Parameters
     ----------
     sublattice : int
-        Sublattice index (1, 2, 3, ...)
-    atom_index : int
-        Which atom on this sublattice (1 = first occurrence, 2 = second, etc.)
+        Sublattice (IT) index (1, 2, 3, ...)
+    ITA_index : int
+        Which ITA on this sublattice (1 = first occurrence, 2 = second, etc.)
         Default: 1
     orbital : str
         Orbital to plot: 'total', 's', 'p', or 'd'
@@ -606,20 +730,20 @@ def plot_atom(self, sublattice: int, atom_index: int = 1, orbital: str = 'total'
 
     Examples
     --------
-    >>> plotter.plot_atom(sublattice=1, atom_index=1)  # Total DOS for 1st atom on sublattice 1
-    >>> plotter.plot_atom(sublattice=1, atom_index=1, orbital_resolved=True)  # s, p, d separately
-    >>> plotter.plot_atom(sublattice=1, atom_index=2, orbital='d')  # Only d-orbital
+    >>> plotter.plot_ITA(sublattice=1, ITA_index=1)  # Total DOS for 1st ITA on sublattice 1
+    >>> plotter.plot_ITA(sublattice=1, ITA_index=1, orbital_resolved=True)  # s, p, d separately
+    >>> plotter.plot_ITA(sublattice=1, ITA_index=2, orbital='d')  # Only d-orbital for 2nd ITA
     """
 ```
 
 **Implementation Logic**:
 ```python
-# Get atom info for title
-atoms_on_sublattice = [(atom_num, elem) for atom_num, elem, sub in self.parser.atom_info if sub == sublattice]
-if not atoms_on_sublattice or atom_index < 1 or atom_index > len(atoms_on_sublattice):
-    raise ValueError(f"Invalid sublattice {sublattice} or atom_index {atom_index}")
+# Get ITA info for title
+ITAs_on_sublattice = [(atom_num, elem) for atom_num, elem, sub in self.parser.atom_info if sub == sublattice]
+if not ITAs_on_sublattice or ITA_index < 1 or ITA_index > len(ITAs_on_sublattice):
+    raise ValueError(f"Invalid sublattice {sublattice} or ITA_index {ITA_index}")
 
-atom_number, element = atoms_on_sublattice[atom_index - 1]
+atom_number, element = ITAs_on_sublattice[ITA_index - 1]
 
 fig, ax = plt.subplots(figsize=figsize)
 
@@ -628,19 +752,19 @@ if orbital == 'total' and orbital_resolved:
     orbitals = ['s', 'p', 'd']
     colors = ['C0', 'C1', 'C2']
     for orb, color in zip(orbitals, colors):
-        dos_down, dos_up = self.parser.get_atom_dos(sublattice, atom_index, orbital=orb,
-                                                      spin_polarized=True)
+        dos_down, dos_up = self.parser.get_ITA_dos(sublattice, ITA_index, orbital=orb,
+                                                     spin_polarized=True)
         if spin_polarized and dos_up is not None:
             ax.plot(dos_up[:, 0], dos_up[:, 1], label=orb, linestyle='-', color=color)
             ax.plot(dos_down[:, 0], -dos_down[:, 1], linestyle='--', color=color)
         else:
             dos_total = dos_down[:, 1] + (dos_up[:, 1] if dos_up is not None else 0)
             ax.plot(dos_down[:, 0], dos_total, label=orb, color=color)
-    title = f'Atom {atom_index} ({element.upper()}, sublattice {sublattice}) - Orbital resolved'
+    title = f'ITA {ITA_index} ({element.upper()}, sublattice {sublattice}) - Orbital resolved'
 else:
     # Plot single orbital (total, s, p, or d)
-    dos_down, dos_up = self.parser.get_atom_dos(sublattice, atom_index, orbital=orbital,
-                                                  spin_polarized=True)
+    dos_down, dos_up = self.parser.get_ITA_dos(sublattice, ITA_index, orbital=orbital,
+                                                 spin_polarized=True)
     label = orbital if orbital != 'total' else 'Total'
     if spin_polarized and dos_up is not None:
         ax.plot(dos_up[:, 0], dos_up[:, 1], label=label, color='blue', linestyle='-')
@@ -650,7 +774,7 @@ else:
         ax.plot(dos_down[:, 0], dos_total, label=label, color='black')
 
     orbital_str = f'{orbital}-orbital' if orbital != 'total' else ''
-    title = f'Atom {atom_index} ({element.upper()}, sublattice {sublattice}) {orbital_str} DOS'
+    title = f'ITA {ITA_index} ({element.upper()}, sublattice {sublattice}) {orbital_str} DOS'
 
 # Common plotting elements
 if spin_polarized:
@@ -671,41 +795,73 @@ return fig, ax
 ```
 
 **Benefits**:
-- Single function for all atom plotting needs
+- Single function for all ITA plotting needs
+- Correct terminology: "ITA" instead of "atom"
 - Backwards compatible behavior with `orbital_resolved` parameter
 - Can plot specific orbital or all orbitals
-- Uses new `get_atom_dos()` with sublattice/atom_index parameters
+- Uses new `get_ITA_dos()` with sublattice/ITA_index parameters
 - Cleaner API - removes redundant `plot_orbital()` function
 
 **Breaking Changes**:
+- **RENAMES** `plot_atom()` → `plot_ITA()`
 - Old signature: `plot_atom(atom_number, orbital_resolved=False, ...)`
-- New signature: `plot_atom(sublattice, atom_index=1, orbital='total', orbital_resolved=False, ...)`
+- New signature: `plot_ITA(sublattice, ITA_index=1, orbital='total', orbital_resolved=False, ...)`
 - **REMOVES** `plot_orbital()` function entirely
 
 ---
 
-#### Task 2.3: Remove list_sublattices() helper function
-**File**: `modules/dos.py:270-272`
+#### Task 2.3: Rename list_atoms() to list_ITAs() and remove list_sublattices()
+**Files**:
+- `modules/dos.py:259-268` (list_atoms - rename to list_ITAs)
+- `modules/dos.py:270-272` (list_sublattices - REMOVE)
 
 **Rationale**:
-- `list_atoms()` already returns sublattice information in each tuple: `(atom_number, element, sublattice)`
+- Correct terminology: "ITA" instead of "atom"
+- `list_ITAs()` already returns sublattice information in each tuple
 - Having a separate `list_sublattices()` is redundant
-- Users can extract unique sublattices from `list_atoms()` if needed
+- Users can extract unique sublattices from `list_ITAs()` if needed
 
-**Action**:
+**Actions**:
+- **RENAME** `list_atoms()` → `list_ITAs()`
 - **REMOVE** `list_sublattices()` function entirely
+
+**New Implementation**:
+```python
+def list_ITAs(self) -> List[Tuple[int, str, int]]:
+    """
+    Return list of ITAs (Interacting Type Atoms) with their info.
+
+    Returns
+    -------
+    list of tuples
+        Each tuple is (ITA_number, element, sublattice)
+        ITA_number is the internal sequential numbering (1, 2, 3, ...)
+        For access by sublattice, use sublattice and ITA_index parameters in get_ITA_dos()
+
+    Examples
+    --------
+    >>> parser.list_ITAs()
+    [(1, 'pt', 1), (2, 'pt', 1), (3, 'fe', 2), (4, 'fe', 2)]
+
+    # Extract unique sublattices
+    >>> ITAs = parser.list_ITAs()
+    >>> sublattices = sorted(set(sub for _, _, sub in ITAs))
+    """
+    return self.atom_info
+```
 
 **Migration**:
 ```python
 # OLD
+atoms = parser.list_atoms()
 sublattices = parser.list_sublattices()
 
-# NEW - extract from list_atoms()
-atoms = parser.list_atoms()  # Returns [(atom_num, element, sublattice), ...]
-sublattices = sorted(set(sub for _, _, sub in atoms))
+# NEW
+ITAs = parser.list_ITAs()  # Renamed from list_atoms()
+sublattices = sorted(set(sub for _, _, sub in ITAs))  # Extract manually
 ```
 
-**Note**: The internal parser still has `atom_info` which contains this data. This is just removing the public API function.
+**Note**: The internal parser still has `atom_info` which stores this data. The renaming just makes the terminology consistent.
 
 ---
 
@@ -756,49 +912,65 @@ sublattices = sorted(set(sub for _, _, sub in atoms))
 ## Migration Path
 
 ### Breaking Changes Alert - No Backward Compatibility
-This refactor **removes functions** and is a **BREAKING CHANGE**:
+This refactor **removes and renames functions** for correct ITA/IT terminology and is a **BREAKING CHANGE**:
 
 **Removed Data Functions**:
 1. `get_total_dos()` → **REMOVED** - use `get_dos('total')` instead
 2. `get_sublattice_dos()` → **REMOVED** - use `get_dos('sublattice', sublattice=N)` instead
-3. `get_orbital_dos()` → **REMOVED** - functionality merged into `get_atom_dos()`
+3. `get_orbital_dos()` → **REMOVED** - functionality merged into `get_ITA_dos()`
+
+**Renamed Data Functions**:
+1. `get_atom_dos()` → **RENAMED** to `get_ITA_dos()` with new signature (sublattice, ITA_index, orbital, sum_ITAs, concentrations)
 
 **Removed Plotter Functions**:
-1. `plot_orbital()` → **REMOVED** - functionality merged into `plot_atom()`
-2. `plot_partial()` → **RENAMED** to `plot_sublattice()`
-3. Old `plot_sublattice()` → **REMOVED** - used wrong data source (summed atoms instead of IT columns)
+1. `plot_orbital()` → **REMOVED** - functionality merged into `plot_ITA()`
+2. Old `plot_sublattice()` → **REMOVED** - used wrong approach (unweighted ITA summation)
+
+**Renamed Plotter Functions**:
+1. `plot_partial()` → **RENAMED** to `plot_sublattice()`
+2. `plot_atom()` → **RENAMED** to `plot_ITA()` with new signature (sublattice, ITA_index, orbital)
 
 **Removed Helper Functions**:
-1. `list_sublattices()` → **REMOVED** - use `list_atoms()` instead
+1. `list_sublattices()` → **REMOVED** - extract from `list_ITAs()` instead
 
-**Refactored Functions**:
-1. `get_atom_dos()` → **CHANGED SIGNATURE** - now uses sublattice, atom_index, and orbital parameters
-2. `plot_atom()` → **CHANGED SIGNATURE** - now uses sublattice, atom_index, and orbital parameters
+**Renamed Helper Functions**:
+1. `list_atoms()` → **RENAMED** to `list_ITAs()` for correct terminology
+
+**New Functions**:
+1. `get_dos()` → Unified IT (sublattice) data access from Total DOS section
+2. `verify_ITA_sum()` → Validates concentration-weighted ITA sums match IT column data
 
 ### New API Structure
 
-**For Total DOS section data** (no orbital resolution):
+**For IT (Sublattice) data from Total DOS section** (no orbital resolution):
 - `get_dos('total')` → Total DOS (column 1)
 - `get_dos('nos')` → Number of States (column 2)
-- `get_dos('sublattice', sublattice=N)` → Sublattice N DOS from IT columns
+- `get_dos('sublattice', sublattice=N)` → Sublattice N (IT N) DOS from IT columns (pre-weighted)
 
-**For individual atom data** (with orbital resolution):
-- `get_atom_dos(sublattice, atom_index, orbital)` → Atom DOS with orbital selection
-  - `sublattice` → Which sublattice (1, 2, 3, ...)
-  - `atom_index` → Which atom on that sublattice (1, 2, 3, ...)
-  - `orbital='total'` → Total DOS for this atom
+**For ITA (Individual Component) data** (with orbital resolution):
+- `get_ITA_dos(sublattice, ITA_index, orbital)` → ITA DOS with orbital selection
+  - `sublattice` → Which sublattice/IT (1, 2, 3, ...)
+  - `ITA_index` → Which ITA on that sublattice (1, 2, 3, ...)
+  - `orbital='total'` → Total DOS for this ITA
   - `orbital='s'` → s-orbital DOS
   - `orbital='p'` → p-orbital DOS
   - `orbital='d'` → d-orbital DOS
+  - `sum_ITAs=True, concentrations=[...]` → Concentration-weighted sum for orbital-resolved sublattice DOS
+
+**Key Concept**:
+- **IT (Sublattice)** = Pre-weighted total from CPA, no orbital resolution
+- **ITA (Interacting Type Atom)** = Individual concentration components, with orbital resolution
+- **Relationship**: `sum(c_i * ITA_i) == IT` for correct concentrations
 
 ### Why No Backward Compatibility?
-- Clean break prevents confusion about data sources
-- Old `get_sublattice_dos()` was summing wrong data (atom sections)
-- New `get_dos('sublattice')` reads correct data (IT columns)
+- **Terminology correction**: "atom" → "ITA" (Interacting Type Atom) reflects actual CPA structure
+- **Data source clarity**: Old `get_sublattice_dos()` summed ITAs without concentration weighting
+- **New capability**: Concentration-weighted summation enables orbital-resolved sublattice DOS
+- **Correct understanding**: IT columns are pre-weighted CPA results, ITA sections are components
 - Old `get_atom_dos()` used opaque sequential atom_number (1, 2, 3, ...)
-- New `get_atom_dos()` uses sublattice + atom_index (matches file structure)
-- File can have same sublattice multiple times - atom_index disambiguates which occurrence
-- Different data structures - wrappers would be misleading
+- New `get_ITA_dos()` uses sublattice + ITA_index (matches file structure and CPA concept)
+- File can have same sublattice multiple times (multiple ITAs per IT)
+- Different data structures and physics understanding - wrappers would be misleading
 
 ---
 
@@ -806,58 +978,79 @@ This refactor **removes functions** and is a **BREAKING CHANGE**:
 
 **Critical Priority**:
 1. Fix **** handling (data loss issue) - `_read_data_block()`
-2. Create unified `get_dos()` function (correctness issue)
-3. Refactor `get_atom_dos()` with orbital parameter
+2. Create unified `get_dos()` function for IT (sublattice) data
+3. **RENAME** `get_atom_dos()` → `get_ITA_dos()` with concentration-weighted summation
 4. **REMOVE** `get_total_dos()`, `get_sublattice_dos()`, and `get_orbital_dos()` - breaking changes
+5. **ADD** `verify_ITA_sum()` function to validate concentration weighting
 
 **High Priority**:
-5. Rename `plot_partial()` to `plot_sublattice()` and remove old `plot_sublattice()`
-6. Update `plot_total()` to use `get_dos('total')`
-7. Update and merge `plot_atom()` with `plot_orbital()` - new signature: `plot_atom(sublattice, atom_index, orbital='total', ...)`
-8. **REMOVE** `plot_orbital()` - functionality merged into `plot_atom()`
-9. Add input validation
+6. Rename `plot_partial()` to `plot_sublattice()` and remove old `plot_sublattice()`
+7. Update `plot_total()` to use `get_dos('total')`
+8. **RENAME** `plot_atom()` → `plot_ITA()` and merge with `plot_orbital()`
+9. **REMOVE** `plot_orbital()` - functionality merged into `plot_ITA()`
+10. **RENAME** `list_atoms()` → `list_ITAs()` and remove `list_sublattices()`
+11. Add input validation
 
 **Medium Priority**:
-10. Update documentation (dos_guide.md)
-11. Add unit tests
-12. Update convenience function `plot_dos()` to use new API
+12. Update documentation (dos_guide.md) with ITA/IT terminology and concentration examples
+13. Add unit tests with concentration weighting edge cases
+14. Update convenience function `plot_dos()` to use new API
 
 **Estimated Impact**:
-- **BREAKING CHANGES - Data Functions**: 3 functions removed (`get_total_dos`, `get_sublattice_dos`, `get_orbital_dos`)
-- **BREAKING CHANGES - Data Functions**: 1 function signature changed (`get_atom_dos`)
-- **BREAKING CHANGES - Plotter Functions**: 2 functions removed/renamed (`plot_orbital` removed, `plot_partial` renamed to `plot_sublattice`)
-- **BREAKING CHANGES - Plotter Functions**: 1 function signature changed (`plot_atom`)
-- **BREAKING CHANGES - Helper Functions**: `list_sublattices()` removed (use `list_atoms()` instead)
-- New functions: 1 (`get_dos`)
-- Functions modified: 4 (data: `get_atom_dos`, `_read_data_block`; plotters: `plot_total`, `plot_atom`)
-- Functions removed: 4 (`get_total_dos`, `get_sublattice_dos`, `get_orbital_dos`, `plot_orbital`, old `plot_sublattice`)
-- Functions renamed: 1 (`plot_partial` → `plot_sublattice`)
-- Test files needed: ~5-10 with different sublattice counts and overflow values
-- Documentation pages: 1 (dos_guide.md)
+- **BREAKING CHANGES - Data Functions**:
+  - 3 functions removed (`get_total_dos`, `get_sublattice_dos`, `get_orbital_dos`)
+  - 1 function renamed (`get_atom_dos` → `get_ITA_dos`) with new signature
+- **BREAKING CHANGES - Plotter Functions**:
+  - 2 functions removed (`plot_orbital`, old `plot_sublattice`)
+  - 2 functions renamed (`plot_partial` → `plot_sublattice`, `plot_atom` → `plot_ITA`)
+- **BREAKING CHANGES - Helper Functions**:
+  - 1 function removed (`list_sublattices()`)
+  - 1 function renamed (`list_atoms()` → `list_ITAs()`)
+- **NEW FUNCTIONS**:
+  - `get_dos()` - unified IT data access
+  - `verify_ITA_sum()` - concentration weighting verification
+- **Functions modified**: 5 (data: `get_ITA_dos`, `_read_data_block`; plotters: `plot_total`, `plot_sublattice`, `plot_ITA`)
+- **Terminology change**: All "atom" → "ITA" (Interacting Type Atom)
+- **New capability**: Concentration-weighted orbital-resolved sublattice DOS
+- Test files needed: ~5-10 with different ITA counts, concentration weighting, overflow values
+- Documentation pages: 1 (dos_guide.md) - extensive updates needed for ITA/IT concepts
 
 **New API After Refactor**:
 ```python
-# Total DOS section data (no orbital resolution)
+# ========== IT (Sublattice) Data - Total DOS section (no orbital resolution) ==========
 parser.get_dos('total')                    # Total DOS (column 1)
 parser.get_dos('nos')                      # Number of States (column 2)
-parser.get_dos('sublattice', sublattice=1) # Sublattice 1 DOS (column 3)
-parser.get_dos('sublattice', sublattice=2) # Sublattice 2 DOS (column 4)
+parser.get_dos('sublattice', sublattice=1) # Sublattice 1 (IT1) total DOS (column 3)
+parser.get_dos('sublattice', sublattice=2) # Sublattice 2 (IT2) total DOS (column 4)
 
-# Individual atom data (with orbital selection)
-# atom_index specifies which occurrence of that sublattice (1st, 2nd, etc.)
-parser.get_atom_dos(sublattice=1, atom_index=1, orbital='total')  # 1st atom on sublattice 1
-parser.get_atom_dos(sublattice=1, atom_index=2, orbital='d')      # 2nd atom on sublattice 1, d-orbital
-parser.get_atom_dos(sublattice=2, atom_index=1, orbital='s')      # 1st atom on sublattice 2, s-orbital
-parser.get_atom_dos(sublattice=1, atom_index=1, orbital='p')      # 1st atom on sublattice 1, p-orbital
+# ========== ITA (Individual Component) Data - With orbital resolution ==========
+# ITA_index specifies which ITA on that sublattice (1st, 2nd, etc.)
+parser.get_ITA_dos(sublattice=1, ITA_index=1, orbital='total')  # 1st ITA on sublattice 1
+parser.get_ITA_dos(sublattice=1, ITA_index=2, orbital='d')      # 2nd ITA on sublattice 1, d-orbital
+parser.get_ITA_dos(sublattice=2, ITA_index=1, orbital='s')      # 1st ITA on sublattice 2, s-orbital
+parser.get_ITA_dos(sublattice=1, ITA_index=1, orbital='p')      # 1st ITA on sublattice 1, p-orbital
 
-# Sum all atoms on a sublattice (with warning - may not match IT data)
-parser.get_atom_dos(sublattice=1, sum_atoms=True, orbital='d')    # Sum d-orbital for all atoms on sublattice 1
-# WARNING: This may differ from get_dos('sublattice', sublattice=1) due to errors in atom sections
+# ========== Concentration-Weighted Orbital-Resolved Sublattice DOS ==========
+# This is the KEY NEW FEATURE - enables orbital-resolved sublattice DOS
+parser.get_ITA_dos(sublattice=1, orbital='d', sum_ITAs=True, concentrations=[0.7, 0.3])
+# Returns: 0.7 * ITA1_d + 0.3 * ITA2_d (orbital-resolved sublattice DOS)
 
-# Plotting functions updated to use new API
-plotter.plot_total()                                          # Uses get_dos('total')
-plotter.plot_sublattice()                                     # Plot all sublattices (renamed from plot_partial)
-plotter.plot_sublattice(sublattice=1)                        # Plot specific sublattice
-plotter.plot_atom(sublattice=1, atom_index=1, orbital='total')  # Plot total atom DOS
-plotter.plot_atom(sublattice=1, atom_index=1, orbital='d')      # Plot d-orbital (merged from plot_orbital)
+parser.get_ITA_dos(sublattice=1, orbital='total', sum_ITAs=True, concentrations=[0.7, 0.3])
+# Returns: weighted total (should match get_dos('sublattice', sublattice=1) within tolerance)
+
+# ========== Verification ==========
+result = parser.verify_ITA_sum(sublattice=1, concentrations=[0.7, 0.3])
+# Check that weighted ITA sum matches IT column data
+
+# ========== Plotting Functions ==========
+plotter.plot_total()                                        # Uses get_dos('total')
+plotter.plot_sublattice()                                   # Plot all sublattices (renamed from plot_partial)
+plotter.plot_sublattice(sublattice=1)                      # Plot specific sublattice (IT data)
+plotter.plot_ITA(sublattice=1, ITA_index=1)                # Plot total ITA DOS (renamed from plot_atom)
+plotter.plot_ITA(sublattice=1, ITA_index=1, orbital='d')   # Plot d-orbital (merged from plot_orbital)
+plotter.plot_ITA(sublattice=1, ITA_index=1, orbital_resolved=True)  # Plot s, p, d separately
+
+# ========== Helper Functions ==========
+ITAs = parser.list_ITAs()  # Returns [(ITA_num, element, sublattice), ...] - renamed from list_atoms()
+sublattices = sorted(set(sub for _, _, sub in ITAs))  # Extract unique sublattices
 ```
