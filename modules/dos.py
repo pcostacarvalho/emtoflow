@@ -573,18 +573,30 @@ class DOSPlotter:
 
         return fig, ax
     
-    def plot_atom(self, atom_number: int, orbital_resolved: bool = False, 
-                  spin_polarized: bool = True, figsize: Tuple[float, float] = (8, 6),
-                  save: Optional[str] = None, show: bool = True):
+    def plot_ITA(self, sublattice: int, ITA_index: int = 1, orbital: str = 'total',
+                 orbital_resolved: bool = False, spin_polarized: bool = True,
+                 figsize: Tuple[float, float] = (8, 6),
+                 save: Optional[str] = None, show: bool = True):
         """
-        Plot atom-resolved DOS.
-        
+        Plot ITA (Interacting Type Atom) DOS with optional orbital selection.
+
+        This function combines atom-resolved and orbital-resolved plotting.
+        Use orbital parameter to select specific orbitals, or orbital_resolved=True
+        to show all orbitals separately.
+
         Parameters
         ----------
-        atom_number : int
-            Sequential atom number (1, 2, 3, 4...)
+        sublattice : int
+            Sublattice (IT) index (1, 2, 3, ...)
+        ITA_index : int
+            Which ITA on this sublattice (1 = first, 2 = second, etc.). Default: 1
+        orbital : str
+            Orbital to plot: 'total', 's', 'p', or 'd'. Default: 'total'
+            - 'total': Plot total DOS (optionally with orbital_resolved)
+            - 's'/'p'/'d': Plot only that specific orbital
         orbital_resolved : bool
-            If True, plot s, p, d orbitals separately
+            Only applies when orbital='total'. If True, plot s, p, d separately.
+            If False, plot total DOS only. Default: False
         spin_polarized : bool
             If True, plot spin-up and spin-down separately
         figsize : tuple
@@ -593,153 +605,159 @@ class DOSPlotter:
             Filename to save plot
         show : bool
             Whether to display the plot
+
+        Examples
+        --------
+        >>> plotter.plot_ITA(sublattice=1, ITA_index=1)  # Total DOS
+        >>> plotter.plot_ITA(sublattice=1, ITA_index=1, orbital='d')  # d-orbital only
+        >>> plotter.plot_ITA(sublattice=1, ITA_index=1, orbital_resolved=True)  # s, p, d separately
         """
-        dos_down, dos_up = self.parser.get_atom_dos(atom_number, spin_polarized)
-        
-        # Get atom info for title
-        atom_info = [info for info in self.parser.atom_info if info[0] == atom_number][0]
-        _, element, sublattice = atom_info
-        
+        # Get ITA info for title
+        ITAs_on_sublattice = [(num, elem) for num, elem, sub in self.parser.atom_info
+                              if sub == sublattice]
+        if ITA_index < 1 or ITA_index > len(ITAs_on_sublattice):
+            raise ValueError(f"ITA_index {ITA_index} out of range for sublattice {sublattice}")
+
+        _, element = ITAs_on_sublattice[ITA_index - 1]
+
         fig, ax = plt.subplots(figsize=figsize)
-        
-        if orbital_resolved:
+
+        if orbital == 'total' and orbital_resolved:
+            # Plot s, p, d separately
             orbitals = ['s', 'p', 'd']
             colors = ['C0', 'C1', 'C2']
-            if spin_polarized and dos_up is not None:
-                for i, (orb, color) in enumerate(zip(orbitals, colors), start=2):
-                    ax.plot(dos_up[:, 0], dos_up[:, i], label=orb, linestyle='-', color=color)
-                    ax.plot(dos_down[:, 0], -dos_down[:, i], linestyle='--', color=color)
+
+            for orb, color in zip(orbitals, colors):
+                dos_down, dos_up = self.parser.get_ITA_dos(
+                    sublattice=sublattice, ITA_index=ITA_index, orbital=orb,
+                    spin_polarized=spin_polarized
+                )
+
+                if spin_polarized and dos_up is not None:
+                    ax.plot(dos_up[:, 0], dos_up[:, 1], label=orb, linestyle='-', color=color)
+                    ax.plot(dos_down[:, 0], -dos_down[:, 1], linestyle='--', color=color)
+                else:
+                    ax.plot(dos_down[:, 0], dos_down[:, 1], label=orb, color=color)
+
+            if spin_polarized:
                 ax.axhline(0, color='black', linewidth=0.5)
-            else:
-                for i, orb in enumerate(orbitals, start=2):
-                    ax.plot(dos_down[:, 0], dos_down[:, i], label=orb)
+            title_orbital = '(s, p, d orbitals)'
+
         else:
+            # Plot single orbital (total, s, p, or d)
+            dos_down, dos_up = self.parser.get_ITA_dos(
+                sublattice=sublattice, ITA_index=ITA_index, orbital=orbital,
+                spin_polarized=spin_polarized
+            )
+
+            label = orbital if orbital != 'total' else 'Total'
+
             if spin_polarized and dos_up is not None:
-                ax.plot(dos_up[:, 0], dos_up[:, 1], label='Total', color='blue', linestyle='-')
+                ax.plot(dos_up[:, 0], dos_up[:, 1], label=label, color='blue', linestyle='-')
                 ax.plot(dos_down[:, 0], -dos_down[:, 1], color='blue', linestyle='--')
                 ax.axhline(0, color='black', linewidth=0.5)
             else:
-                ax.plot(dos_down[:, 0], dos_down[:, 1], label='Total', color='black')
-        
+                ax.plot(dos_down[:, 0], dos_down[:, 1], label=label, color='black')
+
+            title_orbital = f'({orbital}-orbital)' if orbital != 'total' else ''
+
         ax.axvline(0, color='gray', linestyle='--', alpha=0.5, label='E_F')
         ax.set_xlabel('Energy (Ry)')
         ax.set_ylabel('DOS (states/Ry)')
         ax.legend()
-        ax.set_title(f'Atom {atom_number} ({element.upper()}, sublattice {sublattice}) DOS')
+        ax.set_title(f'ITA {ITA_index} ({element.upper()}, sublattice {sublattice}) {title_orbital} DOS'.strip())
         plt.tight_layout()
-        
+
         if save:
             plt.savefig(save, dpi=300)
         if show:
             plt.show()
-        
-        return fig, ax
-    
-    def plot_orbital(self, atom_number: int, orbital: str = 's',
-                    spin_polarized: bool = True, figsize: Tuple[float, float] = (8, 6),
-                    save: Optional[str] = None, show: bool = True):
-        """
-        Plot specific orbital DOS.
-        
-        Parameters
-        ----------
-        atom_number : int
-            Sequential atom number (1, 2, 3, 4...)
-        orbital : str
-            Orbital: 's', 'p', or 'd'
-        spin_polarized : bool
-            If True, plot spin-up and spin-down separately
-        figsize : tuple
-            Figure size (width, height)
-        save : str, optional
-            Filename to save plot
-        show : bool
-            Whether to display the plot
-        """
-        dos_down, dos_up = self.parser.get_orbital_dos(atom_number, orbital, spin_polarized)
-        
-        # Get atom info for title
-        atom_info = [info for info in self.parser.atom_info if info[0] == atom_number][0]
-        _, element, sublattice = atom_info
-        
-        fig, ax = plt.subplots(figsize=figsize)
-        
-        if spin_polarized and dos_up is not None:
-            ax.plot(dos_up[:, 0], dos_up[:, 1], label=f'{orbital}', color='blue', linestyle='-')
-            ax.plot(dos_down[:, 0], -dos_down[:, 1], color='blue', linestyle='--')
-            ax.axhline(0, color='black', linewidth=0.5)
-        else:
-            ax.plot(dos_down[:, 0], dos_down[:, 1], label=f'{orbital}', color='black')
-        
-        ax.axvline(0, color='gray', linestyle='--', alpha=0.5, label='E_F')
-        ax.set_xlabel('Energy (Ry)')
-        ax.set_ylabel('DOS (states/Ry)')
-        ax.legend()
-        ax.set_title(f'Atom {atom_number} ({element.upper()}) {orbital}-orbital DOS')
-        plt.tight_layout()
-        
-        if save:
-            plt.savefig(save, dpi=300)
-        if show:
-            plt.show()
-        
+
         return fig, ax
 
 
 # Convenience function
-def plot_dos(filename: str, plot_type: str = 'total', atom_number: Optional[int] = None,
-             sublattice: Optional[int] = None, 
-             orbital: Optional[str] = None, orbital_resolved: bool = False, 
-             spin_polarized: bool = True, figsize: Tuple[float, float] = (8, 6), 
+def plot_dos(filename: str, plot_type: str = 'total',
+             sublattice: Optional[int] = None,
+             ITA_index: Optional[int] = None,
+             orbital: Optional[str] = None, orbital_resolved: bool = False,
+             spin_polarized: bool = True, figsize: Tuple[float, float] = (8, 6),
              save: Optional[str] = None, show: bool = True):
     """
     Convenience function to parse and plot DOS in one call.
-    
+
     Parameters
     ----------
     filename : str
         Path to DOS file
     plot_type : str
-        'total', 'partial', 'atom', 'sublattice', or 'orbital'
-    atom_number : int, optional
-        For atom/orbital plots: sequential atom number (1, 2, 3, 4...)
+        Type of plot:
+        - 'total': Total DOS
+        - 'sublattice': Sublattice (IT) DOS
+        - 'ITA': ITA (Interacting Type Atom) DOS
     sublattice : int, optional
-        For sublattice plots: sublattice index (sums all atoms on sublattice)
+        Sublattice index (1, 2, 3, ...). Required for 'sublattice' and 'ITA' plot types.
+    ITA_index : int, optional
+        ITA index on the specified sublattice (1, 2, ...). Required for 'ITA' plot type.
+        Default: 1
     orbital : str, optional
-        For orbital plots: 's', 'p', or 'd'
+        For ITA plots: 'total', 's', 'p', or 'd'. Default: 'total'
     orbital_resolved : bool
-        For atom/sublattice plots: show s, p, d separately
+        For ITA plots when orbital='total': show s, p, d separately. Default: False
     spin_polarized : bool
-        Plot spin channels separately
+        Plot spin channels separately. Default: True
     figsize : tuple
-        Figure size
+        Figure size (width, height)
     save : str, optional
         Save filename
     show : bool
         Display plot
-    
+
     Returns
     -------
     fig, ax : matplotlib figure and axes
+
+    Examples
+    --------
+    >>> plot_dos('dos.dat', 'total')
+    >>> plot_dos('dos.dat', 'sublattice', sublattice=1)
+    >>> plot_dos('dos.dat', 'ITA', sublattice=1, ITA_index=1)
+    >>> plot_dos('dos.dat', 'ITA', sublattice=1, ITA_index=1, orbital='d')
+    >>> plot_dos('dos.dat', 'ITA', sublattice=1, ITA_index=1, orbital_resolved=True)
     """
     parser = DOSParser(filename)
     plotter = DOSPlotter(parser)
-    
+
     if plot_type == 'total':
         return plotter.plot_total(spin_polarized, figsize, save, show)
-    elif plot_type == 'partial':
-        return plotter.plot_partial(spin_polarized, figsize, save, show)
-    elif plot_type == 'atom':
-        if atom_number is None:
-            raise ValueError(f"Must specify atom_number. Available atoms: {parser.list_atoms()}")
-        return plotter.plot_atom(atom_number, orbital_resolved, spin_polarized, figsize, save, show)
+
     elif plot_type == 'sublattice':
+        return plotter.plot_sublattice(sublattice, spin_polarized, figsize, save, show)
+
+    elif plot_type == 'ITA':
         if sublattice is None:
-            raise ValueError(f"Must specify sublattice. Available sublattices: {parser.list_sublattices()}")
-        return plotter.plot_sublattice(sublattice, orbital_resolved, spin_polarized, figsize, save, show)
-    elif plot_type == 'orbital':
-        if atom_number is None or orbital is None:
-            raise ValueError(f"Must specify both atom_number and orbital. Available atoms: {parser.list_atoms()}")
-        return plotter.plot_orbital(atom_number, orbital, spin_polarized, figsize, save, show)
+            raise ValueError(
+                f"Must specify sublattice for ITA plots. "
+                f"Available ITAs: {parser.list_ITAs()}"
+            )
+        if ITA_index is None:
+            ITA_index = 1
+        if orbital is None:
+            orbital = 'total'
+
+        return plotter.plot_ITA(
+            sublattice=sublattice,
+            ITA_index=ITA_index,
+            orbital=orbital,
+            orbital_resolved=orbital_resolved,
+            spin_polarized=spin_polarized,
+            figsize=figsize,
+            save=save,
+            show=show
+        )
+
     else:
-        raise ValueError(f"Unknown plot_type: {plot_type}. Use 'total', 'partial', 'atom', 'sublattice', or 'orbital'")
+        raise ValueError(
+            f"Unknown plot_type: '{plot_type}'. "
+            f"Use 'total', 'sublattice', or 'ITA'"
+        )
