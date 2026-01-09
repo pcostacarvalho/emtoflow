@@ -473,10 +473,10 @@ class DOSPlotter:
         show : bool
             Whether to display the plot
         """
-        dos_down, dos_up = self.parser.get_total_dos(spin_polarized)
-        
+        dos_down, dos_up = self.parser.get_dos('total', spin_polarized=spin_polarized)
+
         fig, ax = plt.subplots(figsize=figsize)
-        
+
         if spin_polarized and dos_up is not None:
             ax.plot(dos_up[:, 0], dos_up[:, 1], label='Total', color='blue', linestyle='-')
             ax.plot(dos_down[:, 0], -dos_down[:, 1], color='blue', linestyle='--')
@@ -499,13 +499,19 @@ class DOSPlotter:
         
         return fig, ax
     
-    def plot_partial(self, spin_polarized: bool = True, figsize: Tuple[float, float] = (8, 6),
-                     save: Optional[str] = None, show: bool = True):
+    def plot_sublattice(self, sublattice: Optional[int] = None, spin_polarized: bool = True,
+                        figsize: Tuple[float, float] = (8, 6), save: Optional[str] = None,
+                        show: bool = True):
         """
-        Plot partial DOS (IT contributions).
-        
+        Plot sublattice DOS (IT contributions).
+
+        Uses get_dos() to extract sublattice data from IT columns.
+        If sublattice is None, plots all sublattices.
+
         Parameters
         ----------
+        sublattice : int, optional
+            Specific sublattice to plot. If None, plots all sublattices.
         spin_polarized : bool
             If True, plot spin-up and spin-down separately
         figsize : tuple
@@ -515,32 +521,56 @@ class DOSPlotter:
         show : bool
             Whether to display the plot
         """
-        dos_down, dos_up = self.parser.get_total_dos(spin_polarized)
-        
-        fig, ax = plt.subplots(figsize=figsize)
-        
-        if spin_polarized and dos_up is not None:
-            ax.plot(dos_up[:, 0], dos_up[:, 3], label='IT 1', linestyle='-', color='C0')
-            ax.plot(dos_up[:, 0], dos_up[:, 4], label='IT 2', linestyle='-', color='C1')
-            ax.plot(dos_down[:, 0], -dos_down[:, 3], linestyle='--', color='C0')
-            ax.plot(dos_down[:, 0], -dos_down[:, 4], linestyle='--', color='C1')
-            ax.axhline(0, color='black', linewidth=0.5)
+        # Auto-detect number of sublattices
+        num_sublattices = self.parser.data['total_down'].shape[1] - 3  # Subtract E, Total, NOS
+
+        if num_sublattices < 1:
+            raise ValueError("No sublattice data found in DOS file")
+
+        # Determine which sublattices to plot
+        if sublattice is not None:
+            if sublattice < 1 or sublattice > num_sublattices:
+                raise ValueError(f"Sublattice {sublattice} not found. Available: 1-{num_sublattices}")
+            sublattices_to_plot = [sublattice]
+            title = f'Sublattice {sublattice} DOS'
         else:
-            ax.plot(dos_down[:, 0], dos_down[:, 3], label='IT 1', color='C0')
-            ax.plot(dos_down[:, 0], dos_down[:, 4], label='IT 2', color='C1')
-        
+            sublattices_to_plot = list(range(1, num_sublattices + 1))
+            title = f'Sublattice DOS ({num_sublattices} sublattices)'
+
+        fig, ax = plt.subplots(figsize=figsize)
+
+        # Plot each sublattice
+        colors = plt.cm.tab10.colors  # Use color cycle
+        for sublat in sublattices_to_plot:
+            dos_down, dos_up = self.parser.get_dos('sublattice', sublattice=sublat,
+                                                     spin_polarized=True)
+            color = colors[(sublat - 1) % len(colors)]
+            label = f'Sublattice {sublat}' if len(sublattices_to_plot) > 1 else 'DOS'
+
+            if spin_polarized and dos_up is not None:
+                ax.plot(dos_up[:, 0], dos_up[:, 1], label=label,
+                       linestyle='-', color=color)
+                ax.plot(dos_down[:, 0], -dos_down[:, 1],
+                       linestyle='--', color=color)
+            else:
+                dos_total = dos_down[:, 1] + (dos_up[:, 1] if dos_up is not None else 0)
+                ax.plot(dos_down[:, 0], dos_total, label=label, color=color)
+
+        if spin_polarized:
+            ax.axhline(0, color='black', linewidth=0.5)
+
         ax.axvline(0, color='gray', linestyle='--', alpha=0.5, label='E_F')
         ax.set_xlabel('Energy (Ry)')
         ax.set_ylabel('DOS (states/Ry)')
         ax.legend()
-        ax.set_title('Partial DOS (IT contributions)')
+        ax.set_title(title)
         plt.tight_layout()
-        
+
         if save:
             plt.savefig(save, dpi=300)
         if show:
             plt.show()
-        
+
         return fig, ax
     
     def plot_atom(self, atom_number: int, orbital_resolved: bool = False, 
@@ -646,64 +676,6 @@ class DOSPlotter:
         ax.set_ylabel('DOS (states/Ry)')
         ax.legend()
         ax.set_title(f'Atom {atom_number} ({element.upper()}) {orbital}-orbital DOS')
-        plt.tight_layout()
-        
-        if save:
-            plt.savefig(save, dpi=300)
-        if show:
-            plt.show()
-        
-        return fig, ax
-    
-    def plot_sublattice(self, sublattice: int, orbital_resolved: bool = False,
-                    spin_polarized: bool = True, figsize: Tuple[float, float] = (8, 6),
-                    save: Optional[str] = None, show: bool = True):
-        """
-        Plot DOS summed over all atoms on the same sublattice.
-        
-        Parameters
-        ----------
-        sublattice : int
-            Sublattice index (1, 2, ...)
-        orbital_resolved : bool
-            If True, plot s, p, d orbitals separately
-        spin_polarized : bool
-            If True, plot spin-up and spin-down separately
-        figsize : tuple
-            Figure size (width, height)
-        save : str, optional
-            Filename to save plot
-        show : bool
-            Whether to display the plot
-        """
-        dos_down, dos_up = self.parser.get_sublattice_dos(sublattice, spin_polarized=True)
-        
-        fig, ax = plt.subplots(figsize=figsize)
-        
-        if orbital_resolved:
-            orbitals = ['s', 'p', 'd']
-            colors = ['C0', 'C1', 'C2']
-            if spin_polarized and dos_up is not None:
-                for i, (orb, color) in enumerate(zip(orbitals, colors), start=2):
-                    ax.plot(dos_up[:, 0], dos_up[:, i], label=orb, linestyle='-', color=color)
-                    ax.plot(dos_down[:, 0], -dos_down[:, i], linestyle='--', color=color)
-                ax.axhline(0, color='black', linewidth=0.5)
-            else:
-                for i, orb in enumerate(orbitals, start=2):
-                    ax.plot(dos_down[:, 0], dos_down[:, i], label=orb)
-        else:
-            if spin_polarized and dos_up is not None:
-                ax.plot(dos_up[:, 0], dos_up[:, 1], label='Total', color='blue', linestyle='-')
-                ax.plot(dos_down[:, 0], -dos_down[:, 1], color='blue', linestyle='--')
-                ax.axhline(0, color='black', linewidth=0.5)
-            else:
-                ax.plot(dos_down[:, 0], dos_down[:, 1], label='Total', color='black')
-        
-        ax.axvline(0, color='gray', linestyle='--', alpha=0.5, label='E_F')
-        ax.set_xlabel('Energy (Ry)')
-        ax.set_ylabel('DOS (states/Ry)')
-        ax.legend()
-        ax.set_title(f'Sublattice {sublattice} DOS (all atoms)')
         plt.tight_layout()
         
         if save:
