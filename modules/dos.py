@@ -102,174 +102,345 @@ class DOSParser:
                 break
             try:
                 vals = line.split()
-                data.append([float(x) for x in vals])
-            except (ValueError, IndexError):
+                # Convert **** (Fortran overflow) to NaN instead of breaking
+                converted = []
+                for x in vals:
+                    if '*' in x:  # Handle ****, *********, etc.
+                        converted.append(np.nan)
+                    else:
+                        converted.append(float(x))
+                data.append(converted)
+            except (ValueError, IndexError) as e:
+                # Log warning but continue parsing
+                import warnings
+                warnings.warn(f"Error parsing line {i}: {line[:50]}... - {e}")
                 break
             i += 1
         return np.array(data) if data else None
-    
-    def get_total_dos(self, spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+
+    def get_dos(self, data_type: str = 'total', sublattice: Optional[int] = None,
+                spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """
-        Get total DOS.
-        
+        Get DOS data from the Total DOS sections.
+
+        Reads directly from 'Total DOS and NOS and partial (IT)' sections.
+        Column structure: [E, Total, NOS, IT1, IT2, IT3, ...]
+
         Parameters
         ----------
+        data_type : str
+            Type of data to extract:
+            - 'total': Total DOS (column 1)
+            - 'nos': Number of States (column 2)
+            - 'sublattice': Sublattice/IT DOS (requires sublattice parameter)
+        sublattice : int, optional
+            Sublattice index (1, 2, 3, ...) - required when data_type='sublattice'
         spin_polarized : bool
             If True, return separate spin channels. If False, sum them.
-        
+
         Returns
         -------
         dos_down : np.ndarray
-            Spin down DOS (or total if spin_polarized=False)
+            Spin down data, columns: [E, DOS_value]
         dos_up : np.ndarray or None
-            Spin up DOS (None if spin_polarized=False)
+            Spin up data (None if spin_polarized=False)
+
+        Examples
+        --------
+        >>> parser.get_dos('total')  # Get total DOS
+        >>> parser.get_dos('nos')     # Get number of states
+        >>> parser.get_dos('sublattice', sublattice=1)  # Get sublattice 1 DOS
+        >>> parser.get_dos('sublattice', sublattice=2)  # Get sublattice 2 DOS
         """
+        # Determine column index
+        if data_type == 'total':
+            col_idx = 1
+        elif data_type == 'nos':
+            col_idx = 2
+        elif data_type == 'sublattice':
+            if sublattice is None:
+                raise ValueError("Must specify sublattice when data_type='sublattice'")
+            # Validate sublattice exists
+            num_sublattices = self.data['total_down'].shape[1] - 3  # Subtract E, Total, NOS
+            if sublattice < 1 or sublattice > num_sublattices:
+                raise KeyError(f"Sublattice {sublattice} not found. Available: 1-{num_sublattices}")
+            # Column index: 2 (skip E, Total, NOS) + sublattice
+            col_idx = 2 + sublattice
+        else:
+            raise ValueError(f"data_type must be 'total', 'nos', or 'sublattice', got '{data_type}'")
+
+        # Extract energy and data columns
+        dos_down = np.column_stack([
+            self.data['total_down'][:, 0],      # Energy
+            self.data['total_down'][:, col_idx]  # DOS value
+        ])
+
+        dos_up = None
+        if self.data['total_up'] is not None:
+            dos_up = np.column_stack([
+                self.data['total_up'][:, 0],      # Energy
+                self.data['total_up'][:, col_idx]  # DOS value
+            ])
+
         if spin_polarized:
-            return self.data['total_down'], self.data['total_up']
+            return dos_down, dos_up
         else:
-            total = self.data['total_down'].copy()
-            if self.data['total_up'] is not None:
-                total[:, 1:] += self.data['total_up'][:, 1:]
-            return total, None
-    
-    def get_atom_dos(self, atom_number: int, spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-        """
-        Get atom-resolved DOS by sequential atom number.
-        
-        Parameters
-        ----------
-        atom_number : int
-            Sequential atom number (1, 2, 3, 4...)
-        spin_polarized : bool
-            If True, return separate spin channels. If False, sum them.
-        
-        Returns
-        -------
-        dos_down : np.ndarray
-            Spin down DOS (or total if spin_polarized=False)
-            Columns: [E, Total, s, p, d]
-        dos_up : np.ndarray or None
-            Spin up DOS (None if spin_polarized=False)
-            Columns: [E, Total, s, p, d]
-        """
-        down_key = f'atom_{atom_number}_down'
-        up_key = f'atom_{atom_number}_up'
-        
-        if down_key not in self.data:
-            available = [info[0] for info in self.atom_info]
-            raise KeyError(f"Atom {atom_number} not found. Available atoms: {available}")
-        
-        if spin_polarized:
-            return self.data[down_key], self.data.get(up_key, None)
-        else:
-            total = self.data[down_key].copy()
-            if up_key in self.data and self.data[up_key] is not None:
-                total[:, 1:] += self.data[up_key][:, 1:]
-            return total, None
-    
-    def get_orbital_dos(self, atom_number: int, orbital: str = 's', 
-                       spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-        """
-        Get orbital-resolved DOS for a specific atom.
-        
-        Parameters
-        ----------
-        atom_number : int
-            Sequential atom number (1, 2, 3, 4...)
-        orbital : str
-            Orbital: 's', 'p', or 'd'
-        spin_polarized : bool
-            If True, return separate spin channels. If False, sum them.
-        
-        Returns
-        -------
-        dos_down : np.ndarray
-            Spin down DOS, columns: [E, orbital_DOS]
-        dos_up : np.ndarray or None
-            Spin up DOS (None if spin_polarized=False)
-        """
-        dos_down, dos_up = self.get_atom_dos(atom_number, spin_polarized=True)
-        
-        orbital_map = {'s': 2, 'p': 3, 'd': 4}
-        if orbital not in orbital_map:
-            raise ValueError(f"Orbital must be 's', 'p', or 'd', got '{orbital}'")
-        
-        idx = orbital_map[orbital]
-        
-        if spin_polarized and dos_up is not None:
-            return np.column_stack([dos_down[:, 0], dos_down[:, idx]]), \
-                   np.column_stack([dos_up[:, 0], dos_up[:, idx]])
-        else:
-            orbital_sum = dos_down[:, idx].copy()
+            total = dos_down.copy()
             if dos_up is not None:
-                orbital_sum += dos_up[:, idx]
-            return np.column_stack([dos_down[:, 0], orbital_sum]), None
-    
-    def get_sublattice_dos(self, sublattice: int, spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+                total[:, 1] += dos_up[:, 1]
+            return total, None
+
+    def get_ITA_dos(self, sublattice: int, ITA_index: int = 1, orbital: str = 'total',
+                    sum_ITAs: bool = False, concentrations: Optional[List[float]] = None,
+                    spin_polarized: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """
-        Get DOS summed over all atoms on the same sublattice.
-        
+        Get DOS for a specific ITA (Interacting Type Atom) with orbital selection.
+
+        Reads from ITA-specific sections:
+        'Sublattice X Atom ELEMENT spin DOWN/UP'
+        Column structure: [E, Total, s, p, d]
+
+        Note: Each sublattice (IT) can have multiple ITAs representing different concentration
+        components within the CPA. Use ITA_index to specify which ITA (1, 2, ...), or use
+        sum_ITAs=True to compute concentration-weighted orbital-resolved sublattice DOS.
+
         Parameters
         ----------
         sublattice : int
-            Sublattice index (1, 2, ...)
+            Sublattice (IT) index (1, 2, 3, ...)
+        ITA_index : int
+            Which ITA on this sublattice (1 = first occurrence, 2 = second, etc.)
+            Ignored if sum_ITAs=True. Default: 1
+        orbital : str
+            Orbital to extract:
+            - 'total': Total DOS for this ITA (column 1)
+            - 's': s-orbital DOS (column 2)
+            - 'p': p-orbital DOS (column 3)
+            - 'd': d-orbital DOS (column 4)
+        sum_ITAs : bool
+            If True, compute concentration-weighted sum over all ITAs on this sublattice.
+            Requires concentrations parameter. Default: False
+        concentrations : list of float, optional
+            Concentration weights for each ITA when sum_ITAs=True.
+            Must sum to 1.0 and have length equal to number of ITAs on this sublattice.
+            Required when sum_ITAs=True.
+            Example: [0.7, 0.3] for 2 ITAs on sublattice
         spin_polarized : bool
             If True, return separate spin channels. If False, sum them.
-        
+
         Returns
         -------
         dos_down : np.ndarray
-            Spin down DOS (or total if spin_polarized=False)
-            Columns: [E, Total, s, p, d]
+            Spin down data, columns: [E, DOS_value]
         dos_up : np.ndarray or None
-            Spin up DOS (None if spin_polarized=False)
-            Columns: [E, Total, s, p, d]
+            Spin up data (None if spin_polarized=False)
+
+        Examples
+        --------
+        >>> parser.get_ITA_dos(sublattice=1, ITA_index=1, orbital='d')  # 1st Pt ITA, d-orbital
+        >>> parser.get_ITA_dos(sublattice=1, ITA_index=2, orbital='d')  # 2nd Pt ITA, d-orbital
+        >>> parser.get_ITA_dos(sublattice=2, ITA_index=1, orbital='s')  # 1st Fe ITA, s-orbital
+
+        # Orbital-resolved sublattice DOS (weighted sum)
+        >>> parser.get_ITA_dos(sublattice=1, orbital='d', sum_ITAs=True, concentrations=[0.7, 0.3])
+
+        Notes
+        -----
+        When sum_ITAs=True and orbital='total', the weighted sum should match:
+        get_dos('sublattice', sublattice=N) within numerical precision.
         """
-        # Find all atoms on this sublattice
-        atoms_on_sublattice = [atom_num for atom_num, elem, sub in self.atom_info if sub == sublattice]
-        
-        if not atoms_on_sublattice:
+        # Find all ITAs on this sublattice
+        ITAs_on_sublattice = [(atom_num, elem) for atom_num, elem, sub in self.atom_info if sub == sublattice]
+
+        if not ITAs_on_sublattice:
             available_sublattices = sorted(set(sub for _, _, sub in self.atom_info))
             raise KeyError(f"Sublattice {sublattice} not found. Available sublattices: {available_sublattices}")
-        
-        # Sum over all atoms on this sublattice
-        dos_down_sum = None
-        dos_up_sum = None
-        
-        for atom_num in atoms_on_sublattice:
-            dos_down, dos_up = self.get_atom_dos(atom_num, spin_polarized=True)
-            
-            if dos_down_sum is None:
-                dos_down_sum = dos_down.copy()
-                if dos_up is not None:
-                    dos_up_sum = dos_up.copy()
+
+        # Determine column index for orbital
+        orbital_map = {
+            'total': 1,
+            's': 2,
+            'p': 3,
+            'd': 4
+        }
+
+        if orbital not in orbital_map:
+            raise ValueError(f"orbital must be 'total', 's', 'p', or 'd', got '{orbital}'")
+
+        col_idx = orbital_map[orbital]
+
+        if sum_ITAs:
+            # Concentration-weighted sum over all ITAs on this sublattice
+            if concentrations is None:
+                raise ValueError(
+                    f"concentrations parameter is required when sum_ITAs=True. "
+                    f"Sublattice {sublattice} has {len(ITAs_on_sublattice)} ITA(s)."
+                )
+
+            if len(concentrations) != len(ITAs_on_sublattice):
+                raise ValueError(
+                    f"concentrations length ({len(concentrations)}) must match number of ITAs "
+                    f"on sublattice {sublattice} ({len(ITAs_on_sublattice)})"
+                )
+
+            if not np.isclose(sum(concentrations), 1.0):
+                raise ValueError(
+                    f"concentrations must sum to 1.0, got {sum(concentrations)}"
+                )
+
+            dos_down_sum = None
+            dos_up_sum = None
+
+            for (atom_num, _), conc in zip(ITAs_on_sublattice, concentrations):
+                down_key = f'atom_{atom_num}_down'
+                up_key = f'atom_{atom_num}_up'
+
+                if down_key not in self.data:
+                    continue
+
+                if dos_down_sum is None:
+                    dos_down_sum = np.column_stack([
+                        self.data[down_key][:, 0],
+                        conc * self.data[down_key][:, col_idx]
+                    ])
+                    if up_key in self.data and self.data[up_key] is not None:
+                        dos_up_sum = np.column_stack([
+                            self.data[up_key][:, 0],
+                            conc * self.data[up_key][:, col_idx]
+                        ])
+                else:
+                    dos_down_sum[:, 1] += conc * self.data[down_key][:, col_idx]
+                    if up_key in self.data and self.data[up_key] is not None and dos_up_sum is not None:
+                        dos_up_sum[:, 1] += conc * self.data[up_key][:, col_idx]
+
+            if spin_polarized:
+                return dos_down_sum, dos_up_sum
             else:
-                dos_down_sum[:, 1:] += dos_down[:, 1:]
-                if dos_up is not None and dos_up_sum is not None:
-                    dos_up_sum[:, 1:] += dos_up[:, 1:]
-        
-        if spin_polarized:
-            return dos_down_sum, dos_up_sum
+                total = dos_down_sum.copy()
+                if dos_up_sum is not None:
+                    total[:, 1] += dos_up_sum[:, 1]
+                return total, None
+
         else:
-            total = dos_down_sum.copy()
-            if dos_up_sum is not None:
-                total[:, 1:] += dos_up_sum[:, 1:]
-            return total, None
-    
-    def list_atoms(self) -> List[Tuple[int, str, int]]:
+            # Get single ITA
+            if ITA_index < 1 or ITA_index > len(ITAs_on_sublattice):
+                raise KeyError(
+                    f"ITA_index {ITA_index} out of range. "
+                    f"Sublattice {sublattice} has {len(ITAs_on_sublattice)} ITA(s)"
+                )
+
+            # Get the sequential atom_number for this sublattice and ITA_index
+            atom_number = ITAs_on_sublattice[ITA_index - 1][0]  # -1 because ITA_index is 1-based
+
+            # Get the ITA data
+            down_key = f'atom_{atom_number}_down'
+            up_key = f'atom_{atom_number}_up'
+
+            if down_key not in self.data:
+                raise KeyError(f"Data for sublattice {sublattice}, ITA {ITA_index} not found")
+
+            # Extract energy and orbital columns
+            dos_down = np.column_stack([
+                self.data[down_key][:, 0],      # Energy
+                self.data[down_key][:, col_idx]  # Orbital DOS
+            ])
+
+            dos_up = None
+            if up_key in self.data and self.data[up_key] is not None:
+                dos_up = np.column_stack([
+                    self.data[up_key][:, 0],      # Energy
+                    self.data[up_key][:, col_idx]  # Orbital DOS
+                ])
+
+            if spin_polarized:
+                return dos_down, dos_up
+            else:
+                total = dos_down.copy()
+                if dos_up is not None:
+                    total[:, 1] += dos_up[:, 1]
+                return total, None
+
+    def verify_ITA_sum(self, sublattice: int, concentrations: List[float],
+                       tolerance: float = 1e-6) -> Dict[str, bool]:
         """
-        Return list of atoms with their info.
-        
+        Verify that concentration-weighted ITA sum matches IT column data.
+
+        This function checks the relationship:
+        sum(c_i * ITA_i_total) == IT_total (within tolerance)
+
+        Parameters
+        ----------
+        sublattice : int
+            Sublattice (IT) index to verify
+        concentrations : list of float
+            Concentration weights for each ITA (must sum to 1.0)
+        tolerance : float
+            Numerical tolerance for comparison. Default: 1e-6
+
+        Returns
+        -------
+        dict
+            Dictionary with verification results:
+            {
+                'spin_down_match': bool,
+                'spin_up_match': bool,
+                'max_diff_down': float,
+                'max_diff_up': float
+            }
+
+        Examples
+        --------
+        >>> result = parser.verify_ITA_sum(sublattice=1, concentrations=[0.7, 0.3])
+        >>> if result['spin_down_match']:
+        ...     print("Verification passed!")
+        """
+        # Get IT column data
+        it_dos_down, it_dos_up = self.get_dos('sublattice', sublattice=sublattice,
+                                               spin_polarized=True)
+
+        # Get weighted ITA sum
+        ita_sum_down, ita_sum_up = self.get_ITA_dos(sublattice=sublattice, orbital='total',
+                                                      sum_ITAs=True, concentrations=concentrations,
+                                                      spin_polarized=True)
+
+        # Compare
+        max_diff_down = np.max(np.abs(it_dos_down[:, 1] - ita_sum_down[:, 1]))
+        spin_down_match = max_diff_down < tolerance
+
+        max_diff_up = 0.0
+        spin_up_match = True
+        if it_dos_up is not None and ita_sum_up is not None:
+            max_diff_up = np.max(np.abs(it_dos_up[:, 1] - ita_sum_up[:, 1]))
+            spin_up_match = max_diff_up < tolerance
+
+        return {
+            'spin_down_match': spin_down_match,
+            'spin_up_match': spin_up_match,
+            'max_diff_down': max_diff_down,
+            'max_diff_up': max_diff_up
+        }
+
+    def list_ITAs(self) -> List[Tuple[int, str, int]]:
+        """
+        Return list of ITAs (Interacting Type Atoms) with their info.
+
         Returns
         -------
         list of tuples
-            Each tuple is (atom_number, element, sublattice)
+            Each tuple is (ITA_number, element, sublattice)
+            ITA_number is the internal sequential numbering (1, 2, 3, ...)
+            For access by sublattice, use sublattice and ITA_index parameters in get_ITA_dos()
+
+        Examples
+        --------
+        >>> parser.list_ITAs()
+        [(1, 'pt', 1), (2, 'pt', 1), (3, 'fe', 2), (4, 'fe', 2)]
+
+        # Extract unique sublattices
+        >>> ITAs = parser.list_ITAs()
+        >>> sublattices = sorted(set(sub for _, _, sub in ITAs))
         """
         return self.atom_info
-    
-    def list_sublattices(self) -> List[int]:
-        """Return list of unique sublattice indices."""
-        return sorted(set(sub for _, _, sub in self.atom_info))
 
 
 class DOSPlotter:
