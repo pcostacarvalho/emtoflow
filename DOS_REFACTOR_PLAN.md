@@ -242,7 +242,7 @@ def get_dos(self, data_type: str = 'total', sublattice: Optional[int] = None,
 - No duplicate functionality - one function for atom data
 - Forces users to use correct data source
 
-**Migration Guide**:
+**Migration Guide - Data Functions**:
 ```python
 # OLD → NEW
 parser.get_total_dos()              →  parser.get_dos('total')
@@ -250,6 +250,23 @@ parser.get_sublattice_dos(1)        →  parser.get_dos('sublattice', sublattice
 parser.get_atom_dos(atom_number=1)  →  parser.get_atom_dos(sublattice=1, atom_index=1, orbital='total')
 parser.get_atom_dos(atom_number=2)  →  parser.get_atom_dos(sublattice=1, atom_index=2, orbital='total')
 parser.get_orbital_dos(1, 'd')      →  parser.get_atom_dos(sublattice=1, atom_index=1, orbital='d')
+```
+
+**Migration Guide - Plotter Functions**:
+```python
+# OLD → NEW
+plotter.plot_partial()                          →  plotter.plot_sublattice()  # Renamed, plots all sublattices
+plotter.plot_sublattice(sublattice=1)           →  plotter.plot_sublattice(sublattice=1)  # New implementation using IT data
+plotter.plot_atom(atom_number=1)                →  plotter.plot_atom(sublattice=1, atom_index=1)
+plotter.plot_atom(atom_number=1, orbital_resolved=True)
+                                                →  plotter.plot_atom(sublattice=1, atom_index=1, orbital_resolved=True)
+plotter.plot_orbital(atom_number=1, orbital='d')→  plotter.plot_atom(sublattice=1, atom_index=1, orbital='d')
+```
+
+**Migration Guide - Helper Functions**:
+```python
+# OLD → NEW
+parser.list_sublattices()           →  sorted(set(sub for _, _, sub in parser.list_atoms()))
 ```
 
 ---
@@ -439,21 +456,45 @@ def get_atom_dos(self, sublattice: int, atom_index: int = 1, orbital: str = 'tot
 
 ### Phase 2: Major Improvements
 
-#### Task 2.1: Update plot_partial() to use get_dos() and support dynamic sublattices
-**File**: `modules/dos.py:331-373`
+#### Task 2.1: Rename plot_partial() to plot_sublattice() and remove old plot_sublattice()
+**Files**:
+- `modules/dos.py:331-373` (plot_partial - rename to plot_sublattice)
+- `modules/dos.py:487-543` (plot_sublattice - REMOVE this one)
 
-**Current Issues**:
-- Hardcoded for exactly 2 sublattices (columns 3 and 4)
-- Directly accesses column indices instead of using data access functions
+**Rationale**:
+- Current `plot_partial()` correctly uses IT columns from Total DOS section
+- Current `plot_sublattice()` incorrectly sums individual atom data
+- The correct implementation should be called `plot_sublattice()` since it plots sublattice DOS
+- "Partial DOS" and "Sublattice DOS" are the same thing (IT contributions)
 
-**New Implementation**:
+**Changes**:
+1. **REMOVE** old `plot_sublattice()` function (lines 487-543) - it uses wrong data source
+2. **RENAME** `plot_partial()` to `plot_sublattice()` (keep implementation, just rename)
+3. Update to use `get_dos()` and support dynamic sublattices
+
+**New Implementation** (renamed from plot_partial):
 ```python
-def plot_partial(self, spin_polarized: bool = True, figsize: Tuple[float, float] = (8, 6),
-                 save: Optional[str] = None, show: bool = True):
+def plot_sublattice(self, sublattice: Optional[int] = None, spin_polarized: bool = True,
+                    figsize: Tuple[float, float] = (8, 6), save: Optional[str] = None,
+                    show: bool = True):
     """
-    Plot partial DOS (IT contributions) for all sublattices.
+    Plot sublattice DOS (IT contributions).
 
-    Uses get_dos() to extract sublattice data dynamically.
+    Uses get_dos() to extract sublattice data from IT columns.
+    If sublattice is None, plots all sublattices.
+
+    Parameters
+    ----------
+    sublattice : int, optional
+        Specific sublattice to plot. If None, plots all sublattices.
+    spin_polarized : bool
+        If True, plot spin-up and spin-down separately
+    figsize : tuple
+        Figure size (width, height)
+    save : str, optional
+        Filename to save plot
+    show : bool
+        Whether to display the plot
     """
     # Auto-detect number of sublattices
     num_sublattices = self.parser.data['total_down'].shape[1] - 3  # Subtract E, Total, NOS
@@ -461,23 +502,34 @@ def plot_partial(self, spin_polarized: bool = True, figsize: Tuple[float, float]
     if num_sublattices < 1:
         raise ValueError("No sublattice data found in DOS file")
 
+    # Determine which sublattices to plot
+    if sublattice is not None:
+        if sublattice < 1 or sublattice > num_sublattices:
+            raise ValueError(f"Sublattice {sublattice} not found. Available: 1-{num_sublattices}")
+        sublattices_to_plot = [sublattice]
+        title = f'Sublattice {sublattice} DOS'
+    else:
+        sublattices_to_plot = list(range(1, num_sublattices + 1))
+        title = f'Sublattice DOS ({num_sublattices} sublattices)'
+
     fig, ax = plt.subplots(figsize=figsize)
 
     # Plot each sublattice
     colors = plt.cm.tab10.colors  # Use color cycle
-    for sublat in range(1, num_sublattices + 1):
+    for sublat in sublattices_to_plot:
         dos_down, dos_up = self.parser.get_dos('sublattice', sublattice=sublat,
                                                  spin_polarized=True)
         color = colors[(sublat - 1) % len(colors)]
+        label = f'Sublattice {sublat}' if len(sublattices_to_plot) > 1 else 'DOS'
 
         if spin_polarized and dos_up is not None:
-            ax.plot(dos_up[:, 0], dos_up[:, 1], label=f'IT {sublat}',
+            ax.plot(dos_up[:, 0], dos_up[:, 1], label=label,
                    linestyle='-', color=color)
             ax.plot(dos_down[:, 0], -dos_down[:, 1],
                    linestyle='--', color=color)
         else:
             dos_total = dos_down[:, 1] + (dos_up[:, 1] if dos_up is not None else 0)
-            ax.plot(dos_down[:, 0], dos_total, label=f'IT {sublat}', color=color)
+            ax.plot(dos_down[:, 0], dos_total, label=label, color=color)
 
     if spin_polarized:
         ax.axhline(0, color='black', linewidth=0.5)
@@ -486,7 +538,7 @@ def plot_partial(self, spin_polarized: bool = True, figsize: Tuple[float, float]
     ax.set_xlabel('Energy (Ry)')
     ax.set_ylabel('DOS (states/Ry)')
     ax.legend()
-    ax.set_title(f'Partial DOS ({num_sublattices} sublattices)')
+    ax.set_title(title)
     plt.tight_layout()
 
     if save:
@@ -499,9 +551,161 @@ def plot_partial(self, spin_polarized: bool = True, figsize: Tuple[float, float]
 
 **Benefits**:
 - Works with any number of sublattices (1, 2, 3, 4+)
-- Uses centralized get_dos() for data access
+- Uses centralized get_dos() for data access (correct IT columns)
+- Can plot single sublattice or all sublattices
 - Dynamic color cycling
 - Dynamic title shows sublattice count
+- Removes incorrect implementation that summed atom data
+
+---
+
+#### Task 2.2: Update plot_atom() - merge with plot_orbital()
+**Files**:
+- `modules/dos.py:375-435` (plot_atom - update)
+- `modules/dos.py:437-485` (plot_orbital - REMOVE)
+
+**Rationale**:
+- `plot_orbital()` is redundant - just calls `plot_atom()` with specific orbital
+- Merge functionality into single `plot_atom()` function with `orbital` parameter
+- Simpler API with one function instead of two
+
+**New Signature**:
+```python
+def plot_atom(self, sublattice: int, atom_index: int = 1, orbital: str = 'total',
+              orbital_resolved: bool = False, spin_polarized: bool = True,
+              figsize: Tuple[float, float] = (8, 6), save: Optional[str] = None,
+              show: bool = True):
+    """
+    Plot atom-resolved DOS with orbital selection.
+
+    Parameters
+    ----------
+    sublattice : int
+        Sublattice index (1, 2, 3, ...)
+    atom_index : int
+        Which atom on this sublattice (1 = first occurrence, 2 = second, etc.)
+        Default: 1
+    orbital : str
+        Orbital to plot: 'total', 's', 'p', or 'd'
+        - If orbital='total' and orbital_resolved=False: plot total DOS
+        - If orbital='total' and orbital_resolved=True: plot s, p, d separately
+        - If orbital='s'/'p'/'d': plot only that orbital
+        Default: 'total'
+    orbital_resolved : bool
+        If True and orbital='total', plot s, p, d orbitals separately
+        Ignored if orbital is 's', 'p', or 'd'
+        Default: False
+    spin_polarized : bool
+        If True, plot spin-up and spin-down separately
+    figsize : tuple
+        Figure size (width, height)
+    save : str, optional
+        Filename to save plot
+    show : bool
+        Whether to display the plot
+
+    Examples
+    --------
+    >>> plotter.plot_atom(sublattice=1, atom_index=1)  # Total DOS for 1st atom on sublattice 1
+    >>> plotter.plot_atom(sublattice=1, atom_index=1, orbital_resolved=True)  # s, p, d separately
+    >>> plotter.plot_atom(sublattice=1, atom_index=2, orbital='d')  # Only d-orbital
+    """
+```
+
+**Implementation Logic**:
+```python
+# Get atom info for title
+atoms_on_sublattice = [(atom_num, elem) for atom_num, elem, sub in self.parser.atom_info if sub == sublattice]
+if not atoms_on_sublattice or atom_index < 1 or atom_index > len(atoms_on_sublattice):
+    raise ValueError(f"Invalid sublattice {sublattice} or atom_index {atom_index}")
+
+atom_number, element = atoms_on_sublattice[atom_index - 1]
+
+fig, ax = plt.subplots(figsize=figsize)
+
+if orbital == 'total' and orbital_resolved:
+    # Plot s, p, d separately
+    orbitals = ['s', 'p', 'd']
+    colors = ['C0', 'C1', 'C2']
+    for orb, color in zip(orbitals, colors):
+        dos_down, dos_up = self.parser.get_atom_dos(sublattice, atom_index, orbital=orb,
+                                                      spin_polarized=True)
+        if spin_polarized and dos_up is not None:
+            ax.plot(dos_up[:, 0], dos_up[:, 1], label=orb, linestyle='-', color=color)
+            ax.plot(dos_down[:, 0], -dos_down[:, 1], linestyle='--', color=color)
+        else:
+            dos_total = dos_down[:, 1] + (dos_up[:, 1] if dos_up is not None else 0)
+            ax.plot(dos_down[:, 0], dos_total, label=orb, color=color)
+    title = f'Atom {atom_index} ({element.upper()}, sublattice {sublattice}) - Orbital resolved'
+else:
+    # Plot single orbital (total, s, p, or d)
+    dos_down, dos_up = self.parser.get_atom_dos(sublattice, atom_index, orbital=orbital,
+                                                  spin_polarized=True)
+    label = orbital if orbital != 'total' else 'Total'
+    if spin_polarized and dos_up is not None:
+        ax.plot(dos_up[:, 0], dos_up[:, 1], label=label, color='blue', linestyle='-')
+        ax.plot(dos_down[:, 0], -dos_down[:, 1], color='blue', linestyle='--')
+    else:
+        dos_total = dos_down[:, 1] + (dos_up[:, 1] if dos_up is not None else 0)
+        ax.plot(dos_down[:, 0], dos_total, label=label, color='black')
+
+    orbital_str = f'{orbital}-orbital' if orbital != 'total' else ''
+    title = f'Atom {atom_index} ({element.upper()}, sublattice {sublattice}) {orbital_str} DOS'
+
+# Common plotting elements
+if spin_polarized:
+    ax.axhline(0, color='black', linewidth=0.5)
+ax.axvline(0, color='gray', linestyle='--', alpha=0.5, label='E_F')
+ax.set_xlabel('Energy (Ry)')
+ax.set_ylabel('DOS (states/Ry)')
+ax.legend()
+ax.set_title(title)
+plt.tight_layout()
+
+if save:
+    plt.savefig(save, dpi=300)
+if show:
+    plt.show()
+
+return fig, ax
+```
+
+**Benefits**:
+- Single function for all atom plotting needs
+- Backwards compatible behavior with `orbital_resolved` parameter
+- Can plot specific orbital or all orbitals
+- Uses new `get_atom_dos()` with sublattice/atom_index parameters
+- Cleaner API - removes redundant `plot_orbital()` function
+
+**Breaking Changes**:
+- Old signature: `plot_atom(atom_number, orbital_resolved=False, ...)`
+- New signature: `plot_atom(sublattice, atom_index=1, orbital='total', orbital_resolved=False, ...)`
+- **REMOVES** `plot_orbital()` function entirely
+
+---
+
+#### Task 2.3: Remove list_sublattices() helper function
+**File**: `modules/dos.py:270-272`
+
+**Rationale**:
+- `list_atoms()` already returns sublattice information in each tuple: `(atom_number, element, sublattice)`
+- Having a separate `list_sublattices()` is redundant
+- Users can extract unique sublattices from `list_atoms()` if needed
+
+**Action**:
+- **REMOVE** `list_sublattices()` function entirely
+
+**Migration**:
+```python
+# OLD
+sublattices = parser.list_sublattices()
+
+# NEW - extract from list_atoms()
+atoms = parser.list_atoms()  # Returns [(atom_num, element, sublattice), ...]
+sublattices = sorted(set(sub for _, _, sub in atoms))
+```
+
+**Note**: The internal parser still has `atom_info` which contains this data. This is just removing the public API function.
 
 ---
 
@@ -554,13 +758,22 @@ def plot_partial(self, spin_polarized: bool = True, figsize: Tuple[float, float]
 ### Breaking Changes Alert - No Backward Compatibility
 This refactor **removes functions** and is a **BREAKING CHANGE**:
 
-**Removed Functions**:
+**Removed Data Functions**:
 1. `get_total_dos()` → **REMOVED** - use `get_dos('total')` instead
 2. `get_sublattice_dos()` → **REMOVED** - use `get_dos('sublattice', sublattice=N)` instead
 3. `get_orbital_dos()` → **REMOVED** - functionality merged into `get_atom_dos()`
 
+**Removed Plotter Functions**:
+1. `plot_orbital()` → **REMOVED** - functionality merged into `plot_atom()`
+2. `plot_partial()` → **RENAMED** to `plot_sublattice()`
+3. Old `plot_sublattice()` → **REMOVED** - used wrong data source (summed atoms instead of IT columns)
+
+**Removed Helper Functions**:
+1. `list_sublattices()` → **REMOVED** - use `list_atoms()` instead
+
 **Refactored Functions**:
-1. `get_atom_dos()` → **CHANGED SIGNATURE** - now uses sublattice parameter and orbital selection
+1. `get_atom_dos()` → **CHANGED SIGNATURE** - now uses sublattice, atom_index, and orbital parameters
+2. `plot_atom()` → **CHANGED SIGNATURE** - now uses sublattice, atom_index, and orbital parameters
 
 ### New API Structure
 
@@ -598,23 +811,27 @@ This refactor **removes functions** and is a **BREAKING CHANGE**:
 4. **REMOVE** `get_total_dos()`, `get_sublattice_dos()`, and `get_orbital_dos()` - breaking changes
 
 **High Priority**:
-5. Update `plot_partial()` to use `get_dos()` and support dynamic sublattices
+5. Rename `plot_partial()` to `plot_sublattice()` and remove old `plot_sublattice()`
 6. Update `plot_total()` to use `get_dos('total')`
-7. Update `plot_sublattice()` to use `get_dos('sublattice', sublattice=N)`
-8. Update `plot_atom()` to use `get_atom_dos(sublattice, orbital)`
-9. Update `plot_orbital()` to use `get_atom_dos(sublattice, orbital)`
-10. Add input validation
+7. Update and merge `plot_atom()` with `plot_orbital()` - new signature: `plot_atom(sublattice, atom_index, orbital='total', ...)`
+8. **REMOVE** `plot_orbital()` - functionality merged into `plot_atom()`
+9. Add input validation
 
 **Medium Priority**:
-11. Update documentation (dos_guide.md)
-12. Add unit tests
-13. Update convenience function `plot_dos()` to use new API
+10. Update documentation (dos_guide.md)
+11. Add unit tests
+12. Update convenience function `plot_dos()` to use new API
 
 **Estimated Impact**:
-- **BREAKING CHANGES**: 3 functions removed (`get_total_dos`, `get_sublattice_dos`, `get_orbital_dos`)
-- **BREAKING CHANGES**: 1 function signature changed (`get_atom_dos`)
+- **BREAKING CHANGES - Data Functions**: 3 functions removed (`get_total_dos`, `get_sublattice_dos`, `get_orbital_dos`)
+- **BREAKING CHANGES - Data Functions**: 1 function signature changed (`get_atom_dos`)
+- **BREAKING CHANGES - Plotter Functions**: 2 functions removed/renamed (`plot_orbital` removed, `plot_partial` renamed to `plot_sublattice`)
+- **BREAKING CHANGES - Plotter Functions**: 1 function signature changed (`plot_atom`)
+- **BREAKING CHANGES - Helper Functions**: `list_sublattices()` removed (use `list_atoms()` instead)
 - New functions: 1 (`get_dos`)
-- Functions modified: 6 (data: `get_atom_dos`, `_read_data_block`; plotters: `plot_total`, `plot_partial`, `plot_sublattice`, `plot_atom`, `plot_orbital`)
+- Functions modified: 4 (data: `get_atom_dos`, `_read_data_block`; plotters: `plot_total`, `plot_atom`)
+- Functions removed: 4 (`get_total_dos`, `get_sublattice_dos`, `get_orbital_dos`, `plot_orbital`, old `plot_sublattice`)
+- Functions renamed: 1 (`plot_partial` → `plot_sublattice`)
 - Test files needed: ~5-10 with different sublattice counts and overflow values
 - Documentation pages: 1 (dos_guide.md)
 
@@ -638,7 +855,9 @@ parser.get_atom_dos(sublattice=1, sum_atoms=True, orbital='d')    # Sum d-orbita
 # WARNING: This may differ from get_dos('sublattice', sublattice=1) due to errors in atom sections
 
 # Plotting functions updated to use new API
-plotter.plot_total()       # Uses get_dos('total')
-plotter.plot_partial()     # Uses get_dos('sublattice', sublattice=N) in loop
-plotter.plot_atom(sublattice=1, atom_index=1, orbital_resolved=True)  # Uses get_atom_dos()
+plotter.plot_total()                                          # Uses get_dos('total')
+plotter.plot_sublattice()                                     # Plot all sublattices (renamed from plot_partial)
+plotter.plot_sublattice(sublattice=1)                        # Plot specific sublattice
+plotter.plot_atom(sublattice=1, atom_index=1, orbital='total')  # Plot total atom DOS
+plotter.plot_atom(sublattice=1, atom_index=1, orbital='d')      # Plot d-orbital (merged from plot_orbital)
 ```
