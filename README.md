@@ -121,6 +121,7 @@ EMTO_input_automation/
 │   │   ├── kfcd.py           # KFCD input generator
 │   │   └── sbatch.py         # SLURM job script generators
 │   ├── dmax_optimizer.py     # DMAX parameter optimization
+│   ├── dos.py                # DOS parser and plotter
 │   └── eos.py                # Equation of state analysis
 ├── testing/
 │   ├── FePt.cif              # Example CIF files
@@ -204,6 +205,102 @@ Fe     1   1   1   1  1.000000  0.000 0.000  2.0000
 Pt     2   2   1   1  1.000000  0.000 0.000  0.4000
 ```
 
+### `modules/dos.py`
+
+**Available in `test/dmax-optimization` branch**
+
+DOS (Density of States) parser and plotter for EMTO calculations using proper ITA terminology:
+
+```python
+from modules.dos import DOSParser, DOSPlotter
+
+# Parse DOS file
+parser = DOSParser("fept_0.96_2.86.dos")
+
+# Get total DOS from Total DOS sections
+dos_down, dos_up = parser.get_dos('total', spin_polarized=True)
+
+# Get Number of States (NOS)
+nos_down, nos_up = parser.get_dos('nos', spin_polarized=True)
+
+# Get sublattice DOS from Total DOS sections
+dos_it1_down, dos_it1_up = parser.get_dos('sublattice', sublattice=1, spin_polarized=True)
+
+# Get ITA-specific orbital-resolved DOS
+# First ITA on sublattice 1, d-orbital
+dos_d_down, dos_d_up = parser.get_ITA_dos(
+    sublattice=1, ITA_index=1, orbital='d', spin_polarized=True
+)
+
+# Second ITA on same sublattice (e.g., for alloys)
+dos_d2_down, dos_d2_up = parser.get_ITA_dos(
+    sublattice=1, ITA_index=2, orbital='d', spin_polarized=True
+)
+
+# Concentration-weighted sum over all ITAs on a sublattice (for alloys)
+# Example: 70% element1 + 30% element2
+dos_weighted_down, dos_weighted_up = parser.get_ITA_dos(
+    sublattice=1,
+    orbital='d',
+    sum_ITAs=True,
+    concentrations=[0.7, 0.3],
+    spin_polarized=True
+)
+
+# Verify concentration sum (should equal 1.0)
+parser.verify_ITA_sum(sublattice=1, concentrations=[0.7, 0.3])
+
+# List available ITAs
+itas = parser.list_ITAs()  # Returns [(1, 'pt', 1), (2, 'fe', 2)]
+
+# Plotting
+plotter = DOSPlotter(parser)
+plotter.plot_total(spin_polarized=True)
+plotter.plot_sublattice(sublattice=1, spin_polarized=True)
+plotter.plot_ITA(sublattice=1, ITA_index=1, orbital='d', spin_polarized=True)
+```
+
+**Key features:**
+- **Unified `get_dos()`**: Access total DOS, NOS, or sublattice DOS from Total DOS sections
+- **ITA-specific `get_ITA_dos()`**: Orbital-resolved DOS (s, p, d) with proper ITA handling
+- **Multiple ITAs per sublattice**: Handle alloys with different concentration components
+- **Concentration weighting**: Compute weighted orbital-resolved sublattice DOS
+- **EMTO terminology**: Uses IT (sublattice) and ITA (Inequivalent Type Atom) nomenclature
+- **Automatic spin handling**: Returns spin-polarized or summed data
+- **Robust parsing**: Handles Fortran overflow markers (****) gracefully
+
+### `modules/dmax_optimizer.py`
+
+**Available in `test/dmax-optimization` branch**
+
+DMAX parameter optimization for consistent neighbor shells:
+
+```python
+from modules.dmax_optimizer import find_optimal_dmax, parse_prn_file
+
+# Parse .prn files from KSTR runs
+prn_files = {
+    0.92: "./fept_calc/smx/fept_0.92.prn",
+    0.96: "./fept_calc/smx/fept_0.96.prn",
+    1.00: "./fept_calc/smx/fept_1.00.prn",
+}
+
+# Find optimal DMAX for each c/a ratio
+optimal_dmax = find_optimal_dmax(
+    prn_files,
+    target_vectors=100,
+    vector_tolerance=10
+)
+
+# Returns: {0.92: 2.65, 0.96: 2.70, 1.00: 2.75}
+```
+
+**Key functions:**
+- `parse_prn_file(filepath)` - Extract neighbor shell data from KSTR .prn output
+- `find_optimal_dmax(prn_files, target_vectors, tolerance)` - Optimize DMAX values
+- `print_optimization_summary(results)` - Display optimization results
+- `save_dmax_optimization_log(results, output_file)` - Save detailed log
+
 ### `modules/eos.py`
 
 Equation of state fitting and analysis:
@@ -267,6 +364,66 @@ create_emto_inputs(
 
 # Creates: 11 KSTR, 11 SHAPE, 77 KGRN, 77 KFCD files + job scripts
 ```
+
+---
+
+### DMAX Optimization Workflow
+
+**Available in `test/dmax-optimization` branch**
+
+The DMAX parameter controls the maximum distance for neighbor shell calculations in KSTR. The optimizer ensures consistent neighbor shells across different c/a ratios, which is critical for accurate geometry optimization.
+
+**Basic usage:**
+
+```python
+from modules.workflows import _run_dmax_optimization
+from modules.lat_detector import parse_emto_structure
+
+# Parse structure
+structure = parse_emto_structure("FePt.cif")
+
+# Run DMAX optimization
+optimal_dmax = _run_dmax_optimization(
+    output_path="./fept_calc",
+    job_name="fept",
+    structure=structure,
+    ca_ratios=[0.92, 0.96, 1.00, 1.04],
+    dmax_initial=1.3,              # Starting guess
+    target_vectors=100,             # Target number of k-vectors
+    vector_tolerance=10,            # Acceptable deviation (±10 vectors)
+    kstr_executable="/path/to/kstr"
+)
+
+# Returns: {0.92: 2.65, 0.96: 2.70, 1.00: 2.75, 1.04: 2.80}
+```
+
+**Workflow steps:**
+1. Creates KSTR inputs with `dmax_initial` for all c/a ratios
+2. Runs KSTR executable for each ratio
+3. Parses `.prn` files to extract neighbor shell information
+4. Optimizes DMAX to achieve target k-vectors within tolerance
+5. Saves optimization log with shell consistency analysis
+
+**Output example:**
+
+```
+Step 1: Creating initial KSTR inputs (DMAX=1.3)...
+✓ Created 4 KSTR input files
+
+Step 2: Running KSTR calculations...
+  Running KSTR for c/a = 0.92... ✓
+  Running KSTR for c/a = 0.96... ✓
+  Running KSTR for c/a = 1.00... ✓
+  Running KSTR for c/a = 1.04... ✓
+
+Step 3: Analyzing neighbor shells and optimizing DMAX...
+  c/a = 0.92: 98 vectors (within tolerance) → DMAX = 2.65
+  c/a = 0.96: 102 vectors (within tolerance) → DMAX = 2.70
+
+✓ Optimization log saved: ./fept_calc/smx/logs/fept_dmax_optimization.log
+```
+
+**Note:** See "Performance Optimization: Early KSTR Termination" section below for proposed speed improvements.
 
 ---
 
@@ -483,27 +640,137 @@ The current implementation focuses on ordered structures as requested by the use
 
 ---
 
-### ❌ Not Started (1/4)
+### ⚠️ Mostly Complete (1/4)
 
-#### 4. ❌ Implement DMAX workflow - **NOT STARTED**
+#### 4. ⚠️ Implement DMAX workflow - **80% COMPLETE**
 
-**What needs to be done:**
-- [ ] Create `optimize_dmax_workflow()` function
-- [ ] Integrate DMAX optimization into main workflow
-- [ ] Add option to run: KSTR → optimize DMAX → update files → re-run KSTR
-- [ ] Document best practices for DMAX optimization parameters
-- [ ] Parse KSTR output (.prn files) to analyze neighbor shells
-- [ ] Ensure consistency of neighbor shells across c/a ratios
+**Implemented (in `test/dmax-optimization` branch):**
+- ✓ `_run_dmax_optimization()` function in `workflows.py`
+- ✓ Full automation: KSTR → parse .prn → optimize DMAX → log results
+- ✓ Parse KSTR output (.prn files) to analyze neighbor shells
+- ✓ Ensure consistency of neighbor shells across c/a ratios
+- ✓ Error handling when target vectors not achievable
+- ✓ Working example: `test_dmax_optimization.py` with FePt
+- ✓ Complete calculation outputs in `fept_calc/`
 
-**Note:** The `dmax_optimizer.py` module exists but is not integrated into the main workflow.
+**Still missing:**
+- [ ] Integration into `create_emto_inputs()` main workflow
+- [ ] Documentation and usage examples in README
+- [ ] Comprehensive test suite
+- [ ] **Performance optimization: Early KSTR termination** (see below)
+
+**Note:** The DMAX workflow is functional but runs as a separate function. It requires `kstr_executable` path as input.
 
 ---
 
-### Overall Progress: 50% Complete
+### Performance Optimization: Early KSTR Termination
+
+**Problem:** DMAX optimization only needs the neighbor shell table for IQ=1 from `.prn` files, which appears in the first few seconds of KSTR execution, but we currently wait for full completion (~2 minutes).
+
+**Proposed Solution:** Monitor `.prn` file and terminate KSTR once IQ=1 section is complete (~95% time savings).
+
+```python
+def _run_kstr_for_dmax_early_stop(kstr_executable, input_file, output_dir, timeout=30):
+    """
+    Run KSTR and terminate once IQ=1 neighbor data is written to .prn file.
+
+    Parameters:
+    -----------
+    kstr_executable : str
+        Path to KSTR executable
+    input_file : str
+        Path to KSTR input .dat file
+    output_dir : str
+        Directory where .prn file will be written
+    timeout : int
+        Max seconds to wait before force-terminating (default: 30)
+
+    Returns:
+    --------
+    str : Path to the .prn file
+
+    Raises:
+    -------
+    TimeoutError : If KSTR exceeds timeout
+    """
+    import subprocess
+    import time
+    import re
+    from pathlib import Path
+
+    base_name = Path(input_file).stem
+    prn_file = Path(output_dir) / f"{base_name}.prn"
+
+    # Start KSTR process
+    with open(input_file, 'r') as f:
+        process = subprocess.Popen(
+            [kstr_executable],
+            stdin=f,
+            cwd=output_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+
+    # Monitor .prn file incrementally
+    start_time = time.time()
+
+    while process.poll() is None:  # While process is running
+        # Check timeout (safety mechanism)
+        if time.time() - start_time > timeout:
+            process.terminate()
+            process.wait(timeout=5)
+            raise TimeoutError(f"KSTR exceeded {timeout}s timeout")
+
+        # Check if .prn has complete IQ=1 section
+        if prn_file.exists():
+            try:
+                with open(prn_file, 'r') as f:
+                    content = f.read()
+                    # Found both IQ=1 start AND IQ=2 start (IQ=1 section complete)
+                    if 'IQ =  1' in content and re.search(r'IQ\s*=\s*2', content):
+                        time.sleep(0.2)  # Allow final writes to complete
+                        process.terminate()
+                        process.wait(timeout=5)
+                        return str(prn_file)
+            except (IOError, PermissionError):
+                pass  # File might be locked, retry next iteration
+
+        time.sleep(0.1)  # Check every 100ms
+
+    # Process ended naturally (shouldn't happen, but handle gracefully)
+    return str(prn_file)
+```
+
+**Usage in workflow:**
+
+```python
+# Replace current subprocess.run call in _run_dmax_optimization():
+# OLD:
+result = subprocess.run([kstr_executable], stdin=f, cwd=smx_dir, ...)
+
+# NEW:
+try:
+    prn_file = _run_kstr_for_dmax_early_stop(
+        kstr_executable, input_path, smx_dir, timeout=30
+    )
+    print("✓ (early stop)")
+except TimeoutError:
+    print("✗ (timeout)")
+```
+
+**Benefits:**
+- ~95% time savings (3 seconds vs 120 seconds per KSTR run)
+- Safe termination with timeout protection
+- No changes to parsing logic
+- Particularly valuable when optimizing across many c/a ratios
+
+---
+
+### Overall Progress: 75% Complete
 
 ✅ **Objectives 1-2:** CIF-based automation fully implemented
 ⚠️ **Objective 3:** Ordered structures supported, disorder deferred
-❌ **Objective 4:** DMAX workflow automation not started
+⚠️ **Objective 4:** DMAX workflow functional, needs integration and optimization
 
 **Key Achievement:** The system now automatically extracts all structure information from CIF files and generates all input files (KSTR, SHAPE, KGRN, KFCD) with no hardcoded values or manual input required.
 
@@ -555,4 +822,4 @@ For questions or support, please open an issue on GitHub.
 
 ---
 
-**Last Updated:** November 2025
+**Last Updated:** January 2026
