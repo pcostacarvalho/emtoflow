@@ -197,7 +197,9 @@ def create_alloy_structure(lattice_type, elements, concentrations, initial_sws, 
     >>> len(structure['atom_info'])
     2
     """
-    from modules.cif_extraction import a_scr_map, b_scr_map
+    # Screening parameters (hardcoded, same as CIF workflow in lat_detector.py)
+    DEFAULT_A_SCR = 0.750
+    DEFAULT_B_SCR = 1.100
 
     # Map lattice type to LAT number
     lat_map = {'sc': 1, 'fcc': 2, 'bcc': 3}
@@ -216,8 +218,8 @@ def create_alloy_structure(lattice_type, elements, concentrations, initial_sws, 
             'IT': i,  # Increment for each element
             'ITA': i,  # Same as IT for single-site alloys
             'conc': conc,
-            'a_scr': a_scr_map.get(elem, 0.9),  # Default 0.9 if not found
-            'b_scr': b_scr_map.get(elem, 1.0),  # Default 1.0 if not found
+            'a_scr': DEFAULT_A_SCR,
+            'b_scr': DEFAULT_B_SCR,
             'default_moment': DEFAULT_MOMENTS[elem]
         })
 
