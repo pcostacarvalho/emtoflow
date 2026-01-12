@@ -209,7 +209,7 @@ Pt     2   2   1   1  1.000000  0.000 0.000  0.4000
 
 **Available in `test/dmax-optimization` branch**
 
-DOS (Density of States) parser and plotter for EMTO calculations:
+DOS (Density of States) parser and plotter for EMTO calculations using proper ITA terminology:
 
 ```python
 from modules.dos import DOSParser, DOSPlotter
@@ -217,38 +217,57 @@ from modules.dos import DOSParser, DOSPlotter
 # Parse DOS file
 parser = DOSParser("fept_0.96_2.86.dos")
 
-# Get total DOS
-dos_total_up, dos_total_down = parser.get_total_dos(spin_polarized=True)
+# Get total DOS from Total DOS sections
+dos_down, dos_up = parser.get_dos('total', spin_polarized=True)
 
-# Get atom-specific DOS
-dos_fe_up, dos_fe_down = parser.get_atom_dos(atom_number=1, spin_polarized=True)
+# Get Number of States (NOS)
+nos_down, nos_up = parser.get_dos('nos', spin_polarized=True)
 
-# Get orbital-resolved DOS
-dos_fe_d_up, dos_fe_d_down = parser.get_orbital_dos(
-    atom_number=1, orbital='d', spin_polarized=True
+# Get sublattice DOS from Total DOS sections
+dos_it1_down, dos_it1_up = parser.get_dos('sublattice', sublattice=1, spin_polarized=True)
+
+# Get ITA-specific orbital-resolved DOS
+# First ITA on sublattice 1, d-orbital
+dos_d_down, dos_d_up = parser.get_ITA_dos(
+    sublattice=1, ITA_index=1, orbital='d', spin_polarized=True
 )
 
-# Get sublattice DOS
-dos_sublattice_up, dos_sublattice_down = parser.get_sublattice_dos(
-    sublattice=1, spin_polarized=True
+# Second ITA on same sublattice (e.g., for alloys)
+dos_d2_down, dos_d2_up = parser.get_ITA_dos(
+    sublattice=1, ITA_index=2, orbital='d', spin_polarized=True
 )
 
-# List available atoms
-atoms = parser.list_atoms()  # Returns [(1, 'Fe', 1), (2, 'Pt', 2)]
+# Concentration-weighted sum over all ITAs on a sublattice (for alloys)
+# Example: 70% element1 + 30% element2
+dos_weighted_down, dos_weighted_up = parser.get_ITA_dos(
+    sublattice=1,
+    orbital='d',
+    sum_ITAs=True,
+    concentrations=[0.7, 0.3],
+    spin_polarized=True
+)
+
+# Verify concentration sum (should equal 1.0)
+parser.verify_ITA_sum(sublattice=1, concentrations=[0.7, 0.3])
+
+# List available ITAs
+itas = parser.list_ITAs()  # Returns [(1, 'pt', 1), (2, 'fe', 2)]
 
 # Plotting
 plotter = DOSPlotter(parser)
 plotter.plot_total(spin_polarized=True)
-plotter.plot_atom(atom_number=1, orbital_resolved=True)
-plotter.plot_orbital(atom_number=1, orbital='d')
+plotter.plot_sublattice(sublattice=1, spin_polarized=True)
+plotter.plot_ITA(sublattice=1, ITA_index=1, orbital='d', spin_polarized=True)
 ```
 
 **Key features:**
-- Simplified API focused on common use cases
-- Automatic handling of spin-polarized and non-spin-polarized data
-- Orbital-resolved DOS (s, p, d, f)
-- Sublattice analysis
-- Built-in plotting utilities
+- **Unified `get_dos()`**: Access total DOS, NOS, or sublattice DOS from Total DOS sections
+- **ITA-specific `get_ITA_dos()`**: Orbital-resolved DOS (s, p, d) with proper ITA handling
+- **Multiple ITAs per sublattice**: Handle alloys with different concentration components
+- **Concentration weighting**: Compute weighted orbital-resolved sublattice DOS
+- **EMTO terminology**: Uses IT (sublattice) and ITA (Inequivalent Type Atom) nomenclature
+- **Automatic spin handling**: Returns spin-polarized or summed data
+- **Robust parsing**: Handles Fortran overflow markers (****) gracefully
 
 ### `modules/dmax_optimizer.py`
 
