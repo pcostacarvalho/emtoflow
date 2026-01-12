@@ -14,23 +14,7 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 # Import centralized element database
 from modules.element_database import DEFAULT_MOMENTS as DEFAULT_MAGNETIC_MOMENTS
 from modules.element_database import DEFAULT_MOMENT_FALLBACK
-
-
-def get_default_magnetic_moment(element_symbol):
-    """
-    Get default magnetic moment for an element.
-
-    Parameters
-    ----------
-    element_symbol : str
-        Element symbol (e.g., 'Fe', 'Pt')
-
-    Returns
-    -------
-    float
-        Default magnetic moment in Bohr magnetons
-    """
-    return DEFAULT_MAGNETIC_MOMENTS.get(element_symbol, DEFAULT_MOMENT_FALLBACK)
+from modules.element_database import get_default_moment as get_default_magnetic_moment
 
 
 def get_inequivalent_atoms(structure):
