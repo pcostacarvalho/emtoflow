@@ -11,54 +11,9 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 
 
 # ==================== MAGNETIC MOMENT DATABASE ====================
-# Default magnetic moments for common elements (in Bohr magnetons)
-DEFAULT_MAGNETIC_MOMENTS = {
-    # 3d transition metals
-    'Fe': 2.0,
-    'Co': 1.5,
-    'Ni': 0.6,
-    'Mn': 3.0,
-    'Cr': 2.5,
-    'V': 2.0,
-    'Ti': 1.5,
-    'Sc': 1.0,
-
-    # 4d transition metals
-    'Ru': 1.0,
-    'Rh': 0.5,
-    'Pd': 0.3,
-    'Tc': 1.5,
-    'Mo': 1.0,
-    'Nb': 1.0,
-    'Zr': 1.0,
-    'Y': 1.0,
-
-    # 5d transition metals
-    'Pt': 0.4,
-    'Ir': 0.3,
-    'Os': 0.5,
-    'Re': 1.0,
-    'W': 0.5,
-    'Ta': 0.5,
-    'Hf': 0.5,
-
-    # Rare earths
-    'Gd': 7.0,
-    'Tb': 6.0,
-    'Dy': 5.0,
-    'Ho': 4.0,
-    'Er': 3.0,
-    'Tm': 2.0,
-    'Nd': 3.0,
-    'Sm': 5.0,
-
-    # Actinides
-    'U': 2.0,
-    'Pu': 5.0,
-}
-
-# Default fallback for elements not in database
-DEFAULT_MOMENT_FALLBACK = 0.1
+# Import centralized element database
+from modules.element_database import DEFAULT_MOMENTS as DEFAULT_MAGNETIC_MOMENTS
+from modules.element_database import DEFAULT_MOMENT_FALLBACK
 
 
 def get_default_magnetic_moment(element_symbol):
