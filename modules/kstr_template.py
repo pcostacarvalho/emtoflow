@@ -59,12 +59,12 @@ def copy_kstr_template(lattice_type, structure, output_path, job_name):
 
     # Get template path (relative to module location)
     module_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    template_path = os.path.join(module_dir, 'templates', 'kstr', f'{lattice_type}.kstr')
+    template_path = os.path.join(module_dir, 'modules/inputs/templates', 'kstr', f'{lattice_type}.kstr')
 
     if not os.path.exists(template_path):
         raise FileNotFoundError(
             f"KSTR template not found: {template_path}\n"
-            f"Expected template: templates/kstr/{lattice_type}.kstr"
+            f"Expected template: modules/inputs/templates/kstr/{lattice_type}.kstr"
         )
 
     # Read template

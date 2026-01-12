@@ -535,7 +535,6 @@ def validate_emto_vectors(cif_file, verbose=True):
     # Compare volumes
     pm_volume = np.linalg.det(pm_matrix)
     emto_volume = np.linalg.det(emto_matrix)
-    
     if verbose:
         print(f"\n{'='*60}")
         print(f"Validation for: {cif_file}")

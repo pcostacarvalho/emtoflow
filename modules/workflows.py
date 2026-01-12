@@ -178,7 +178,7 @@ def create_emto_inputs(
                 lattice_type=lattice_type,
                 structure=structure,
                 output_path=output_path,
-                job_name=job_name
+                job_name=file_id_ratio
             )
     
 
