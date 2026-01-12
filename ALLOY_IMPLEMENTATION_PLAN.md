@@ -214,25 +214,32 @@ job_id/
 ## Implementation Phases
 
 ### Phase 1: Foundation
-1. Create element database with a_scr, b_scr, default_moment for common elements
+1. Create element database with default_moment for common elements
 2. Create built-in KSTR templates for FCC, BCC, SC
-3. Implement input validation function
+3. Implement input validation function in `modules/alloy_input.py`
 
 ### Phase 2: Core Logic
-4. Create alloy structure dict builder
-5. Modify KGRN generation to handle alloy mode
-6. Add lattice type to BSM mapping
+4. Create alloy structure dict builder function
+5. Modify KGRN generation to handle alloy mode (add `is_alloy` flag)
+6. Implement KSTR template copying function
 
 ### Phase 3: Integration
-7. Create user input interface (after clarifying Q3)
-8. Integrate into workflow (after clarifying Q10)
-9. Test with example cases
+7. Modify main workflow function to accept dictionary input
+8. Add mode flag handling ('cif' vs 'alloy')
+9. Integrate alloy workflow into existing optimization pipeline
 
-### Phase 4: Testing
-10. Test Fe-Pt FCC alloy at various concentrations
-11. Test 3+ element alloys
-12. Verify concentration validation
-13. Confirm DMAX optimization workflow works
+### Phase 4: Documentation
+10. **Update README.md** with new dictionary-based usage examples
+11. **Add "Alloy Mode" section** to README with FCC/BCC/SC examples
+12. **Add "Input Dictionary Reference"** section documenting all keys
+13. Update implementation status #3 to "Completed"
+
+### Phase 5: Testing
+14. Test Fe-Pt FCC alloy at various concentrations
+15. Test 3+ element alloys (Fe-Pt-Co)
+16. Verify concentration validation (error handling)
+17. Confirm SWS optimization workflow works for alloys
+18. Test CIF mode still works with new dictionary input
 
 ---
 
@@ -556,9 +563,137 @@ def create_alloy_structure(lattice_type, elements, concentrations, initial_sws):
 
 ### Modified Files
 1. `modules/inputs/kgrn.py` - Add `is_alloy` flag handling
-2. Main script - Add dictionary-based input, mode flag
+2. Main script (workflows.py or main entry point) - Add dictionary-based input, mode flag
+3. **`README.md`** - Update usage examples for new dictionary-based input system
 
 ### Unchanged Files
 - `modules/inputs/dos.py` - DOS parsing unchanged
 - `modules/lat_detector.py` - Lattice detection for CIF unchanged
 - `modules/cif_extraction.py` - CIF parsing unchanged (but may import from element_database)
+
+---
+
+## README Documentation Updates
+
+The README must be updated to reflect the new dictionary-based input system. The current usage:
+
+```python
+# Current (parameter-based)
+create_emto_inputs(
+    output_path="./fept_calc",
+    job_name="fept",
+    cif_file="testing/FePt.cif",
+    dmax=1.3,
+    ca_ratios=[0.92, 0.96, 1.00, 1.04],
+    sws_values=[2.60, 2.65, 2.70]
+)
+```
+
+Will become:
+
+```python
+# New (dictionary-based) - CIF mode
+input_dict = {
+    'mode': 'cif',
+    'cif_file': 'testing/FePt.cif',
+    'output_path': './fept_calc',
+    'job_name': 'fept',
+    'dmax': 1.3,
+    'ca_ratios': [0.92, 0.96, 1.00, 1.04],
+    'sws_values': [2.60, 2.65, 2.70]
+}
+create_emto_inputs(input_dict)
+
+# New (dictionary-based) - Alloy mode
+input_dict = {
+    'mode': 'alloy',
+    'lattice_type': 'fcc',
+    'elements': ['Fe', 'Pt'],
+    'concentrations': [0.5, 0.5],
+    'output_path': './fept_alloy',
+    'job_name': 'FePt_alloy',
+    'initial_sws': 2.65,
+    'sws_values': [2.60, 2.65, 2.70]  # For optimization
+}
+create_emto_inputs(input_dict)
+```
+
+**Required README sections to add/update:**
+
+1. **Quick Start section**: Update all examples to use dictionary input
+2. **New section: "Alloy Mode"**: Document CPA alloy workflow with examples
+3. **New section: "Input Dictionary Reference"**: Document all possible keys for both modes
+4. **Examples section**: Add alloy examples alongside existing CIF examples
+5. **Implementation Status**: Update #3 to mark as "Completed" when done
+
+**Example new section for README:**
+
+```markdown
+## Alloy Mode (CPA Random Alloys)
+
+For disordered alloys using the Coherent Potential Approximation (CPA), you can use built-in lattice templates:
+
+### Supported Lattices
+- FCC (face-centered cubic)
+- BCC (body-centered cubic)
+- SC (simple cubic)
+
+### Basic Alloy Example
+
+```python
+from modules.workflows import create_emto_inputs
+
+# Fe₀.₅Pt₀.₅ random FCC alloy
+alloy_input = {
+    'mode': 'alloy',
+    'lattice_type': 'fcc',
+    'elements': ['Fe', 'Pt'],
+    'concentrations': [0.5, 0.5],
+    'initial_sws': 2.65,
+    'output_path': './fept_alloy',
+    'job_name': 'FePt50'
+}
+create_emto_inputs(alloy_input)
+```
+
+### Multi-element Alloy
+
+```python
+# Fe₀.₅Pt₀.₃Co₀.₂ random FCC alloy
+alloy_input = {
+    'mode': 'alloy',
+    'lattice_type': 'fcc',
+    'elements': ['Fe', 'Pt', 'Co'],
+    'concentrations': [0.5, 0.3, 0.2],
+    'initial_sws': 2.65,
+    'output_path': './feptco_alloy',
+    'job_name': 'FePtCo'
+}
+create_emto_inputs(alloy_input)
+```
+
+### SWS Optimization for Alloys
+
+```python
+# Optimize SWS for Fe₀.₅Pt₀.₅ alloy
+alloy_input = {
+    'mode': 'alloy',
+    'lattice_type': 'fcc',
+    'elements': ['Fe', 'Pt'],
+    'concentrations': [0.5, 0.5],
+    'initial_sws': 2.65,
+    'sws_values': [2.55, 2.60, 2.65, 2.70, 2.75],  # SWS sweep
+    'output_path': './fept_optimization',
+    'job_name': 'FePt50'
+}
+create_emto_inputs(alloy_input)
+```
+
+**Note**: For cubic structures (FCC, BCC, SC), only SWS optimization is performed (no c/a optimization).
+
+### Input Requirements
+- **concentrations must sum to 1.0** (raises error otherwise)
+- Job names are auto-truncated to 12 characters (EMTO limit)
+- All elements must be in the supported element database
+```
+
