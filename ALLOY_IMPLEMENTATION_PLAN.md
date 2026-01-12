@@ -59,45 +59,113 @@ Implement support for disordered alloys using CPA (Coherent Potential Approximat
 **Implementation**:
 ```python
 from pymatgen.core import Structure, Lattice, Species
+import numpy as np
+
+def lattice_param_to_sws(a_angstrom, lattice_type):
+    """
+    Convert lattice parameter (Angstroms) to Wigner-Seitz radius (Bohr).
+
+    Parameters
+    ----------
+    a_angstrom : float
+        Lattice parameter in Angstroms
+    lattice_type : str
+        Lattice type: 'fcc', 'bcc', 'sc', etc.
+
+    Returns
+    -------
+    float
+        SWS radius in atomic units (Bohr)
+    """
+    BOHR_TO_ANGSTROM = 0.529177
+
+    # Convert to Bohr
+    a_bohr = a_angstrom / BOHR_TO_ANGSTROM
+
+    # Atoms per unit cell
+    atoms_per_cell = {'fcc': 4, 'bcc': 2, 'sc': 1}
+    n = atoms_per_cell.get(lattice_type.lower(), 1)
+
+    # Volume per atom
+    V_atom = a_bohr**3 / n
+
+    # Wigner-Seitz radius
+    sws = (3 * V_atom / (4 * np.pi))**(1/3)
+
+    return sws
 
 def create_alloy_structure_pymatgen(lattice_type, a, sites, c_over_a=1.0):
     """
     Create pymatgen Structure for alloy calculation.
 
-    sites = [
-        {'position': [0, 0, 0], 'elements': ['Fe', 'Pt'], 'concentrations': [0.5, 0.5]},
-        {'position': [0.5, 0.5, 0.5], 'elements': ['Co'], 'concentrations': [1.0]}
-    ]
+    Parameters
+    ----------
+    lattice_type : str
+        Lattice type: 'fcc', 'bcc', 'sc', 'fct', 'bct'
+    a : float
+        Lattice parameter in Angstroms
+    sites : list of dict
+        Site specifications, e.g.:
+        [
+            {'position': [0, 0, 0], 'elements': ['Fe', 'Pt'], 'concentrations': [0.5, 0.5]},
+            {'position': [0.5, 0.5, 0.5], 'elements': ['Co'], 'concentrations': [1.0]}
+        ]
+    c_over_a : float, optional
+        c/a ratio for tetragonal structures
+
+    Returns
+    -------
+    Structure
+        Pymatgen Structure object with partial occupancies
     """
     # Create Lattice based on lattice_type
     # Add PeriodicSite with Species containing partial occupancies
+    # Calculate and store SWS
+    sws = lattice_param_to_sws(a, lattice_type)
+
     # Return Structure object
 ```
 
 ### 2. User Input Interface (REVISED)
 **Required inputs**:
 - Lattice type: 'fcc', 'bcc', 'sc', 'fct', 'bct', etc.
-- Lattice parameter: `a` (in Angstroms)
+- Lattice parameter: `a` **in Angstroms (Å)** - will be converted to SWS internally
 - Optional: `c_over_a`, `b_over_a` for non-cubic structures
 - Sites: list of dictionaries specifying:
   - `position`: fractional coordinates [x, y, z]
   - `elements`: list of element symbols on this site
   - `concentrations`: list of concentrations (must sum to 1.0 per site)
-- SWS values: for optimization sweeps
+- SWS values: for optimization sweeps (optional, can be auto-calculated from `a`)
+
+**Lattice Parameter → SWS Conversion**:
+The user provides the experimental lattice parameter in Angstroms, and the code automatically converts it to the Wigner-Seitz radius (SWS) in atomic units (Bohr radii):
+
+1. Convert lattice parameter to atomic units: `a_bohr = a_angstrom / 0.529177`
+2. Calculate volume per atom: `V_atom = a_bohr³ / n_atoms_per_cell`
+   - FCC: n = 4 atoms per cell
+   - BCC: n = 2 atoms per cell
+   - SC: n = 1 atom per cell
+3. Calculate SWS: `SWS = (3 * V_atom / (4*π))^(1/3)` (in Bohr radii)
+
+**Example**: For FCC with a = 3.7 Å:
+- a_bohr = 3.7 / 0.529177 = 6.992 Bohr
+- V_atom = 6.992³ / 4 = 85.53 Bohr³
+- SWS = (3 * 85.53 / (4*π))^(1/3) = 2.69 Bohr
 
 **Example inputs**:
 ```python
 # Binary FCC random alloy (single-site disorder)
+# User provides lattice parameter in Angstroms, SWS auto-calculated
 create_emto_inputs(
     output_path="./fept_alloy",
     job_name="fept",
     is_alloy=True,
     lattice_type='fcc',
-    a=3.7,
+    a=3.7,  # Angstroms - will be converted to SWS≈2.69 Bohr internally
     sites=[
         {'position': [0, 0, 0], 'elements': ['Fe', 'Pt'], 'concentrations': [0.5, 0.5]}
     ],
-    sws_values=[2.60, 2.65, 2.70]
+    sws_values=[2.60, 2.65, 2.70]  # Optional: for SWS optimization sweep
 )
 
 # L10 FePt (ordered, two sublattices)
@@ -106,13 +174,13 @@ create_emto_inputs(
     job_name="fept_l10",
     is_alloy=True,
     lattice_type='fct',
-    a=3.7,
-    c_over_a=0.96,
+    a=3.7,  # Angstroms (a-axis)
+    c_over_a=0.96,  # c/a ratio
     sites=[
         {'position': [0, 0, 0], 'elements': ['Fe'], 'concentrations': [1.0]},
         {'position': [0.5, 0.5, 0.5], 'elements': ['Pt'], 'concentrations': [1.0]}
     ],
-    sws_values=[2.65]
+    sws_values=[2.65]  # Optional: single SWS or sweep
 )
 ```
 
@@ -324,10 +392,15 @@ job_id/
 4. Modify `parse_emto_structure()` to accept pymatgen `Structure` objects (not just CIF paths)
 5. Create `create_alloy_structure_pymatgen()` in `modules/alloy_input.py`:
    - Build pymatgen `Lattice` based on lattice_type and parameters
+   - **Implement lattice parameter → SWS conversion**:
+     - Convert `a` from Angstroms to Bohr: `a_bohr = a / 0.529177`
+     - Calculate volume per atom based on lattice type (FCC: n=4, BCC: n=2, SC: n=1)
+     - Calculate SWS: `(3 * V_atom / (4*π))^(1/3)`
    - Add sites with `Species` containing partial occupancies
-   - Return pymatgen `Structure` object
+   - Return pymatgen `Structure` object with calculated SWS stored
 6. Add lattice builders for common types (FCC, BCC, SC, FCT, BCT)
 7. Test that pymatgen structures parse correctly through existing pipeline
+8. Test SWS auto-calculation: verify FCC a=3.7Å → SWS≈2.69 Bohr
 
 ### Phase 3: Integration (SIMPLIFICATION)
 8. Modify `workflows.py`:
@@ -831,6 +904,12 @@ create_emto_inputs(alloy_input)
 
 ### Step 2: Create pymatgen structure builder in `alloy_input.py`
 - [ ] Implement `create_alloy_structure_pymatgen(lattice_type, a, sites, c_over_a=1.0, b_over_a=1.0)`
+- [ ] **Add lattice parameter → SWS conversion function**:
+  - [ ] `a_bohr = a_angstrom / 0.529177`
+  - [ ] Map lattice_type to atoms per cell: FCC→4, BCC→2, SC→1
+  - [ ] `V_atom = a_bohr³ / n_atoms_per_cell`
+  - [ ] `SWS = (3 * V_atom / (4*π))^(1/3)`
+  - [ ] Test: a=3.7Å (FCC) should give SWS≈2.69 Bohr
 - [ ] Map lattice_type to pymatgen `Lattice` object (cubic, tetragonal, etc.)
 - [ ] Add sites with partial occupancies using pymatgen `Species({'Fe': 0.5, 'Pt': 0.5})`
 - [ ] Return pymatgen `Structure` object
