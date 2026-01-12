@@ -184,7 +184,183 @@ create_emto_inputs(
 )
 ```
 
-### 3. Element Database
+### 3. Phase Diagram Sweep Helper (Advanced Feature)
+
+**Motivation**: Phase diagram calculations require sweeping over multiple compositions, where each composition is a fundamentally different material (not a geometric variation of the same material like c/a or SWS). A helper function automates this common workflow.
+
+**Key Design Decision**: Keep concentration loops **explicit in user code** for simple cases, but provide **helper function** for phase diagram calculations where:
+- User wants full compositional sweep (many compositions)
+- Dimensionality matters (binary=1D, ternary=2D, quaternary=3D)
+- Automatic directory organization is valuable
+
+**Implementation**:
+```python
+def create_phase_diagram_sweep(
+    base_output_path,
+    base_job_name,
+    elements,
+    concentration_step=0.1,
+    min_concentration=0.0,
+    **alloy_params
+):
+    """
+    Generate EMTO inputs for phase diagram calculation.
+
+    Parameters
+    ----------
+    base_output_path : str
+        Base directory (e.g., "./fept_phase_diagram")
+    base_job_name : str
+        Base job name (e.g., "fept")
+    elements : list of str
+        Element symbols (e.g., ['Fe', 'Pt'] or ['Fe', 'Pt', 'Co'])
+    concentration_step : float
+        Concentration grid spacing (default: 0.1)
+    min_concentration : float
+        Minimum concentration per element (default: 0.0)
+        Set to 0.1 to exclude pure elements
+    **alloy_params
+        Parameters passed to create_emto_inputs:
+        lattice_type, a, c_over_a, nl, dmax, sws_values, magnetic, etc.
+
+    Returns
+    -------
+    list of dict
+        Job summaries with concentrations and paths
+
+    Examples
+    --------
+    # Binary FCC phase diagram (11 compositions)
+    jobs = create_phase_diagram_sweep(
+        base_output_path="./fept_diagram",
+        base_job_name="fept",
+        elements=['Fe', 'Pt'],
+        concentration_step=0.1,
+        lattice_type='fcc',
+        a=3.7,
+        sws_values=[2.60, 2.65, 2.70]
+    )
+    # Creates: Fe00_Pt100/, Fe10_Pt90/, ..., Fe100_Pt00/
+
+    # Ternary with finer grid, excluding edges (~210 compositions)
+    jobs = create_phase_diagram_sweep(
+        base_output_path="./feptco_diagram",
+        base_job_name="feptco",
+        elements=['Fe', 'Pt', 'Co'],
+        concentration_step=0.05,
+        min_concentration=0.05,
+        lattice_type='fcc',
+        a=3.7,
+        sws_values=[2.65]
+    )
+    """
+    import numpy as np
+
+    # Generate concentration grid
+    concentrations_list = _generate_concentration_grid(
+        n_elements=len(elements),
+        step=concentration_step,
+        min_conc=min_concentration
+    )
+
+    print(f"\nPhase Diagram Sweep: {'-'.join(elements)}")
+    print(f"Compositions: {len(concentrations_list)}")
+
+    jobs_created = []
+    for concs in concentrations_list:
+        # Directory name: Fe50_Pt30_Co20
+        conc_str = '_'.join([f"{elem}{int(c*100):02d}"
+                             for elem, c in zip(elements, concs)])
+
+        # Create single-site CPA structure
+        sites = [{'position': [0, 0, 0],
+                  'elements': elements,
+                  'concentrations': list(concs)}]
+
+        # Generate inputs
+        create_emto_inputs(
+            output_path=os.path.join(base_output_path, conc_str),
+            job_name=f"{base_job_name}_{conc_str}",
+            cif_file=None,
+            is_alloy=True,
+            sites=sites,
+            **alloy_params
+        )
+
+        jobs_created.append({
+            'elements': elements,
+            'concentrations': concs,
+            'output_path': os.path.join(base_output_path, conc_str)
+        })
+
+    return jobs_created
+
+def _generate_concentration_grid(n_elements, step=0.1, min_conc=0.0):
+    """
+    Generate concentration combinations on compositional simplex.
+
+    Binary (n=2): [x, 1-x] with x ∈ [min_conc, 1-min_conc]
+    Ternary (n=3): [x, y, 1-x-y] with x,y ≥ min_conc and x+y ≤ 1-min_conc
+    Higher: generalize using itertools.product
+    """
+    import numpy as np
+    from itertools import product
+
+    grid_1d = np.arange(0, 1 + step/2, step)
+    grid_1d = np.round(grid_1d, decimals=10)  # Avoid float errors
+
+    if n_elements == 2:
+        # Binary: 1D sweep
+        return [(x, 1-x) for x in grid_1d
+                if x >= min_conc and (1-x) >= min_conc]
+
+    elif n_elements == 3:
+        # Ternary: 2D triangular grid
+        valid = []
+        for x in grid_1d:
+            for y in grid_1d:
+                z = 1 - x - y
+                if (x >= min_conc and y >= min_conc and z >= min_conc
+                    and abs(x + y + z - 1.0) < 1e-6):
+                    valid.append((x, y, z))
+        return valid
+
+    else:
+        # Higher dimensions: generalize
+        valid = []
+        for combo in product(grid_1d, repeat=n_elements-1):
+            last = 1.0 - sum(combo)
+            if (all(c >= min_conc for c in combo)
+                and last >= min_conc
+                and abs(sum(combo) + last - 1.0) < 1e-6):
+                valid.append(tuple(combo) + (last,))
+        return valid
+```
+
+**Complexity scaling**:
+- Binary (step=0.1): 11 compositions
+- Binary (step=0.05): 21 compositions
+- Ternary (step=0.1): 66 compositions
+- Ternary (step=0.1, min=0.1): 36 compositions (excluding edges)
+- Ternary (step=0.05): 231 compositions
+- Quaternary (step=0.1): 286 compositions
+
+**Directory structure example**:
+```
+fept_phase_diagram/
+├── Fe00_Pt100/
+│   ├── smx/, shp/, pot/, chd/, fcd/, tmp/
+│   └── fept_Fe00_Pt100_1.00_*.dat
+├── Fe10_Pt90/
+│   └── ...
+├── Fe20_Pt80/
+│   └── ...
+...
+└── Fe100_Pt00/
+    └── ...
+```
+
+### 4. Element Database
 **Required data per element**:
 - Symbol
 - a_scr (screening parameter)
@@ -429,6 +605,35 @@ job_id/
 18. Verify IT/ITA assignment matches expectations
 19. Confirm SWS optimization workflow works for alloys
 20. Verify CIF mode unchanged by modifications
+
+### Phase 6: Phase Diagram Helper (Advanced Features)
+21. Add `create_phase_diagram_sweep()` helper function in `modules/workflows.py`:
+    - Generate concentration grids on simplex (binary, ternary, quaternary+)
+    - Automatic directory naming: `Fe50_Pt30_Co20`
+    - Support `min_concentration` to exclude pure elements
+    - Call `create_emto_inputs()` for each composition
+22. Add `_generate_concentration_grid()` internal helper:
+    - Binary: 1D sweep with n+1 points
+    - Ternary: 2D triangular grid with ~n²/2 points
+    - Higher dimensions: generalize using itertools
+23. **Add comprehensive docstring** with examples
+24. **Update README.md** with phase diagram section:
+    - Binary example (Fe-Pt with 11 points)
+    - Ternary example (Fe-Pt-Co with ~66 points)
+    - Explain dimensionality scaling
+25. Test phase diagram sweep:
+    - Binary Fe-Pt: verify 11 compositions created
+    - Ternary Fe-Pt-Co: verify ~66 compositions
+    - Check directory naming convention
+
+**Rationale for Phase 6:**
+- Phase diagram calculations are common in alloy research
+- Concentration sweeps are fundamentally different from c/a or SWS sweeps:
+  - Each concentration = different material (not same material at different geometry)
+  - Requires separate directories and job names
+  - User needs explicit control over which compositions to study
+- Helper automates tedious nested loops while maintaining clarity
+- Scales naturally from binary (1D) to ternary (2D) to higher dimensions
 
 ---
 
@@ -940,6 +1145,31 @@ create_emto_inputs(alloy_input)
 - [ ] Test ternary Fe-Pt-Co
 - [ ] Verify CIF workflow still works unchanged
 - [ ] Compare generated KGRN files with expected format
+
+### Step 7: Phase Diagram Helper (Advanced Features)
+- [ ] Implement `create_phase_diagram_sweep()` in `workflows.py`:
+  - [ ] Accept `elements`, `concentration_step`, `min_concentration`
+  - [ ] Generate concentration grid using `_generate_concentration_grid()`
+  - [ ] Create directory naming: `Fe50_Pt30_Co20`
+  - [ ] Loop over compositions, call `create_emto_inputs()` for each
+  - [ ] Return list of job summaries
+- [ ] Implement `_generate_concentration_grid()` helper:
+  - [ ] Binary case: 1D list comprehension
+  - [ ] Ternary case: 2D nested loops
+  - [ ] Higher dimensions: itertools.product
+  - [ ] Apply `min_concentration` filter
+  - [ ] Handle floating point precision (round to 10 decimals)
+- [ ] Add comprehensive docstring with examples
+- [ ] Update README.md with "Phase Diagram Calculations" section:
+  - [ ] Binary example (Fe-Pt, 11 compositions)
+  - [ ] Ternary example (Fe-Pt-Co, 66 compositions)
+  - [ ] Explain complexity scaling (binary=n+1, ternary~n²/2)
+  - [ ] Show directory structure
+- [ ] Test phase diagram sweep:
+  - [ ] Binary Fe-Pt: step=0.1 → verify 11 directories created
+  - [ ] Ternary Fe-Pt-Co: step=0.1 → verify 66 directories
+  - [ ] Ternary with min=0.1 → verify 36 directories (edges excluded)
+  - [ ] Check naming: `Fe50_Pt50`, `Fe33_Pt33_Co33`, etc.
 
 ---
 
