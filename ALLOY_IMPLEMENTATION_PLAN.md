@@ -1,48 +1,120 @@
-# Alloy Implementation Plan - CPA Random Alloys
+# Alloy Implementation Plan - CPA Random Alloys (REVISED)
 
 ## Objective
-Implement support for disordered alloys using CPA (Coherent Potential Approximation) with built-in lattice templates. User provides: lattice type, elements, concentrations, and initial geometry parameters.
+Implement support for disordered alloys using CPA (Coherent Potential Approximation) by creating pymatgen structures programmatically. User provides: lattice type, elements, their lattice sites, and concentrations.
+
+## MAJOR DESIGN CHANGE (2026-01-12)
+
+### Old vs. New Approach Comparison
+
+| Aspect | Old Approach (Template-based) | New Approach (Pymatgen-based) |
+|--------|------------------------------|-------------------------------|
+| **Structure source** | Pre-generated KSTR template files | Pymatgen `Structure` objects |
+| **Lattice types** | FCC, BCC, SC only | Any structure pymatgen supports |
+| **IT determination** | Manual assignment (IT=ITA increment) | Automatic via symmetry analysis |
+| **Code paths** | Separate for CIF vs alloy | Unified through `parse_emto_structure()` |
+| **Template files** | Required (`fcc.kstr`, `bcc.kstr`, etc.) | Not needed |
+| **Disorder handling** | Simple single-site only | Multi-sublattice, partial occupancy |
+| **Extensibility** | Hard (need new templates) | Easy (use pymatgen builders) |
+
+### Why This Change?
+
+**OLD APPROACH limitations:**
+- Template files need manual creation/maintenance
+- IT/ITA logic was hardcoded and oversimplified
+- Single-site disorder only (IQ=1 for all atoms)
+- Couldn't handle multi-sublattice alloys (L10, L12, etc.)
+- Separate code path from CIF workflow (duplication)
+
+**NEW APPROACH advantages:**
+1. **Unified workflow**: Both CIF and alloy use same `parse_emto_structure()` pipeline
+2. **Proper IT handling**: Symmetry analysis determines inequivalent sites automatically
+3. **No template files**: More maintainable and flexible
+4. **Extensibility**: Easy to add any structure type pymatgen supports
+5. **Multi-sublattice support**: Can handle complex alloys (L10, L12, Heusler, etc.)
+6. **Native disorder**: Pymatgen's `Species` handles partial occupancies correctly
 
 ## Scope
-- **Lattice types**: FCC, BCC, Simple Cubic (single inequivalent site only)
-- **Alloy type**: Random single-site disorder (all elements on same sublattice)
+- **Lattice types**: Any structure pymatgen can create (FCC, BCC, SC, tetragonal, Heusler, etc.)
+- **Alloy types**:
+  - Single-site disorder (CPA on one sublattice)
+  - Multi-sublattice disorder (CPA on multiple sublattices independently)
+  - Ordered intermetallics (L10, L12, B2, etc.)
 - **IQ/IT/ITA rules**:
-  - IQ = 1 (single atom in primitive cell)
-  - IT = ITA = 1, 2, 3, ..., N (one per element)
-  - All elements share same IQ but different IT/ITA
+  - IQ determined from atom position in unit cell
+  - IT determined from symmetry analysis (inequivalent sites)
+  - ITA determined from element type on each site
 
 ## Key Design Decisions
 
-### 1. Built-in KSTR Templates
-**Approach**: Store pre-generated KSTR files in repository
+### 1. Pymatgen Structure Generation (REVISED)
+**Approach**: Create pymatgen `Structure` objects programmatically, then pass to existing `parse_emto_structure()`
 
-**Location**: `/templates/kstr/` or `/modules/inputs/kstr_templates/`
+**Benefits**:
+- Leverage pymatgen's crystal structure database and builders
+- Automatic handling of symmetry and space groups
+- No need for template files
+- Easy to extend to any structure type
 
-**Files needed**:
-- `fcc_template.kstr`
-- `bcc_template.kstr`
-- `sc_template.kstr` (simple cubic)
+**Implementation**:
+```python
+from pymatgen.core import Structure, Lattice, Species
 
-**Questions**:
-- Q1: Should these templates use unit lattice constants (a=1.0, c=1.0) that get scaled by user input?
-- Q2: What BSM value should be in templates? (currently using lat_mapping)
+def create_alloy_structure_pymatgen(lattice_type, a, sites, c_over_a=1.0):
+    """
+    Create pymatgen Structure for alloy calculation.
 
-### 2. User Input Interface
+    sites = [
+        {'position': [0, 0, 0], 'elements': ['Fe', 'Pt'], 'concentrations': [0.5, 0.5]},
+        {'position': [0.5, 0.5, 0.5], 'elements': ['Co'], 'concentrations': [1.0]}
+    ]
+    """
+    # Create Lattice based on lattice_type
+    # Add PeriodicSite with Species containing partial occupancies
+    # Return Structure object
+```
+
+### 2. User Input Interface (REVISED)
 **Required inputs**:
-- Lattice type: 'fcc', 'bcc', or 'sc'
-- Elements: list of chemical symbols (e.g., ['Fe', 'Pt', 'Co'])
-- Concentrations: list of floats (e.g., [0.5, 0.3, 0.2])
-- Initial c/a ratio
-- Initial SWS value
+- Lattice type: 'fcc', 'bcc', 'sc', 'fct', 'bct', etc.
+- Lattice parameter: `a` (in Angstroms)
+- Optional: `c_over_a`, `b_over_a` for non-cubic structures
+- Sites: list of dictionaries specifying:
+  - `position`: fractional coordinates [x, y, z]
+  - `elements`: list of element symbols on this site
+  - `concentrations`: list of concentrations (must sum to 1.0 per site)
+- SWS values: for optimization sweeps
 
-**Questions**:
-- Q3: How should user provide input? Options:
-  - Command line arguments: `--alloy --lattice fcc --elements Fe Pt --conc 0.5 0.5 --ca 1.0 --sws 2.65`
-  - Config file (JSON/YAML): separate from CIF workflow
-  - Interactive prompts
-  - Prefer which approach?
+**Example inputs**:
+```python
+# Binary FCC random alloy (single-site disorder)
+create_emto_inputs(
+    output_path="./fept_alloy",
+    job_name="fept",
+    is_alloy=True,
+    lattice_type='fcc',
+    a=3.7,
+    sites=[
+        {'position': [0, 0, 0], 'elements': ['Fe', 'Pt'], 'concentrations': [0.5, 0.5]}
+    ],
+    sws_values=[2.60, 2.65, 2.70]
+)
 
-- Q4: Should there be a job name/ID prefix like the current CIF workflow uses structure name?
+# L10 FePt (ordered, two sublattices)
+create_emto_inputs(
+    output_path="./fept_l10",
+    job_name="fept_l10",
+    is_alloy=True,
+    lattice_type='fct',
+    a=3.7,
+    c_over_a=0.96,
+    sites=[
+        {'position': [0, 0, 0], 'elements': ['Fe'], 'concentrations': [1.0]},
+        {'position': [0.5, 0.5, 0.5], 'elements': ['Pt'], 'concentrations': [1.0]}
+    ],
+    sws_values=[2.65]
+)
+```
 
 ### 3. Element Database
 **Required data per element**:
@@ -62,81 +134,110 @@ default_moments = {...}
 - Q5: Should we centralize this in a separate database file/module (e.g., `element_database.py`)?
 - Q6: What elements should be supported initially? (periodic table subset)
 
-### 4. KGRN Generation Modifications
+### 4. KGRN Generation (NO CHANGES NEEDED)
 
-**File to modify**: `modules/inputs/kgrn.py`
+**File**: `modules/inputs/kgrn.py`
 
-**Current atom entry format**:
+**Current implementation already handles alloys correctly!**
+
+Since we're using `parse_emto_structure()` for both CIF and alloys:
+- IQ, IT, ITA are determined by symmetry analysis
+- The `create_kgrn_input()` function just reads from `structure['atom_info']`
+- Works for both ordered and disordered structures
+
+**Example for single-site random alloy (Fe₀.₅Pt₀.₅)**:
 ```
 Symb  IQ  IT ITA NRM  CONC      a_scr b_scr |Teta    Phi    FXM  m(split)
-Fe     1   1   1   1  1.000000  0.900 1.000  0.0000  0.0000  N   2.2000
-```
-
-**New format for 3-element alloy (Fe₀.₅Pt₀.₃Co₀.₂)**:
-```
 Fe     1   1   1   1  0.500000  0.900 1.000  0.0000  0.0000  N   2.2000
-Pt     1   1   2   1  0.300000  0.900 1.000  0.0000  0.0000  N   0.5000
-Co     1   1   3   1  0.200000  0.900 1.000  0.0000  0.0000  N   1.6000
+Pt     1   1   2   1  0.500000  0.900 1.000  0.0000  0.0000  N   0.5000
 ```
+- Both have IQ=1 (same site)
+- Both have IT=1 (same inequivalent site)
+- Different ITA (1 for Fe, 2 for Pt)
 
+**Example for L10 ordered FePt (two sublattices)**:
+```
+Fe     1   1   1   1  1.000000  0.900 1.000  0.0000  0.0000  N   2.2000
+Pt     2   2   1   1  1.000000  0.900 1.000  0.0000  0.0000  N   0.5000
+```
+- Different IQ (1 for Fe at [0,0,0], 2 for Pt at [0.5,0.5,0.5])
+- Different IT (1 and 2) because symmetry analysis finds two inequivalent sites
+- Both have ITA=1 (pure occupancy on each site)
 
-**Implementation approach**:
-- Modify `create_kgrn_input()` to handle alloy mode
-- Loop through elements with their concentrations
-- Assign IT=ITA incrementally (1, 2, 3, ...)
-- All entries have IQ=1 for single-site alloys
+### 5. Structure Dict Format (UNIFIED)
 
-**Questions**:
-- Q7: Should this be a separate function `create_kgrn_input_alloy()` or integrated into existing function with mode flag?
+**With pymatgen approach, the structure dict format is IDENTICAL for CIF and alloys!**
 
-### 5. Structure Dict Format for Alloys
-
-**Current structure dict** (from CIF parsing):
+Both workflows produce the same dict from `parse_emto_structure()`:
 ```python
 {
-    'lat': 1,
+    'lat': 2,  # From symmetry analysis
+    'lattice_name': 'Face-centered cubic',
+    'NL': 2,  # From element electronic structure
+    'NQ3': 2,  # Number of atoms
+    'BSX': [...], 'BSY': [...], 'BSZ': [...],  # EMTO primitive vectors
+    'fractional_coords': [[0, 0, 0], [0.5, 0.5, 0.5]],
+    'a': 3.7, 'b': 3.7, 'c': 3.7,
+    'coa': 1.0, 'boa': 1.0,
     'atom_info': [
-        {'symbol': 'Fe', 'IQ': 1, 'IT': 1, 'ITA': 1, 'conc': 1.0, ...},
-        {'symbol': 'Pt', 'IQ': 2, 'IT': 2, 'ITA': 1, 'conc': 1.0, ...}
+        {
+            'symbol': 'Fe',
+            'IQ': 1,
+            'IT': 1,
+            'ITA': 1,
+            'conc': 0.5,
+            'a_scr': 0.750,
+            'b_scr': 1.100,
+            'default_moment': 2.0
+        },
+        {
+            'symbol': 'Pt',
+            'IQ': 1,
+            'IT': 1,
+            'ITA': 2,
+            'conc': 0.5,
+            'a_scr': 0.750,
+            'b_scr': 1.100,
+            'default_moment': 0.4
+        }
     ]
 }
 ```
 
-**Proposed alloy structure dict**:
+**Key point**: No need for `is_alloy` flag or special handling. The symmetry analysis in `parse_emto_structure()` automatically determines IQ/IT/ITA correctly for any structure type.
+
+### 6. Workflow Integration (SIMPLIFIED)
+
+**Unified workflow for both CIF and alloys**:
+1. Get pymatgen Structure (either from CIF file OR create programmatically)
+2. Parse structure with `parse_emto_structure(structure)` → get structure dict
+3. Create KSTR from structure dict
+4. Create SHAPE from structure dict
+5. Create KGRN from structure dict
+6. Create KFCD from structure dict
+7. Run DMAX optimization (vary c/a, vary SWS, fit EOS)
+
+**Implementation**:
 ```python
-{
-    'lat': 1,  # or from BSM mapping
-    'lattice_type': 'fcc',
-    'is_alloy': True,
-    'atom_info': [
-        {'symbol': 'Fe', 'IQ': 1, 'IT': 1, 'ITA': 1, 'conc': 0.5, 'a_scr': 0.9, 'b_scr': 1.0, 'default_moment': 2.2},
-        {'symbol': 'Pt', 'IQ': 1, 'IT': 2, 'ITA': 2, 'conc': 0.3, 'a_scr': 0.9, 'b_scr': 1.0, 'default_moment': 0.5},
-        {'symbol': 'Co', 'IQ': 1, 'IT': 3, 'ITA': 3, 'conc': 0.2, 'a_scr': 0.9, 'b_scr': 1.0, 'default_moment': 1.6}
-    ]
-}
+def create_emto_inputs(..., cif_file=None, is_alloy=False, lattice_type=None, a=None, sites=None):
+    if cif_file is not None:
+        # Existing CIF workflow
+        structure_pmg = Structure.from_file(cif_file)
+    elif is_alloy:
+        # New alloy workflow
+        structure_pmg = create_alloy_structure_pymatgen(lattice_type, a, sites, c_over_a)
+
+    # UNIFIED: Parse structure (works for both!)
+    structure = parse_emto_structure(structure_pmg)
+
+    # UNIFIED: Generate all inputs (same code for both!)
+    create_kstr_input(structure, ...)
+    create_shape_input(structure, ...)
+    create_kgrn_input(structure, ...)
+    create_kfcd_input(structure, ...)
 ```
 
-**Questions**:
-- Q8: Should we create a new function `create_alloy_structure()` to build this dict?
-- Q9: Where should initial c/a and SWS values be stored?
-
-### 6. Workflow Integration
-
-**Current workflow** (from main script):
-1. Parse CIF → get structure
-2. Create KSTR from structure
-3. Create KGRN from structure
-4. Run DMAX optimization (vary c/a, vary SWS, fit EOS)
-
-**Proposed alloy workflow**:
-1. Parse user input → get alloy specification
-2. Load built-in KSTR template (no modification needed)
-3. Create KGRN from alloy specification
-4. Run DMAX optimization (same as current)
-
-**Questions**:
-- Q10: Should there be a separate main entry point (e.g., `main_alloy.py`) or integrate into existing main with mode flag?
-- Q11: Job naming convention for alloys? Suggestion: `{lattice}_{elements}_{concentration}` → `fcc_fept_0.5_0.5`
+**Key insight**: By creating pymatgen Structures for alloys, we get the same data flow as CIF files!
 
 ### 7. Input Validation
 
@@ -212,35 +313,49 @@ job_id/
 
 ---
 
-## Implementation Phases
+## Implementation Phases (REVISED FOR PYMATGEN APPROACH)
 
-### Phase 1: Foundation
-1. Create element database with default_moment for common elements
-2. Create built-in KSTR templates for FCC, BCC, SC
-3. Implement input validation function in `modules/alloy_input.py`
+### Phase 1: Foundation (COMPLETED ✅)
+1. ✅ Create element database with default_moment for common elements
+2. ~~Create built-in KSTR templates~~ **OBSOLETE - not needed with pymatgen**
+3. ✅ Implement input validation function in `modules/alloy_input.py`
 
-### Phase 2: Core Logic
-4. Create alloy structure dict builder function
-5. Modify KGRN generation to handle alloy mode (add `is_alloy` flag)
-6. Implement KSTR template copying function
+### Phase 2: Pymatgen Structure Builder (NEW)
+4. Modify `parse_emto_structure()` to accept pymatgen `Structure` objects (not just CIF paths)
+5. Create `create_alloy_structure_pymatgen()` in `modules/alloy_input.py`:
+   - Build pymatgen `Lattice` based on lattice_type and parameters
+   - Add sites with `Species` containing partial occupancies
+   - Return pymatgen `Structure` object
+6. Add lattice builders for common types (FCC, BCC, SC, FCT, BCT)
+7. Test that pymatgen structures parse correctly through existing pipeline
 
-### Phase 3: Integration
-7. Modify main workflow function to accept dictionary input
-8. Add mode flag handling ('cif' vs 'alloy')
-9. Integrate alloy workflow into existing optimization pipeline
+### Phase 3: Integration (SIMPLIFICATION)
+8. Modify `workflows.py`:
+   - Add `is_alloy`, `lattice_type`, `a`, `c_over_a`, `sites` parameters
+   - If `is_alloy`: create pymatgen structure, then call `parse_emto_structure()`
+   - If `cif_file`: use existing CIF workflow
+   - Remove template copying code (obsolete)
+9. Delete obsolete files:
+   - `modules/kstr_template.py`
+   - `modules/inputs/templates/kstr/` directory
+10. Update `create_alloy_structure()` to call new pymatgen builder
 
 ### Phase 4: Documentation
-10. **Update README.md** with new dictionary-based usage examples
-11. **Add "Alloy Mode" section** to README with FCC/BCC/SC examples
-12. **Add "Input Dictionary Reference"** section documenting all keys
-13. Update implementation status #3 to "Completed"
+11. **Update README.md** with pymatgen-based alloy examples
+12. **Add "Alloy Mode" section** with examples for:
+    - Single-site random alloys (FCC Fe-Pt)
+    - Multi-site ordered structures (L10 FePt)
+    - Ternary alloys
+13. **Document site specification format**
+14. Update implementation status #3 to "✅ Completed"
 
 ### Phase 5: Testing
-14. Test Fe-Pt FCC alloy at various concentrations
-15. Test 3+ element alloys (Fe-Pt-Co)
-16. Verify concentration validation (error handling)
-17. Confirm SWS optimization workflow works for alloys
-18. Test CIF mode still works with new dictionary input
+15. Test Fe-Pt FCC random alloy (single-site disorder)
+16. Test L10 FePt (ordered, two sublattices)
+17. Test ternary alloy (Fe-Pt-Co)
+18. Verify IT/ITA assignment matches expectations
+19. Confirm SWS optimization workflow works for alloys
+20. Verify CIF mode unchanged by modifications
 
 ---
 
@@ -553,24 +668,30 @@ def create_alloy_structure(lattice_type, elements, concentrations, initial_sws):
 
 ---
 
-## File Changes Summary
+## File Changes Summary (REVISED)
 
 ### New Files
-1. `templates/kstr/fcc.kstr` - FCC KSTR template
-2. `templates/kstr/bcc.kstr` - BCC KSTR template
-3. `templates/kstr/sc.kstr` - Simple cubic KSTR template
-4. `modules/element_database.py` - Default magnetic moments
-5. `modules/alloy_input.py` - Validation and structure builder
+1. ✅ `modules/element_database.py` - Default magnetic moments
+2. ✅ `modules/alloy_input.py` - Validation and pymatgen structure builder
 
 ### Modified Files
-1. `modules/inputs/kgrn.py` - Add `is_alloy` flag handling
-2. Main script (workflows.py or main entry point) - Add dictionary-based input, mode flag
-3. **`README.md`** - Update usage examples for new dictionary-based input system
+1. ✅ `modules/lat_detector.py` - Modify `parse_emto_structure()` to accept both CIF paths and pymatgen `Structure` objects
+2. ✅ `modules/workflows.py` - Add alloy workflow using pymatgen structure creation
+3. ⚠️ `modules/alloy_input.py` - Replace `create_alloy_structure()` with `create_alloy_structure_pymatgen()`
+4. **`README.md`** - Add alloy examples with site specification format
+
+### Files to DELETE
+1. ~~`modules/kstr_template.py`~~ - Template copying no longer needed
+2. ~~`modules/inputs/templates/kstr/fcc.kstr`~~ - Not needed with pymatgen
+3. ~~`modules/inputs/templates/kstr/bcc.kstr`~~ - Not needed with pymatgen
+4. ~~`modules/inputs/templates/kstr/sc.kstr`~~ - Not needed with pymatgen
 
 ### Unchanged Files
+- `modules/inputs/kstr.py` - Works as-is with pymatgen structures
+- `modules/inputs/shape.py` - Works as-is
+- `modules/inputs/kgrn.py` - Already handles disorder correctly
+- `modules/inputs/kfcd.py` - Works as-is
 - `modules/inputs/dos.py` - DOS parsing unchanged
-- `modules/lat_detector.py` - Lattice detection for CIF unchanged
-- `modules/cif_extraction.py` - CIF parsing unchanged (but may import from element_database)
 
 ---
 
@@ -698,3 +819,50 @@ create_emto_inputs(alloy_input)
 - All elements must be in the supported element database
 ```
 
+
+---
+
+## QUICK REFERENCE: Implementation Checklist (Pymatgen Approach)
+
+### Step 1: Modify `lat_detector.py`
+- [ ] Update `parse_emto_structure()` to accept both `str` (CIF path) and pymatgen `Structure` objects
+- [ ] Add type check: `if isinstance(cif_file_or_structure, str)` → read CIF, else use Structure directly
+- [ ] Test: Create simple pymatgen Structure, pass to `parse_emto_structure()`, verify dict output
+
+### Step 2: Create pymatgen structure builder in `alloy_input.py`
+- [ ] Implement `create_alloy_structure_pymatgen(lattice_type, a, sites, c_over_a=1.0, b_over_a=1.0)`
+- [ ] Map lattice_type to pymatgen `Lattice` object (cubic, tetragonal, etc.)
+- [ ] Add sites with partial occupancies using pymatgen `Species({'Fe': 0.5, 'Pt': 0.5})`
+- [ ] Return pymatgen `Structure` object
+- [ ] Test: FCC with single site containing Fe/Pt 50-50
+
+### Step 3: Update `workflows.py`
+- [ ] Add parameters: `is_alloy`, `lattice_type`, `a`, `c_over_a`, `sites`
+- [ ] In alloy branch: call `create_alloy_structure_pymatgen()` → get pymatgen Structure
+- [ ] Pass pymatgen Structure to `parse_emto_structure()` → get structure dict
+- [ ] Remove `copy_kstr_template()` call (use existing KSTR generation)
+- [ ] Test: Run full workflow for FCC Fe-Pt alloy
+
+### Step 4: Cleanup obsolete code
+- [ ] Delete `modules/kstr_template.py`
+- [ ] Delete `modules/inputs/templates/kstr/` directory
+- [ ] Remove imports of `copy_kstr_template` from `workflows.py`
+- [ ] Update `alloy_input.py` to remove old `create_alloy_structure()` (or repurpose as wrapper)
+
+### Step 5: Documentation
+- [ ] Update README.md with pymatgen-based examples
+- [ ] Document `sites` format specification
+- [ ] Add examples for single-site disorder, multi-sublattice, ordered structures
+- [ ] Update implementation status #3 to "✅ Completed"
+
+### Step 6: Testing
+- [ ] Test FCC Fe-Pt random alloy (verify IT=1 for both, ITA=1,2)
+- [ ] Test L10 FePt ordered (verify IT=1,2 for two sublattices)
+- [ ] Test ternary Fe-Pt-Co
+- [ ] Verify CIF workflow still works unchanged
+- [ ] Compare generated KGRN files with expected format
+
+---
+
+**Plan Last Updated:** January 12, 2026
+**Major Revision:** Switched from template-based to pymatgen-based approach
