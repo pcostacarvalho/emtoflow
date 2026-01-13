@@ -34,10 +34,10 @@ def test_sws_conversion():
     sws_fcc = lattice_param_to_sws(structure_fcc)
     print(f"\nFCC (a={a} Å, 4 atoms):")
     print(f"  Calculated SWS: {sws_fcc:.4f} Bohr")
-    print(f"  Expected SWS:   ~2.69 Bohr")
+    print(f"  Expected SWS:   ~2.73 Bohr")
 
-    # Verify it's close to expected value
-    expected_sws = 2.69
+    # Verify it's close to expected value (calculated from a=3.7, 4 atoms)
+    expected_sws = 2.73
     assert abs(sws_fcc - expected_sws) < 0.01, f"FCC SWS mismatch: {sws_fcc} vs {expected_sws}"
     print(f"  ✓ Match!")
 
@@ -53,9 +53,9 @@ def test_sws_conversion():
     sws_bcc = lattice_param_to_sws(structure_bcc)
     print(f"\nBCC (a={a_bcc} Å, 2 atoms):")
     print(f"  Calculated SWS: {sws_bcc:.4f} Bohr")
-    print(f"  Expected SWS:   ~2.63 Bohr")
+    print(f"  Expected SWS:   ~2.67 Bohr")
 
-    expected_bcc = 2.63
+    expected_bcc = 2.67
     assert abs(sws_bcc - expected_bcc) < 0.01, f"BCC SWS mismatch"
     print(f"  ✓ Match!")
 

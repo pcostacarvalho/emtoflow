@@ -190,9 +190,9 @@ def create_structure_from_params(lat, a, sites, b=None, c=None,
     # Create Structure
     structure = Structure(lattice, species_list, coords_list)
 
-    # Calculate and store SWS in properties
+    # Calculate and store SWS and LAT in properties
     sws = lattice_param_to_sws(structure)
-    structure.properties = {'sws': sws}
+    structure.properties = {'sws': sws, 'user_lat': lat}
 
     return structure
 
@@ -217,6 +217,9 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     dict
         EMTO structure dictionary with all required fields
     """
+    # Check if user provided explicit LAT (from parameter workflow)
+    user_lat = structure_pmg.properties.get('user_lat', None) if structure_pmg.properties else None
+
     # Get conventional cell (EMTO requires conventional, not primitive)
     sga = SpacegroupAnalyzer(structure_pmg)
     conv_structure = sga.get_conventional_standard_structure()
@@ -234,11 +237,26 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     coords = conv_structure.cart_coords
     sites_frac = conv_structure.frac_coords
 
-    # Detect LAT number from conventional structure
-    crystal_system = sga.get_crystal_system()
-    spacegroup_symbol = sga.get_space_group_symbol()
-    centering = spacegroup_symbol[0]  # First letter
-    lat, lattice_name = map_to_lat_number(crystal_system, centering)
+    # Determine LAT number
+    if user_lat is not None:
+        # Use user-provided LAT (from parameter workflow)
+        lat = user_lat
+        # Get lattice name from LAT number
+        lat_to_name = {
+            1: 'SC', 2: 'FCC', 3: 'BCC', 4: 'HCP', 5: 'BCT',
+            6: 'ST', 7: 'ORC', 8: 'ORCC', 9: 'ORCF', 10: 'ORCI',
+            11: 'MCL', 12: 'MCLC', 13: 'TRI', 14: 'RHL'
+        }
+        lattice_name = lat_to_name.get(lat, f'LAT{lat}')
+        crystal_system = sga.get_crystal_system()
+        spacegroup_symbol = sga.get_space_group_symbol()
+        centering = spacegroup_symbol[0]
+    else:
+        # Detect LAT from symmetry (CIF workflow)
+        crystal_system = sga.get_crystal_system()
+        spacegroup_symbol = sga.get_space_group_symbol()
+        centering = spacegroup_symbol[0]  # First letter
+        lat, lattice_name = map_to_lat_number(crystal_system, centering)
 
     # Generate primitive vectors using EMTO formulas
     BSX, BSY, BSZ, boa, coa = generate_emto_primitive_vectors(
