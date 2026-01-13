@@ -396,9 +396,9 @@ print(f"Equilibrium energy: {E_eq:.6f} Ry")
 5. **(Optional) Re-run** - With optimized DMAX
 6. **Analyze results** - Extract energies and fit EOS
 
-### Alloy Workflow (CPA Disorder) - 🚧 In Development
+### Alloy Workflow (CPA Disorder) - ✅ Complete
 
-**New pymatgen-based approach** (see `ALLOY_IMPLEMENTATION_PLAN.md`):
+**Pymatgen-based implementation** (see `ALLOY_WORKFLOW_GUIDE.md` and `ALLOY_IMPLEMENTATION_PLAN.md`):
 
 1. **Specify structure** - Provide lattice type, lattice parameters, and site specifications
 2. **Build pymatgen Structure** - Create Structure object with partial occupancies
@@ -407,10 +407,11 @@ print(f"Equilibrium energy: {E_eq:.6f} Ry")
 5. **Run calculations** - SWS optimization for cubic structures (no c/a sweep)
 6. **Analyze results** - Extract energies and fit EOS
 
-**Key advantages:**
+**Key features:**
 - Unified code path for both CIF and alloy modes
 - Automatic IT/ITA assignment via symmetry analysis
 - Support for multi-sublattice disorder and ordered intermetallics
+- All 14 EMTO lattice types supported
 - No template files needed
 
 ### Automated Parameter Sweep
