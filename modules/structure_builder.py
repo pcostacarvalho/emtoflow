@@ -234,9 +234,6 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     coords = conv_structure.cart_coords
     sites_frac = conv_structure.frac_coords
 
-    # Get atoms as species
-    atoms_species = [site.specie for site in conv_structure.sites]
-
     # Detect LAT number from conventional structure
     crystal_system = sga.get_crystal_system()
     spacegroup_symbol = sga.get_space_group_symbol()
