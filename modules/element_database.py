@@ -90,7 +90,7 @@ def get_default_moment(element_symbol):
     >>> get_default_moment('Xx')  # Unknown element
     0.1
     """
-    return DEFAULT_MOMENTS.get(element_symbol, DEFAULT_MOMENT_FALLBACK)
+    return DEFAULT_MOMENTS.get(element_symbol.capitalize(), DEFAULT_MOMENT_FALLBACK)
 
 
 def is_element_supported(element_symbol):
@@ -114,7 +114,7 @@ def is_element_supported(element_symbol):
     >>> is_element_supported('Xx')
     False
     """
-    return element_symbol in DEFAULT_MOMENTS
+    return element_symbol.capitalize() in DEFAULT_MOMENTS
 
 
 def get_supported_elements():

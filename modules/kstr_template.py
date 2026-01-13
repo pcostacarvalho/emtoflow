@@ -93,7 +93,7 @@ def copy_kstr_template(lattice_type, structure, output_path, job_name):
     print(f"✓ KSTR file created: {output_file}")
     print(f"  Lattice: {lattice_type.upper()}, NL={nl}, NL_mdl={nl_mdl}")
 
-    return output_file
+    # return output_file
 
 
 def get_template_info(lattice_type):

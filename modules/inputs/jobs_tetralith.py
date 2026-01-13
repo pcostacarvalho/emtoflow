@@ -175,7 +175,7 @@ done
     print(f"Script for job file '{filename}' created successfully.")
 
 
-def write_serial_sbatch(path,ratios, volumes, job_name, prcs=1, time="00:30:00", account="naiss2025-1-38", id_name="fept"):
+def write_serial_sbatch(path,ratios, volumes, job_name, prcs=1, time="00:30:00", account="naiss2025-1-38", id_ratio="fept"):
     """Write serial SBATCH script for volume optimization."""
     
         # Format numbers to 2 decimal places
@@ -189,7 +189,7 @@ def write_serial_sbatch(path,ratios, volumes, job_name, prcs=1, time="00:30:00",
 #SBATCH -t {time}
 #SBATCH -J {job_name}
 
-id_name="{id_name}"
+id_ratio="{id_ratio}"
 
 for r in {ratios_str}; do
 
@@ -198,7 +198,7 @@ for r in {ratios_str}; do
     cd smx
 
     echo "Running KSTR:"
-    kstr.exe < ${{id_name}}_${{r}}.dat > smx_${{r}}.log
+    kstr.exe < ${{id_ratio}}_${{r}}.dat > smx_${{r}}.log
 
     if [ $? -ne 0 ]; then
         echo "KSTR failed!"
@@ -213,7 +213,7 @@ for r in {ratios_str}; do
     cd ../shp
 
     echo "Running SHAPE:"
-    shape.exe < ${{id_name}}_${{r}}.dat > shp_${{r}}.log
+    shape.exe < ${{id_ratio}}_${{r}}.dat > shp_${{r}}.log
 
     if [ $? -ne 0 ]; then
         echo "SHAPE failed!"
@@ -229,7 +229,7 @@ for r in {ratios_str}; do
         echo "WSW: $v"
 
         echo "Running KGRN:"
-        mpirun -n {prcs}  kgrn_mpi.x < {id_name}_${{r}}_${{v}}.dat > kgrn_${{r}}_${{v}}.log
+        mpirun -n {prcs}  kgrn_mpi.x < {id_ratio}_${{r}}_${{v}}.dat > kgrn_${{r}}_${{v}}.log
 
         if [ $? -ne 0 ]; then
             echo "KGRN failed!"
@@ -241,7 +241,7 @@ for r in {ratios_str}; do
         cd fcd/ 
 
         echo "Running KFCD:"
-        kfcd.exe < {id_name}_${{r}}_${{v}}.dat > kfcd_${{r}}_${{v}}.log
+        kfcd.exe < {id_ratio}_${{r}}_${{v}}.dat > kfcd_${{r}}_${{v}}.log
 
         if [ $? -ne 0 ]; then
             echo "KFCD failed!"
@@ -261,7 +261,7 @@ done
         f.write(script)
 
 
-def write_parallel_sbatch(path, ratios, volumes, job_name, prcs=1, time="00:30:00", account="naiss2025-1-38", id_name="fept"):
+def write_parallel_sbatch(path, ratios, volumes, job_name, prcs=1, time="00:30:00", account="naiss2025-1-38", id_ratio="fept"):
     """Write parallel SBATCH scripts with proper dependencies."""
     
     # Stage 1: KSTR and SHAPE (one per ratio)
@@ -276,13 +276,13 @@ def write_parallel_sbatch(path, ratios, volumes, job_name, prcs=1, time="00:30:0
 #SBATCH -t {time}
 #SBATCH -J {job_name}_prep_r{r_fmt}
 
-id_name="{id_name}"
+id_ratio="{id_ratio}"
 r={r_fmt}
 
 cd smx
 
 echo "Running KSTR:"
-kstr.exe < ${{id_name}}_${{r}}.dat > smx_${{r}}.log
+kstr.exe < ${{id_ratio}}_${{r}}.dat > smx_${{r}}.log
 
 if [ $? -ne 0 ]; then
     echo "KSTR failed!"
@@ -297,7 +297,7 @@ grep -A1 "Primv" smx_${{r}}.log
 cd ../shp
 
 echo "Running SHAPE:"
-shape.exe < ${{id_name}}_${{r}}.dat > shp_${{r}}.log
+shape.exe < ${{id_ratio}}_${{r}}.dat > shp_${{r}}.log
 
 if [ $? -ne 0 ]; then
     echo "SHAPE failed!"
@@ -328,12 +328,12 @@ cd ../
 #SBATCH -J {job_name}_r{r_fmt}_v{v_fmt}
 #SBATCH --dependency=afterok:$PREP_R{r_var}_JOBID
 
-id_name="{id_name}"
+id_ratio="{id_ratio}"
 r={r_fmt}
 v={v_fmt}
 
 echo "Running KGRN:"
-mpirun -n {prcs} kgrn_mpi.x < {id_name}_${{r}}_${{v}}.dat > kgrn_${{r}}_${{v}}.log
+mpirun -n {prcs} kgrn_mpi.x < {id_ratio}_${{r}}_${{v}}.dat > kgrn_${{r}}_${{v}}.log
 
 if [ $? -ne 0 ]; then
     echo "KGRN failed!"
@@ -345,7 +345,7 @@ fi
 cd fcd/ 
 
 echo "Running KFCD:"
-kfcd.exe < {id_name}_${{r}}_${{v}}.dat > kfcd_${{r}}_${{v}}.log
+kfcd.exe < {id_ratio}_${{r}}_${{v}}.dat > kfcd_${{r}}_${{v}}.log
 
 if [ $? -ne 0 ]; then
     echo "KFCD failed!"

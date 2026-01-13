@@ -13,7 +13,7 @@ Main Functions
 - determine_nl_from_elements: Auto-detect NL from element electronic structure
 """
 
-from modules.element_database import DEFAULT_MOMENTS
+from modules.element_database import get_default_moment
 
 
 def determine_nl_from_elements(elements):
@@ -136,14 +136,14 @@ def validate_alloy_input(lattice_type, elements, concentrations, sws, nl=None):
                 f"got {conc}"
             )
 
-    # Check 6: Valid elements
-    for elem in elements:
-        if elem not in DEFAULT_MOMENTS:
-            raise ValueError(
-                f"Unsupported element: '{elem}'. "
-                f"Element not found in database. "
-                f"See modules/element_database.py for supported elements."
-            )
+    # # Check 6: Valid elements
+    # for elem in elements:
+    #     if elem not in DEFAULT_MOMENTS:
+    #         raise ValueError(
+    #             f"Unsupported element: '{elem}'. "
+    #             f"Element not found in database. "
+    #             f"See modules/element_database.py for supported elements."
+    #        )
 
     # Check 7: Positive SWS
     if sws <= 0:
@@ -220,7 +220,7 @@ def create_alloy_structure(lattice_type, elements, concentrations, initial_sws, 
             'conc': conc,
             'a_scr': DEFAULT_A_SCR,
             'b_scr': DEFAULT_B_SCR,
-            'default_moment': DEFAULT_MOMENTS[elem]
+            'default_moment': get_default_moment(elem)
         })
 
     return {
@@ -234,47 +234,47 @@ def create_alloy_structure(lattice_type, elements, concentrations, initial_sws, 
     }
 
 
-def generate_job_name(elements, concentrations, max_length=12):
-    """
-    Generate job name for alloy following EMTO 12-character limit.
+# def generate_job_name(elements, concentrations, max_length=12):
+#     """
+#     Generate job name for alloy following EMTO 12-character limit.
 
-    Format: concA_elementA_concB_elementB (e.g., 0.5_Fe_0.5_Pt)
-    If > max_length, falls back to element symbols only (e.g., FePt).
+#     Format: concA_elementA_concB_elementB (e.g., 0.5_Fe_0.5_Pt)
+#     If > max_length, falls back to element symbols only (e.g., FePt).
 
-    Parameters
-    ----------
-    elements : list of str
-        Element symbols
-    concentrations : list of float
-        Concentrations
-    max_length : int, optional
-        Maximum job name length (default: 12 for EMTO)
+#     Parameters
+#     ----------
+#     elements : list of str
+#         Element symbols
+#     concentrations : list of float
+#         Concentrations
+#     max_length : int, optional
+#         Maximum job name length (default: 12 for EMTO)
 
-    Returns
-    -------
-    str
-        Job name suitable for EMTO
+#     Returns
+#     -------
+#     str
+#         Job name suitable for EMTO
 
-    Examples
-    --------
-    >>> generate_job_name(['Fe', 'Pt'], [0.5, 0.5])
-    '0.5_Fe_0.5_Pt'
-    >>> generate_job_name(['Fe', 'Pt', 'Co'], [0.5, 0.3, 0.2])
-    'FePtCo'  # Falls back to elements only if too long
-    """
-    # Try full format with concentrations
-    parts = []
-    for elem, conc in zip(elements, concentrations):
-        parts.append(f"{conc:.1f}_{elem}")
-    full_name = "_".join(parts)
+#     Examples
+#     --------
+#     >>> generate_job_name(['Fe', 'Pt'], [0.5, 0.5])
+#     '0.5_Fe_0.5_Pt'
+#     >>> generate_job_name(['Fe', 'Pt', 'Co'], [0.5, 0.3, 0.2])
+#     'FePtCo'  # Falls back to elements only if too long
+#     """
+#     # Try full format with concentrations
+#     parts = []
+#     for elem, conc in zip(elements, concentrations):
+#         parts.append(f"{conc:.1f}_{elem}")
+#     full_name = "_".join(parts)
 
-    if len(full_name) <= max_length:
-        return full_name
+#     if len(full_name) <= max_length:
+#         return full_name
 
-    # Fall back to elements only
-    elem_only = "".join(elements)
-    if len(elem_only) <= max_length:
-        return elem_only
+#     # Fall back to elements only
+#     elem_only = "".join(elements)
+#     if len(elem_only) <= max_length:
+#         return elem_only
 
-    # If still too long, truncate
-    return elem_only[:max_length]
+#     # If still too long, truncate
+#     return elem_only[:max_length]

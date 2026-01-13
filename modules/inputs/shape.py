@@ -1,6 +1,6 @@
 import os
 
-def create_shape_input(structure, path, id_name):
+def create_shape_input(structure, path, id_ratio):
     """
     Create a SHAPE input file for EMTO from structure dict.
 
@@ -10,7 +10,7 @@ def create_shape_input(structure, path, id_name):
         Structure dictionary from parse_emto_structure() containing NQ3
     path : str
         Output directory path
-    id_name : str
+    id_ratio : str
         Job ID (e.g., 'fept_0.96')
     """
 
@@ -18,8 +18,8 @@ def create_shape_input(structure, path, id_name):
     NQ3 = structure['NQ3']
 
     template = f"""SHAPE     HP......=N
-JOBNAM...={id_name:<10} MSGL.=  1
-FOR001=../smx/{id_name}.tfh
+JOBNAM...={id_ratio:<10} MSGL.=  1
+FOR001=../smx/{id_ratio}.tfh
 DIR002=./
 DIR006=./
 Lmax..= 30 NSR..=129 NFI..= 11
@@ -31,7 +31,7 @@ NPRN..=  0 IVEF.=  3
     for i in range(1, NQ3 + 1):
         template += f"ASR({i}).= 1.0\n"
 
-    with open(f"{path}/shp/{id_name}.dat", "w") as f:
+    with open(f"{path}/shp/{id_ratio}.dat", "w") as f:
         f.write(template)
 
-    print(f"SHAPE input file '{path}/shp/{id_name}.dat' created successfully.")
+    print(f"SHAPE input file '{path}/shp/{id_ratio}.dat' created successfully.")
