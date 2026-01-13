@@ -248,15 +248,23 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     )
 
     # ==================== ATOM INFORMATION ====================
-    # Convert pymatgen Species to symbols
-    atoms = [str(atom.symbol) for atom in atoms_species]
-    unique_elements = sorted(set(atoms))
-    NQ3 = len(atoms)
+    # Get inequivalent atoms (IT) from symmetry analysis
+    site_to_it = get_inequivalent_atoms(conv_structure)
+
+    # Extract all unique elements across all sites (for NL calculation)
+    all_elements = set()
+    for site in conv_structure.sites:
+        # site.species is a Composition object containing all elements at that site
+        for elem in site.species.elements:
+            all_elements.add(str(elem))
+
+    unique_elements = sorted(all_elements)
+    NQ3 = len(conv_structure.sites)
 
     # Determine NL from electronic structure
+    from pymatgen.core import Element
     NLs = []
-    for atom_symbol in set(atoms):
-        from pymatgen.core import Element
+    for atom_symbol in all_elements:
         elem = Element(atom_symbol)
         electronic_str = elem.electronic_structure
 
@@ -271,30 +279,43 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
 
     NL = max(NLs) if NLs else 2
 
-    # Get inequivalent atoms (IT) from symmetry analysis
-    site_to_it = get_inequivalent_atoms(conv_structure)
-
-    # Build atom_info list
+    # Build atom_info list with proper CPA support
     atom_info = []
-    for iq in range(NQ3):
-        symbol = atoms[iq]
+    atoms = []  # Simple list of elements at each site (for reference)
 
-        # Get magnetic moment
-        if user_magnetic_moments and symbol in user_magnetic_moments:
-            moment = user_magnetic_moments[symbol]
-        else:
-            moment = get_default_moment(symbol)
+    for iq, site in enumerate(conv_structure.sites):
+        it = site_to_it[iq]
 
-        atom_info.append({
-            'IQ': iq + 1,
-            'symbol': symbol,
-            'IT': site_to_it[iq],
-            'ITA': 1,  # Always 1 for ordered structures
-            'conc': 1.0,  # Always 1.0 for ordered structures
-            'default_moment': moment,
-            'a_scr': 0.750,
-            'b_scr': 1.100,
-        })
+        # Extract all elements and concentrations at this site
+        # site.species is a Composition: {'Fe': 0.5, 'Pt': 0.5} for alloys
+        # or {'Cu': 1.0} for pure elements
+        site_composition = site.species.as_dict()
+
+        # Sort by element symbol for consistent ordering
+        sorted_elements = sorted(site_composition.items())
+
+        # For the atoms list, store comma-separated elements for this site
+        site_elements = ','.join([elem for elem, _ in sorted_elements])
+        atoms.append(site_elements)
+
+        # Create an entry for each element at this site (ITA = 1, 2, 3, ...)
+        for ita, (element_symbol, concentration) in enumerate(sorted_elements, start=1):
+            # Get magnetic moment
+            if user_magnetic_moments and element_symbol in user_magnetic_moments:
+                moment = user_magnetic_moments[element_symbol]
+            else:
+                moment = get_default_moment(element_symbol)
+
+            atom_info.append({
+                'IQ': iq + 1,
+                'symbol': element_symbol,
+                'IT': it,
+                'ITA': ita,
+                'conc': concentration,
+                'default_moment': moment,
+                'a_scr': 0.750,
+                'b_scr': 1.100,
+            })
 
     # Return comprehensive structure dictionary
     return {
