@@ -161,6 +161,21 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
     # Convert to simple dict {ratio: DMAX_value}
     dmax_dict = {ratio: values['DMAX'] for ratio, values in optimal_dmax.items()}
 
+    # Check if all ratios were successfully optimized
+    missing_ratios = [r for r in ca_ratios_sorted if r not in dmax_dict]
+    if missing_ratios:
+        print("\n" + "="*70)
+        print("⚠ WARNING: DMAX optimization incomplete")
+        print("="*70)
+        print(f"Failed to optimize DMAX for c/a ratios: {missing_ratios}")
+        print("\nPossible causes:")
+        print("  1. dmax_initial too small - increase it and try again")
+        print("  2. Target shell not achievable for these geometries")
+        print("  3. KSTR calculation failed for these ratios")
+        print("\nAborting workflow - please check the optimization log.")
+        print("="*70)
+        return None
+
     print("\n" + "="*70)
     print("DMAX OPTIMIZATION COMPLETE")
     print("="*70)

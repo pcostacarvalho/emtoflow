@@ -107,13 +107,17 @@ def get_dmax_candidates(shell_data, target_vectors=100, tolerance=10):
 
 def find_optimal_dmax(prn_files_dict, target_vectors=100, vector_tolerance=10):
     """
-    Simplified DMAX optimization: Use first ratio as reference.
+    Simplified DMAX optimization: Use largest c/a ratio as reference.
 
     Strategy:
-    1. Parse first ratio's output
+    1. Parse largest c/a ratio's output (most demanding case)
     2. Find DMAX for ~target_vectors
     3. Use that shell number as reference
     4. For other ratios, find DMAX giving same shell number
+
+    Note: Using largest c/a as reference ensures that if dmax_initial
+    is sufficient for the most demanding case, the reference shell will
+    be available in all smaller c/a ratios.
 
     Parameters:
     -----------
@@ -128,15 +132,15 @@ def find_optimal_dmax(prn_files_dict, target_vectors=100, vector_tolerance=10):
     --------
     dict: {ratio: {'DMAX': value, 'shells': n, 'vectors': m}}
     """
-    # Sort ratios to ensure consistent ordering
-    ratios = sorted(prn_files_dict.keys())
+    # Sort ratios in descending order (largest c/a first)
+    ratios = sorted(prn_files_dict.keys(), reverse=True)
 
     if not ratios:
         print("Error: No ratios provided")
         return None
 
-    # STEP 1: Parse first ratio and establish reference shell
-    print(f"\nStep 1: Analyzing reference ratio (c/a = {ratios[0]:.2f})...")
+    # STEP 1: Parse largest ratio and establish reference shell
+    print(f"\nStep 1: Analyzing reference ratio (c/a = {ratios[0]:.2f}, largest)...")
     first_ratio = ratios[0]
     first_prn = prn_files_dict[first_ratio]
 
