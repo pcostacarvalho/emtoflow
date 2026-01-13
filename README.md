@@ -38,7 +38,11 @@ This toolkit automates the creation of these files from crystallographic informa
 - ✅ Equation of state fitting (polynomial, Birch-Murnaghan, Murnaghan)
 - ✅ SLURM job script generation (serial and parallel modes)
 - ✅ Parse CIF once, use for all input generators (efficient workflow)
-- 🚧 **NEW:** Alloy support with pymatgen-based structure generation (CPA disorder, ordered intermetallics)
+- ✅ **NEW:** Complete alloy support with pymatgen-based structure generation
+  - CPA random alloys (binary, ternary, higher-order)
+  - Ordered intermetallics (L10, L12, B2, Heusler, etc.)
+  - All 14 EMTO lattice types
+  - Unified workflow with CIF-based calculations
 
 ---
 
@@ -69,7 +73,7 @@ export PYTHONPATH="${PYTHONPATH}:/path/to/EMTO_input_automation"
 
 ## Quick Start
 
-### Simple workflow with CIF file
+### Workflow 1: CIF File (Ordered Structures)
 
 ```python
 from modules.workflows import create_emto_inputs
@@ -78,7 +82,9 @@ from modules.workflows import create_emto_inputs
 create_emto_inputs(
     output_path="./fept_calc",
     job_name="fept",
-    cif_file="testing/FePt.cif"
+    cif_file="testing/FePt.cif",
+    dmax=1.3,
+    magnetic='F'
 )
 
 # Full control over parameters
@@ -89,18 +95,59 @@ create_emto_inputs(
     dmax=1.3,                              # Maximum distance parameter
     ca_ratios=[0.92, 0.96, 1.00, 1.04],   # c/a ratios to sweep
     sws_values=[2.60, 2.65, 2.70],        # Wigner-Seitz radii
+    magnetic='F',                          # Ferromagnetic
     create_job_script=True,                # Generate SLURM script
     job_mode='serial'                      # 'serial' or 'parallel'
 )
 ```
 
+### Workflow 2: Parameter Input (Alloys & Custom Structures)
+
+```python
+# FCC Fe-Pt random alloy (CPA)
+sites = [{'position': [0, 0, 0],
+          'elements': ['Fe', 'Pt'],
+          'concentrations': [0.5, 0.5]}]
+
+create_emto_inputs(
+    output_path="./fept_alloy",
+    job_name="fept",
+    lat=2,  # FCC
+    a=3.7,  # Lattice parameter (Angstroms)
+    sites=sites,
+    dmax=1.3,
+    sws_values=[2.60, 2.65, 2.70],  # Required for parameter workflow
+    magnetic='F'
+)
+
+# L10 FePt ordered structure
+sites = [
+    {'position': [0, 0, 0], 'elements': ['Fe'], 'concentrations': [1.0]},
+    {'position': [0.5, 0.5, 0.5], 'elements': ['Pt'], 'concentrations': [1.0]}
+]
+
+create_emto_inputs(
+    output_path="./fept_l10",
+    job_name="fept_l10",
+    lat=5,  # Body-centered tetragonal
+    a=3.7,
+    c=3.7 * 0.96,  # Tetragonal distortion
+    sites=sites,
+    dmax=1.3,
+    ca_ratios=[0.96],
+    sws_values=[2.60, 2.65],
+    magnetic='F'
+)
+```
+
 **What it does:**
-- Parses CIF file once using `parse_emto_structure()`
-- Auto-detects Bravais lattice type (LAT)
-- Extracts atoms, symmetry, inequivalent sites
-- Determines NL from electronic structure (f→3, d→2, p→1)
+- **CIF workflow:** Auto-detects LAT, extracts atoms and symmetry
+- **Parameter workflow:** Creates structure from lattice parameters and site specifications
+- Both workflows use unified `create_emto_structure()` function
 - Generates all input files: KSTR, SHAPE, KGRN, KFCD
 - Creates SLURM job submission scripts
+
+**📖 For detailed workflow diagrams and more examples, see:** [ALLOY_WORKFLOW_GUIDE.md](ALLOY_WORKFLOW_GUIDE.md)
 
 ---
 
@@ -112,9 +159,11 @@ EMTO_input_automation/
 │   └── skr_input.py          # CLI tool for generating KSTR from CIF
 ├── modules/
 │   ├── __init__.py
-│   ├── workflows.py          # High-level workflow functions
-│   ├── lat_detector.py       # CIF parsing & structure extraction
+│   ├── workflows.py          # High-level workflow functions (CIF + Parameter)
+│   ├── structure_builder.py  # NEW! Unified structure creation module
+│   ├── lat_detector.py       # Structure analysis & symmetry detection
 │   ├── parse_cif.py          # CIF utilities
+│   ├── element_database.py   # Default magnetic moments database
 │   ├── inputs/
 │   │   ├── kstr.py           # KSTR input generator
 │   │   ├── shape.py          # SHAPE input generator
@@ -128,6 +177,8 @@ EMTO_input_automation/
 │   ├── FePt.cif              # Example CIF files
 │   ├── K6Si2O7.cif
 │   └── code.ipynb            # Usage examples
+├── ALLOY_WORKFLOW_GUIDE.md   # Detailed alloy workflow documentation
+├── ALLOY_IMPLEMENTATION_PLAN.md  # Complete implementation plan
 ├── LICENSE                   # MIT License
 └── README.md                 # This file
 ```
@@ -635,57 +686,66 @@ Pt     2   2   1   1  1.000000  0.000 0.000  0.4000
 
 ---
 
-### 🚧 In Progress (1/4)
+### ✅ Recently Completed (1/4)
 
-#### 3. 🚧 Alloy support (CPA) - **REDESIGN IN PROGRESS**
+#### 3. ✅ Alloy support (CPA + Ordered Structures) - **COMPLETED**
 
-**New Design (Pymatgen-based):**
-The alloy implementation is being redesigned to use pymatgen Structure objects instead of templates. This provides:
-- ✅ Unified workflow for both CIF and alloy inputs
+**Pymatgen-based Implementation:**
+The alloy implementation is now complete with full support for:
+- ✅ Unified workflow for both CIF and parameter inputs
 - ✅ Automatic IT/ITA determination via symmetry analysis
-- ✅ Support for any lattice type pymatgen can create
+- ✅ All 14 EMTO lattice types (not just FCC/BCC/SC)
 - ✅ Native handling of multi-sublattice disorder
 - ✅ Support for ordered intermetallics (L10, L12, Heusler, etc.)
+- ✅ Binary, ternary, and higher-order alloys
+- ✅ Proper CPA with correct ITA and concentration handling
+- ✅ Smart defaults for cubic (a=b=c) and HCP (c=1.633*a, γ=120°)
+- ✅ Custom magnetic moments per element
 
 **Implementation Status:**
-- ✅ Phase 1: Element database and validation (Completed)
-- 🚧 Phase 2: Pymatgen structure builder (In Progress)
-- ⏳ Phase 3: Workflow integration (Planned)
-- ⏳ Phase 4: Documentation (Planned)
-- ⏳ Phase 5: Testing (Planned)
+- ✅ Step 1: Modified `lat_detector.py` (backward compatibility)
+- ✅ Step 2: Created `structure_builder.py` (unified interface)
+- ✅ Step 3: Updated `workflows.py` (integrated structure builder)
+- ✅ Step 4: Cleanup (removed 453 lines of obsolete code)
+- ✅ Step 5: Documentation (workflow guide and examples)
+- ✅ Step 6: Testing (FCC, L10, ternary alloys verified)
 
-**Planned Interface:**
+**Current Interface:**
 ```python
 # Binary FCC random alloy (single-site disorder)
+sites = [{'position': [0,0,0], 'elements': ['Fe','Pt'],
+          'concentrations': [0.5, 0.5]}]
 create_emto_inputs(
     output_path="./fept_alloy",
     job_name="fept",
-    is_alloy=True,
-    lattice_type='fcc',
+    lat=2,  # FCC
     a=3.7,  # lattice parameter in Angstroms
-    sites=[
-        {'position': [0, 0, 0], 'elements': ['Fe', 'Pt'], 'concentrations': [0.5, 0.5]}
-    ],
-    sws_values=[2.60, 2.65, 2.70]
+    sites=sites,
+    dmax=1.3,
+    sws_values=[2.60, 2.65, 2.70],
+    magnetic='F'
 )
 
 # L10 FePt (ordered, two sublattices)
+sites = [
+    {'position': [0,0,0], 'elements': ['Fe'], 'concentrations': [1.0]},
+    {'position': [0.5,0.5,0.5], 'elements': ['Pt'], 'concentrations': [1.0]}
+]
 create_emto_inputs(
     output_path="./fept_l10",
     job_name="fept_l10",
-    is_alloy=True,
-    lattice_type='fct',
+    lat=5,  # Body-centered tetragonal
     a=3.7,
-    c_over_a=0.96,
-    sites=[
-        {'position': [0, 0, 0], 'elements': ['Fe'], 'concentrations': [1.0]},
-        {'position': [0.5, 0.5, 0.5], 'elements': ['Pt'], 'concentrations': [1.0]}
-    ],
-    sws_values=[2.65]
+    c=3.7*0.96,
+    sites=sites,
+    dmax=1.3,
+    sws_values=[2.65],
+    magnetic='F'
 )
 ```
 
-**See:** `ALLOY_IMPLEMENTATION_PLAN.md` for detailed design and implementation checklist.
+**See:** `ALLOY_WORKFLOW_GUIDE.md` for detailed workflow diagrams and examples.
+**See:** `ALLOY_IMPLEMENTATION_PLAN.md` for complete implementation details.
 
 ---
 
@@ -815,13 +875,24 @@ except TimeoutError:
 
 ---
 
-### Overall Progress: 75% Complete
+### Overall Progress: 90% Complete
 
-✅ **Objectives 1-2:** CIF-based automation fully implemented
-⚠️ **Objective 3:** Ordered structures supported, disorder deferred
+✅ **Objective 1:** CIF-based automation fully implemented
+✅ **Objective 2:** Dynamic KGRN generation with symmetry analysis
+✅ **Objective 3:** Alloy support (CPA + ordered structures) complete
 ⚠️ **Objective 4:** DMAX workflow functional, needs integration and optimization
 
-**Key Achievement:** The system now automatically extracts all structure information from CIF files and generates all input files (KSTR, SHAPE, KGRN, KFCD) with no hardcoded values or manual input required.
+**Key Achievement:** Unified workflow for both CIF and parameter-based structure creation. The system now supports:
+- **CIF workflow:** Automatic extraction of structure information from crystallographic files
+- **Parameter workflow:** Creation of alloy structures (random CPA, ordered intermetallics)
+- **All 14 lattice types:** Not limited to simple cubic lattices
+- **No hardcoded values:** All parameters determined automatically or specified by user
+
+**What's New (January 2026):**
+- Complete alloy implementation with pymatgen-based structure builder
+- 453 lines of obsolete code removed (simplified architecture)
+- Unified code path for all structure types
+- Comprehensive testing and documentation
 
 ---
 
