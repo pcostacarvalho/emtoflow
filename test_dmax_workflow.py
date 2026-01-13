@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from modules.workflows import create_emto_inputs
 
 # Update this path to your KSTR executable location
-KSTR_EXECUTABLE = "/path/to/your/kstr.exe"
+KSTR_EXECUTABLE = "/home/x_pamca/postdoc_proj/emto/bin/kstr.exe"
 
 print("="*70)
 print("DMAX Optimization Workflow Example")
@@ -52,7 +52,7 @@ create_emto_inputs(
     magnetic='F',
     # DMAX optimization parameters
     optimize_dmax=True,
-    dmax_initial=2.5,              # Must be large enough for largest c/a (1.04)
+    dmax_initial=2,              # Must be large enough for largest c/a (1.04)
                                    # Workflow tests in descending order: 1.04 → 1.00 → 0.96 → 0.92
     dmax_target_vectors=100,       # Target number of k-vectors
     dmax_vector_tolerance=15,      # Acceptable deviation from target
