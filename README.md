@@ -38,6 +38,7 @@ This toolkit automates the creation of these files from crystallographic informa
 - ✅ Equation of state fitting (polynomial, Birch-Murnaghan, Murnaghan)
 - ✅ SLURM job script generation (serial and parallel modes)
 - ✅ Parse CIF once, use for all input generators (efficient workflow)
+- 🚧 **NEW:** Alloy support with pymatgen-based structure generation (CPA disorder, ordered intermetallics)
 
 ---
 
@@ -335,7 +336,7 @@ print(f"Equilibrium energy: {E_eq:.6f} Ry")
 
 ## Workflows
 
-### Typical EMTO Calculation Workflow
+### CIF-based Workflow (Ordered Structures)
 
 1. **Prepare structure** - Start with CIF file
 2. **Generate all inputs** - Use `create_emto_inputs()` with CIF file
@@ -343,6 +344,23 @@ print(f"Equilibrium energy: {E_eq:.6f} Ry")
 4. **(Optional) Optimize DMAX** - Find consistent neighbor shells across c/a ratios
 5. **(Optional) Re-run** - With optimized DMAX
 6. **Analyze results** - Extract energies and fit EOS
+
+### Alloy Workflow (CPA Disorder) - 🚧 In Development
+
+**New pymatgen-based approach** (see `ALLOY_IMPLEMENTATION_PLAN.md`):
+
+1. **Specify structure** - Provide lattice type, lattice parameters, and site specifications
+2. **Build pymatgen Structure** - Create Structure object with partial occupancies
+3. **Parse structure** - Use existing `parse_emto_structure()` (unified with CIF workflow)
+4. **Generate inputs** - Same input generators as CIF mode (KSTR, SHAPE, KGRN, KFCD)
+5. **Run calculations** - SWS optimization for cubic structures (no c/a sweep)
+6. **Analyze results** - Extract energies and fit EOS
+
+**Key advantages:**
+- Unified code path for both CIF and alloy modes
+- Automatic IT/ITA assignment via symmetry analysis
+- Support for multi-sublattice disorder and ordered intermetallics
+- No template files needed
 
 ### Automated Parameter Sweep
 
@@ -617,26 +635,57 @@ Pt     2   2   1   1  1.000000  0.000 0.000  0.4000
 
 ---
 
-### ⚠️ Partial Implementation (1/4)
+### 🚧 In Progress (1/4)
 
-#### 3. ⚠️ Different concentrations for alloys - **ORDERED STRUCTURES ONLY**
+#### 3. 🚧 Alloy support (CPA) - **REDESIGN IN PROGRESS**
 
-**Current Status:**
-- ✓ ITA (site type) and CONC (concentration) extracted from CIF
-- ✓ Works perfectly for ordered structures (ITA=1, CONC=1.0)
-- ❌ Disorder/alloy cases NOT implemented (by design - focus on ordered)
-- ❌ Concentration sweeps NOT implemented
-- ❌ Magnetic configuration handling (FM/AFM) NOT implemented
+**New Design (Pymatgen-based):**
+The alloy implementation is being redesigned to use pymatgen Structure objects instead of templates. This provides:
+- ✅ Unified workflow for both CIF and alloy inputs
+- ✅ Automatic IT/ITA determination via symmetry analysis
+- ✅ Support for any lattice type pymatgen can create
+- ✅ Native handling of multi-sublattice disorder
+- ✅ Support for ordered intermetallics (L10, L12, Heusler, etc.)
 
-**Design Decision:**
-The current implementation focuses on ordered structures as requested by the user. Disorder handling (ITA > 1, CONC < 1.0) was intentionally deferred.
+**Implementation Status:**
+- ✅ Phase 1: Element database and validation (Completed)
+- 🚧 Phase 2: Pymatgen structure builder (In Progress)
+- ⏳ Phase 3: Workflow integration (Planned)
+- ⏳ Phase 4: Documentation (Planned)
+- ⏳ Phase 5: Testing (Planned)
 
-**Future Work (if needed):**
-- [ ] Implement disorder handling for alloy concentrations
-- [ ] Support concentration sweeps for binary/ternary alloys
-- [ ] Add validation for concentration constraints (sum to 1.0 per site)
-- [ ] Handle ferromagnetic and antiferromagnetic configurations
-- [ ] Create `create_kgrn_input_alloy()` wrapper for alloy workflows
+**Planned Interface:**
+```python
+# Binary FCC random alloy (single-site disorder)
+create_emto_inputs(
+    output_path="./fept_alloy",
+    job_name="fept",
+    is_alloy=True,
+    lattice_type='fcc',
+    a=3.7,  # lattice parameter in Angstroms
+    sites=[
+        {'position': [0, 0, 0], 'elements': ['Fe', 'Pt'], 'concentrations': [0.5, 0.5]}
+    ],
+    sws_values=[2.60, 2.65, 2.70]
+)
+
+# L10 FePt (ordered, two sublattices)
+create_emto_inputs(
+    output_path="./fept_l10",
+    job_name="fept_l10",
+    is_alloy=True,
+    lattice_type='fct',
+    a=3.7,
+    c_over_a=0.96,
+    sites=[
+        {'position': [0, 0, 0], 'elements': ['Fe'], 'concentrations': [1.0]},
+        {'position': [0.5, 0.5, 0.5], 'elements': ['Pt'], 'concentrations': [1.0]}
+    ],
+    sws_values=[2.65]
+)
+```
+
+**See:** `ALLOY_IMPLEMENTATION_PLAN.md` for detailed design and implementation checklist.
 
 ---
 

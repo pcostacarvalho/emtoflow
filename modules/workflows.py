@@ -9,15 +9,25 @@ from modules.inputs import (
     write_parallel_sbatch
 )
 from modules.lat_detector import parse_emto_structure
-
+from modules.alloy_input import ( 
+    validate_alloy_input, 
+    create_alloy_structure
+    )
+from modules.kstr_template import copy_kstr_template
 
 def create_emto_inputs(
     output_path,
     job_name,
     cif_file,
+    is_alloy=False,
+    lattice_type=None,
+    elements=None,
+    concentrations=None,
+    nl=None,
     dmax=None,
     ca_ratios=None,
     sws_values=None,
+    magnetic = None,
     create_job_script=True,
     job_mode='serial',  # 'serial' or 'parallel'
     prcs=1,
@@ -78,7 +88,9 @@ def create_emto_inputs(
     )
     """
 
-    
+    if magnetic not in ['P', 'F']:
+        raise ValueError("Magnetic parameter must be 'P' (paramagnetic) or 'F' (ferromagnetic).")
+
     # ==================== CREATE DIRECTORY STRUCTURE ====================
     subfolders = ['smx', 'shp', 'pot', 'chd', 'fcd', 'tmp']
     os.makedirs(output_path, exist_ok=True)
@@ -87,22 +99,56 @@ def create_emto_inputs(
 
     print(f"Created directory structure in: {output_path}")
 
-    # ==================== PARSE CIF ONCE (IF APPLICABLE) ====================
-    structure = None
+    # ==================== BUILD STRUCTURE ====================
+ 
+    if cif_file is not None and is_alloy:
+        raise ValueError("Input from cif file and alloy calculation not supported simultaneously.")
+    
+    if cif_file is not None:
+ 
+        structure = None
 
-    print(f"\nParsing CIF file: {cif_file}")
-    structure = parse_emto_structure(cif_file)
-    print(f"  Detected lattice: LAT={structure['lat']} ({structure['lattice_name']})")
-    print(f"  Number of atoms: NQ3={structure['NQ3']}")
-    print(f"  Maximum NL: {structure['NL']}")
+        print(f"\nParsing CIF file: {cif_file}")
+        structure = parse_emto_structure(cif_file)
+        print(f"  Detected lattice: LAT={structure['lat']} ({structure['lattice_name']})")
+        print(f"  Number of atoms: NQ3={structure['NQ3']}")
+        print(f"  Maximum NL: {structure['NL']}")
 
 
-    if ca_ratios is None:
-        ca_ratios = [structure['coa']]
+        if ca_ratios is None:
+            ca_ratios = [structure['coa']]
 
-    if sws_values is None:
-        volume = structure['a']*structure['b']*structure['c']/structure['NQ3']
-        sws_values = [(3*volume/(4*np.pi) )**(1/3)]
+        if sws_values is None:
+            volume = structure['a']*structure['b']*structure['c']/structure['NQ3']
+            sws_values = [(3*volume/(4*np.pi) )**(1/3)]
+
+    elif is_alloy:
+
+        print(f"\nValidating alloy input...")
+
+        if sws_values is None:
+            raise ValueError("An initial SWS value must be provided for alloy calculations.")
+
+        if lattice_type in ('fcc', 'bcc', 'sc'):
+            ca_ratios = [1.0]
+
+        validate_alloy_input(
+            lattice_type=lattice_type,
+            elements=elements,
+            concentrations=concentrations,
+            sws=sws_values[0],
+            nl=nl
+        )
+
+        print("✓ Validation passed")
+
+        structure = create_alloy_structure(
+            lattice_type=lattice_type,
+            elements=elements,
+            concentrations=concentrations,
+            initial_sws=sws_values[0],
+            nl=nl
+        )
 
 
     # ==================== SWEEP OVER C/A RATIOS ====================
@@ -118,21 +164,30 @@ def create_emto_inputs(
         # ==================== CREATE KSTR INPUT ====================
 
         # Use pre-parsed structure (parsed once at the beginning)
-        create_kstr_input(
-            structure=structure,
-            output_path=output_path,
-            id_name=file_id_ratio,
-            dmax=dmax,
-            ca_ratio=ratio
-        )
-                
+
+        if cif_file is not None:
+            create_kstr_input(
+                structure=structure,
+                output_path=output_path,
+                id_ratio=file_id_ratio,
+                dmax=dmax,
+                ca_ratio=ratio
+            )
+        elif is_alloy:
+            copy_kstr_template(
+                lattice_type=lattice_type,
+                structure=structure,
+                output_path=output_path,
+                job_name=file_id_ratio
+            )
+    
 
         # ==================== CREATE SHAPE INPUT ====================
 
         create_shape_input(
             structure=structure,
             path=output_path,
-            id_name=file_id_ratio
+            id_ratio=file_id_ratio
         )
 
 
@@ -145,9 +200,10 @@ def create_emto_inputs(
             create_kgrn_input(
                 structure=structure,
                 path=output_path,
-                id_namev=file_id_full,
-                id_namer=file_id_ratio,
-                SWS=sws
+                id_full=file_id_full,
+                id_ratio=file_id_ratio,
+                SWS=sws,
+                magnetic= magnetic if magnetic is not None else 'P'
             )
  
             # Create KFCD input
@@ -155,8 +211,8 @@ def create_emto_inputs(
             create_kfcd_input(
                 structure=structure,
                 path=output_path,
-                id_namer=file_id_ratio,
-                id_namev=file_id_full
+                id_ratio=file_id_ratio,
+                id_full=file_id_full
             )
 
     # ==================== CREATE JOB SCRIPTS ====================
@@ -173,7 +229,7 @@ def create_emto_inputs(
                 prcs=prcs,
                 time=time,
                 account=account,
-                id_name=job_name
+                id_ratio=job_name
             )
             print(f"Created serial job script: {output_path}/{script_name}.sh")
             print(f"To submit: sbatch {script_name}.sh")
@@ -188,7 +244,7 @@ def create_emto_inputs(
                 prcs=prcs,
                 time=time,
                 account=account,
-                id_name=job_name
+                id_ratio=job_name
             )
             print(f"Created parallel job scripts in: {output_path}/")
             print(f"To submit: bash {output_path}/submit_{script_name}.sh")

@@ -4,7 +4,7 @@ import os
 def create_kstr_input(
     structure, 
     output_path,
-    id_name,
+    id_ratio,
     dmax=None,
     ca_ratio=None
     ):
@@ -89,7 +89,7 @@ def create_kstr_input(
     
 
     template = f"""KSTR      HP......=N                               xx xxx xx
-JOBNAM...={id_name:<10} MSGL.=  1 MODE...=B STORE..=Y HIGH...=Y
+JOBNAM...={id_ratio:<10} MSGL.=  1 MODE...=B STORE..=Y HIGH...=Y
 DIR001=./
 DIR006=
 Slope and Madelung matrices
@@ -115,7 +115,7 @@ A........= {A:>.7f} B.......= {B:>.7f} C.......= {C:>.7f}
 LAMDA....=    2.5000 AMAX....=    4.5000 BMAX....=    4.5000
 """
     
-    with open(f"{output_path}/smx/{id_name}.dat", "w") as f:
+    with open(f"{output_path}/smx/{id_ratio}.dat", "w") as f:
         f.write(template)
 
-    print(f"KSTR input file '{output_path}/smx/{id_name}.dat' created successfully.")
+    print(f"KSTR input file '{output_path}/smx/{id_ratio}.dat' created successfully.")
