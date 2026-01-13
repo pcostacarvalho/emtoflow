@@ -346,17 +346,20 @@ def generate_emto_primitive_vectors(lat, a, b, c, alpha=90.0, beta=90.0, gamma=9
     return BSX, BSY, BSZ, boa, coa
 
 
-def parse_emto_structure(cif_file, user_magnetic_moments=None):
+def parse_emto_structure(structure_input, user_magnetic_moments=None):
     """
-    Complete function to parse CIF and extract all EMTO structure information.
+    Complete function to parse structure and extract all EMTO structure information.
 
-    This is the main function for the new workflow. It parses the CIF once
-    and returns all information needed for KSTR, SHAPE, KGRN, and KFCD input generation.
+    This is the main function for the new workflow. It accepts either a CIF file path
+    or a pymatgen Structure object, making it compatible with both CIF-based and
+    programmatic alloy workflows.
 
     Parameters
     ----------
-    cif_file : str
-        Path to CIF file
+    structure_input : str or pymatgen.core.Structure
+        Either:
+        - Path to CIF file (str)
+        - Pymatgen Structure object (for programmatic alloy generation)
     user_magnetic_moments : dict, optional
         User-provided magnetic moments per element symbol.
         Example: {'Fe': 2.5, 'Pt': 0.3}
@@ -402,30 +405,61 @@ def parse_emto_structure(cif_file, user_magnetic_moments=None):
 
     Examples
     --------
+    >>> # From CIF file
     >>> structure = parse_emto_structure('FePt.cif')
     >>> print(f"LAT={structure['lat']}, NQ3={structure['NQ3']}, NL={structure['NL']}")
-    >>> for atom in structure['atom_info']:
-    ...     print(f"IQ={atom['IQ']} {atom['symbol']} IT={atom['IT']}")
+
+    >>> # From pymatgen Structure (alloy workflow)
+    >>> from pymatgen.core import Structure, Lattice
+    >>> lattice = Lattice.cubic(3.7)
+    >>> structure_pmg = Structure(lattice, ['Fe', 'Pt'], [[0, 0, 0], [0.5, 0.5, 0.5]])
+    >>> structure = parse_emto_structure(structure_pmg)
     """
-    from modules.parse_cif import get_LatticeVectors
+    # ==================== INPUT TYPE DETECTION ====================
+    # Check if input is a string (CIF path) or Structure object
+    if isinstance(structure_input, str):
+        # CIF file path - use existing extraction functions
+        from modules.parse_cif import get_LatticeVectors
+        matrix, coords, a, b, c, atoms_species = get_LatticeVectors(structure_input)
 
-    # ==================== BASIC LATTICE EXTRACTION ====================
-    # Get lattice parameters from existing function
-    matrix, coords, a, b, c, atoms_species = get_LatticeVectors(cif_file)
+        # Load structure from CIF
+        structure = Structure.from_file(structure_input)
+        sga = SpacegroupAnalyzer(structure)
+        conv_structure = sga.get_conventional_standard_structure()
 
-    # Get angles and structure from pymatgen
-    # IMPORTANT: EMTO requires CONVENTIONAL cell, not primitive!
-    structure = Structure.from_file(cif_file)
-    sga = SpacegroupAnalyzer(structure)
-    conv_structure = sga.get_conventional_standard_structure()  # NOT get_primitive_standard_structure()
+    elif isinstance(structure_input, Structure):
+        # Pymatgen Structure object - extract info directly
+        sga = SpacegroupAnalyzer(structure_input)
+        conv_structure = sga.get_conventional_standard_structure()
 
+        # Extract lattice parameters
+        a = conv_structure.lattice.a
+        b = conv_structure.lattice.b
+        c = conv_structure.lattice.c
+
+        # Get matrix and coordinates
+        matrix = conv_structure.lattice.matrix
+        coords = conv_structure.cart_coords
+        atoms_species = [site.specie for site in conv_structure.sites]
+
+    else:
+        raise TypeError(
+            f"structure_input must be either a string (CIF path) or "
+            f"pymatgen Structure object, got {type(structure_input)}"
+        )
+
+    # ==================== COMMON EXTRACTION ====================
     sites_frac = conv_structure.frac_coords
     alpha = conv_structure.lattice.alpha
     beta = conv_structure.lattice.beta
     gamma = conv_structure.lattice.gamma
 
     # ==================== LAT DETECTION ====================
-    lat, lattice_name, crystal_system, centering = detect_lat_from_cif(cif_file)
+    # Detect LAT number from conventional structure
+    crystal_system = sga.get_crystal_system()
+    spacegroup_symbol = sga.get_space_group_symbol()
+    centering = spacegroup_symbol[0]  # First letter
+    lat, lattice_name = map_to_lat_number(crystal_system, centering)
 
     # Generate primitive vectors using EMTO formulas
     BSX, BSY, BSZ, boa, coa = generate_emto_primitive_vectors(
