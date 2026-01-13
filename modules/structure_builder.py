@@ -14,7 +14,7 @@ EMTO input generation.
 """
 
 import numpy as np
-from pymatgen.core import Structure, Lattice, Species
+from pymatgen.core import Structure, Lattice
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 
 from modules.lat_detector import (
@@ -175,14 +175,15 @@ def create_structure_from_params(lat, a, sites, b=None, c=None,
         elements = site_spec['elements']
         concentrations = site_spec['concentrations']
 
-        # Create Species with partial occupancies
+        # Create species with partial occupancies
         if len(elements) == 1 and concentrations[0] == 1.0:
             # Pure occupancy (ordered structure)
             species_list.append(elements[0])
         else:
             # Mixed occupancy (CPA alloy)
+            # Pass dictionary directly to Structure - it handles partial occupancies
             species_dict = {elem: conc for elem, conc in zip(elements, concentrations)}
-            species_list.append(Species(species_dict))
+            species_list.append(species_dict)
 
         coords_list.append(position)
 
