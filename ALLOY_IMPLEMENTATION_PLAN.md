@@ -341,8 +341,8 @@ def create_phase_diagram_sweep(
         a=3.7,
         sws_values=[2.60, 2.65, 2.70]
     )
-    # Creates: comp_001/, comp_002/, ..., comp_011/
-    # Returns job info with concentration metadata
+    # Creates: Fe00_Pt100/, Fe10_Pt90/, ..., Fe100_Pt00/
+    # File names inside simplified (no concentration in filename)
 
     # Ternary with finer grid, excluding edges (~210 compositions)
     jobs = create_phase_diagram_sweep(
@@ -369,12 +369,8 @@ def create_phase_diagram_sweep(
     print(f"Compositions: {len(concentrations_list)}")
 
     jobs_created = []
-    for idx, concs in enumerate(concentrations_list, start=1):
-        # Simplified directory name: comp_001, comp_002, etc.
-        # Concentration info stored in metadata, not directory name
-        dir_name = f"comp_{idx:03d}"
-
-        # Create composition string for metadata
+    for concs in concentrations_list:
+        # Directory name: Fe50_Pt30_Co20 (keeps concentration info)
         conc_str = '_'.join([f"{elem}{int(c*100):02d}"
                              for elem, c in zip(elements, concs)])
 
@@ -384,9 +380,10 @@ def create_phase_diagram_sweep(
                   'concentrations': list(concs)}]
 
         # Generate inputs
+        # File names inside will be simplified (job_name without concentration)
         create_emto_inputs(
-            output_path=os.path.join(base_output_path, dir_name),
-            job_name=f"{base_job_name}_{idx:03d}",
+            output_path=os.path.join(base_output_path, conc_str),
+            job_name=base_job_name,  # Simplified: no concentration in job_name
             cif_file=None,
             is_alloy=True,
             sites=sites,
@@ -394,11 +391,10 @@ def create_phase_diagram_sweep(
         )
 
         jobs_created.append({
-            'composition_id': idx,
             'elements': elements,
             'concentrations': concs,
             'composition_string': conc_str,
-            'output_path': os.path.join(base_output_path, dir_name)
+            'output_path': os.path.join(base_output_path, conc_str)
         })
 
     return jobs_created
@@ -456,19 +452,20 @@ def _generate_concentration_grid(n_elements, step=0.1, min_conc=0.0):
 **Directory structure example**:
 ```
 fept_phase_diagram/
-├── comp_001/          # Fe=0.0, Pt=1.0 (metadata stored in jobs_created list)
+├── Fe00_Pt100/
 │   ├── smx/, shp/, pot/, chd/, fcd/, tmp/
-│   └── fept_001_1.00_*.dat
-├── comp_002/          # Fe=0.1, Pt=0.9
-│   └── ...
-├── comp_003/          # Fe=0.2, Pt=0.8
+│   └── fept_1.00_2.67.dat  # Simplified: no concentration in filename
+├── Fe10_Pt90/
+│   ├── smx/, shp/, pot/, chd/, fcd/, tmp/
+│   └── fept_1.00_2.67.dat
+├── Fe20_Pt80/
 │   └── ...
 ...
-└── comp_011/          # Fe=1.0, Pt=0.0
+└── Fe100_Pt00/
     └── ...
 ```
 
-**Note**: Directory names are simplified to `comp_XXX` to avoid excessively long names. Composition information (elements and concentrations) is stored in the returned `jobs_created` list metadata.
+**Note**: Directory names contain composition info (Fe50_Pt30_Co20), but **file names inside are simplified** to avoid redundancy. The concentration is already clear from the directory name, so files use only the base job name: `fept_1.00_2.67.dat` instead of `fept_Fe50_Pt50_1.00_2.67.dat`.
 
 ### 4. Element Database
 **Required data per element**:
@@ -745,8 +742,8 @@ job_id/
 ### Phase 6: Phase Diagram Helper (Advanced Features)
 21. Add `create_phase_diagram_sweep()` helper function in `modules/workflows.py`:
     - Generate concentration grids on simplex (binary, ternary, quaternary+)
-    - **Simplified directory naming**: `comp_001`, `comp_002`, etc.
-    - Store composition metadata (elements, concentrations) in returned list
+    - Directory naming: `Fe50_Pt30_Co20` (keeps composition info in directory name)
+    - **Simplified file naming**: use base `job_name` without concentration suffix
     - Support `min_concentration` to exclude pure elements
     - Call `create_emto_inputs()` for each composition
 22. Add `_generate_concentration_grid()` internal helper:
@@ -757,14 +754,14 @@ job_id/
 24. **Update README.md** with phase diagram section:
     - Binary example (Fe-Pt with 11 points)
     - Ternary example (Fe-Pt-Co with ~66 points)
-    - Explain simplified directory naming (comp_XXX)
-    - Show how to access composition info from metadata
+    - Explain file naming: directories have composition, files don't
+    - Show directory structure with concentration-based names
     - Explain dimensionality scaling
 25. Test phase diagram sweep:
-    - Binary Fe-Pt: verify 11 compositions created in comp_001 to comp_011
-    - Ternary Fe-Pt-Co: verify ~66 compositions in comp_001 to comp_066
-    - Verify metadata list contains correct composition info
-    - Check that directory names are simple (comp_XXX)
+    - Binary Fe-Pt: verify 11 directories: Fe00_Pt100 to Fe100_Pt00
+    - Ternary Fe-Pt-Co: verify ~66 directories with Fe##_Pt##_Co## format
+    - Verify files inside use simplified names (base job_name only)
+    - Check no redundant concentration info in file names
 
 **Rationale for Phase 6:**
 - Phase diagram calculations are common in alloy research
@@ -1298,8 +1295,8 @@ create_emto_inputs(alloy_input)
 - [ ] Implement `create_phase_diagram_sweep()` in `workflows.py`:
   - [ ] Accept `elements`, `concentration_step`, `min_concentration`
   - [ ] Generate concentration grid using `_generate_concentration_grid()`
-  - [ ] **Simplified directory naming**: `comp_001`, `comp_002`, etc.
-  - [ ] Store composition metadata in returned list
+  - [ ] Directory naming: `Fe50_Pt30_Co20` (composition in directory name)
+  - [ ] **Simplified file naming**: pass base `job_name` without concentration
   - [ ] Loop over compositions, call `create_emto_inputs()` for each
   - [ ] Return list of job summaries with composition info
 - [ ] Implement `_generate_concentration_grid()` helper:
@@ -1312,16 +1309,15 @@ create_emto_inputs(alloy_input)
 - [ ] Update README.md with "Phase Diagram Calculations" section:
   - [ ] Binary example (Fe-Pt, 11 compositions)
   - [ ] Ternary example (Fe-Pt-Co, 66 compositions)
-  - [ ] Explain simplified naming (comp_XXX) to avoid long filenames
-  - [ ] Show how to access composition info from metadata
+  - [ ] Explain file naming: directories have composition, files don't (avoids redundancy)
+  - [ ] Show directory structure with concentration-based directory names
   - [ ] Explain complexity scaling (binary=n+1, ternary~n²/2)
-  - [ ] Show directory structure with comp_XXX naming
 - [ ] Test phase diagram sweep:
-  - [ ] Binary Fe-Pt: step=0.1 → verify 11 directories: comp_001 to comp_011
-  - [ ] Ternary Fe-Pt-Co: step=0.1 → verify 66 directories: comp_001 to comp_066
+  - [ ] Binary Fe-Pt: step=0.1 → verify 11 directories: Fe00_Pt100 to Fe100_Pt00
+  - [ ] Ternary Fe-Pt-Co: step=0.1 → verify ~66 directories: Fe##_Pt##_Co##
   - [ ] Ternary with min=0.1 → verify 36 directories (edges excluded)
-  - [ ] Verify metadata contains correct composition strings
-  - [ ] Check directory names are simple: comp_XXX format
+  - [ ] Verify files inside directories use simplified names (no concentration)
+  - [ ] Example: `Fe50_Pt50/fept_1.00_2.67.dat` NOT `Fe50_Pt50/fept_Fe50_Pt50_1.00_2.67.dat`
 
 ---
 
@@ -1331,4 +1327,4 @@ create_emto_inputs(alloy_input)
 - **Jan 13, 2026**: Enhanced generality and simplicity
   - SWS conversion now uses pymatgen to calculate atoms per cell (works for any lattice)
   - Support all 14 EMTO lattice types (not just FCC/BCC/SC)
-  - Simplified phase diagram directory naming: `comp_XXX` instead of `Fe50_Pt30_Co20`
+  - Simplified phase diagram **file naming**: directories keep composition (Fe50_Pt30_Co20), but files inside are simplified (no concentration in filename to avoid redundancy)
