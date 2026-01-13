@@ -4,13 +4,13 @@ def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic):
     """
     Create a KGRN (self-consistent KKR) input file for EMTO from structure dict.
 
-    Supports both ordered structures (CIF) and random alloys (CPA).
+    Supports both ordered structures and random alloys (CPA).
 
     Parameters
     ----------
     structure : dict
-        Structure dictionary from parse_emto_structure() or create_alloy_structure()
-        containing atom_info and is_alloy flag
+        Structure dictionary from create_emto_structure()
+        containing atom_info with IQ, IT, ITA, conc for each atom
     path : str
         Output directory path
     id_full : str
@@ -19,45 +19,39 @@ def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic):
         Job ID with ratio only (e.g., 'fept_0.96')
     SWS : float
         Wigner-Seitz radius
+    magnetic : str
+        'P' for paramagnetic or 'F' for ferromagnetic
 
     Notes
     -----
-    For ordered structures (CIF, is_alloy=False):
-    - Each atom has ITA=1, CONC=1.0
-    - Different sites have different IQ values
-    - No magnetic disorder (single configuration)
+    The structure_builder module automatically sets correct values:
 
-    For random alloys (CPA, is_alloy=True):
-    - All atoms on same site: IQ=1 for all
-    - Different components: IT=ITA=1,2,3...
-    - Concentrations sum to 1.0
-    - Magnetic disorder via CPA
+    For ordered structures (L10, L12, pure elements):
+    - Each distinct site has unique IQ (1, 2, 3, ...)
+    - Each site has ITA=1, CONC=1.0
+    - IT determined from symmetry
+
+    For random alloys (CPA - Fe-Pt 50-50, ternary alloys):
+    - All atoms on same site have same IQ (typically 1)
+    - Different components have ITA=1,2,3...
+    - Concentrations sum to 1.0 per site
+    - IT determined from symmetry
 
     The atom section format is:
     Symb  IQ  IT ITA NRM  CONC      a_scr b_scr |Teta    Phi    FXM  m(split)
     """
 
     lat = structure['lat']
-    is_alloy = structure.get('is_alloy', False)
 
     # Build atom section dynamically from structure
+    # Works for both ordered structures (CIF) and random alloys (CPA)
+    # The structure_builder module sets correct IQ, IT, ITA, and conc values
     atom_lines = []
-
-    if is_alloy:
-        # CPA alloy: all atoms have IQ=1, IT=ITA increment (1,2,3...)
-        # The structure dict from create_alloy_structure() already has correct IT/ITA
-        for atom in structure['atom_info']:
-            line = (f"{atom['symbol']:<5} {atom['IQ']:>2} {atom['IT']:>3} {atom['ITA']:>3} "
-                    f"{1:>3}  {atom['conc']:.6f}  {atom['a_scr']:.3f} {atom['b_scr']:.3f}  "
-                    f"0.0000  0.0000  N  {atom['default_moment']:>7.4f}")
-            atom_lines.append(line)
-    else:
-        # Ordered structure (CIF): use IT/ITA from structure dict
-        for atom in structure['atom_info']:
-            line = (f"{atom['symbol']:<5} {atom['IQ']:>2} {atom['IT']:>3} {atom['ITA']:>3} "
-                    f"{1:>3}  {atom['conc']:.6f}  {atom['a_scr']:.3f} {atom['b_scr']:.3f}  "
-                    f"0.0000  0.0000  N  {atom['default_moment']:>7.4f}")
-            atom_lines.append(line)
+    for atom in structure['atom_info']:
+        line = (f"{atom['symbol']:<5} {atom['IQ']:>2} {atom['IT']:>3} {atom['ITA']:>3} "
+                f"{1:>3}  {atom['conc']:.6f}  {atom['a_scr']:.3f} {atom['b_scr']:.3f}  "
+                f"0.0000  0.0000  N  {atom['default_moment']:>7.4f}")
+        atom_lines.append(line)
 
     atoms_section = "\n".join(atom_lines)
 

@@ -25,11 +25,11 @@ print("="*70)
 create_emto_inputs(
     output_path=test_output,
     job_name="fept",
+    cif_file="./testing/FePt.cif",
     dmax=1.3,
     ca_ratios=[0.96],  # Just one ratio for quick test
     sws_values=[2.65],  # Just one SWS for quick test
-    from_cif=True,
-    cif_file="./testing/FePt.cif",
+    magnetic='F',
     create_job_script=False  # Skip job script for test
 )
 
