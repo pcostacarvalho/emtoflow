@@ -241,11 +241,22 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     if user_lat is not None:
         # Use user-provided LAT (from parameter workflow)
         lat = user_lat
-        # Get lattice name from LAT number
+        # Get lattice name from LAT number (matching map_to_lat_number names)
         lat_to_name = {
-            1: 'SC', 2: 'FCC', 3: 'BCC', 4: 'HCP', 5: 'BCT',
-            6: 'ST', 7: 'ORC', 8: 'ORCC', 9: 'ORCF', 10: 'ORCI',
-            11: 'MCL', 12: 'MCLC', 13: 'TRI', 14: 'RHL'
+            1: 'Simple cubic',
+            2: 'Face-centered cubic',
+            3: 'Body-centered cubic',
+            4: 'Hexagonal',
+            5: 'Simple tetragonal',
+            6: 'Body-centered tetragonal',
+            7: 'Trigonal/Rhombohedral',
+            8: 'Simple orthorhombic',
+            9: 'Base-centered orthorhombic',
+            10: 'Face-centered orthorhombic',
+            11: 'Body-centered orthorhombic',
+            12: 'Simple monoclinic',
+            13: 'Base-centered monoclinic',
+            14: 'Triclinic'
         }
         lattice_name = lat_to_name.get(lat, f'LAT{lat}')
         crystal_system = sga.get_crystal_system()
