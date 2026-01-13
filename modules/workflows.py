@@ -19,11 +19,16 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
     Run DMAX optimization workflow.
 
     Workflow:
-    1. Create KSTR inputs with dmax_initial for all ratios
-    2. Run KSTR executable for each ratio
-    3. Parse .prn outputs
-    4. Optimize DMAX values
-    5. Save log file
+    1. Sort c/a ratios in descending order (largest first)
+    2. Create KSTR inputs with dmax_initial for all ratios
+    3. Run KSTR executable for each ratio (starting with largest c/a)
+    4. Parse .prn outputs
+    5. Optimize DMAX values
+    6. Save log file
+
+    Note: Processing largest c/a ratio first ensures that if dmax_initial
+    is sufficient for the most demanding case (largest c/a), it will
+    definitely be sufficient for smaller ratios.
 
     Parameters
     ----------
@@ -36,7 +41,7 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
     ca_ratios : list of float
         c/a ratios to optimize
     dmax_initial : float
-        Initial DMAX guess (should be large enough)
+        Initial DMAX guess (should be large enough for the largest c/a ratio)
     target_vectors : int
         Target number of k-vectors
     vector_tolerance : int
@@ -55,14 +60,19 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
         save_dmax_optimization_log
     )
 
+    # Sort ratios in descending order (largest c/a first)
+    # This ensures dmax_initial is tested on the most demanding case first
+    ca_ratios_sorted = sorted(ca_ratios, reverse=True)
+
     print(f"\nStep 1: Creating initial KSTR inputs (DMAX={dmax_initial})...")
+    print(f"Processing c/a ratios in descending order: {[f'{r:.2f}' for r in ca_ratios_sorted]}")
 
     # Create directory structure
     smx_dir = os.path.join(output_path, "smx")
     os.makedirs(smx_dir, exist_ok=True)
 
     # Create KSTR inputs for all ratios with initial DMAX
-    for ratio in ca_ratios:
+    for ratio in ca_ratios_sorted:
         file_id_ratio = f"{job_name}_{ratio:.2f}"
         create_kstr_input(
             structure=structure,
@@ -72,12 +82,12 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
             ca_ratio=ratio
         )
 
-    print(f"✓ Created {len(ca_ratios)} KSTR input files")
+    print(f"✓ Created {len(ca_ratios_sorted)} KSTR input files")
 
     # Step 2: Run KSTR for all ratios
     print(f"\nStep 2: Running KSTR calculations...")
 
-    for ratio in ca_ratios:
+    for ratio in ca_ratios_sorted:
         input_file = f"{job_name}_{ratio:.2f}.dat"
         input_path = os.path.join(smx_dir, input_file)
 
@@ -110,15 +120,15 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
     print(f"\nStep 3: Parsing KSTR outputs...")
 
     prn_files = {}
-    for ratio in ca_ratios:
+    for ratio in ca_ratios_sorted:
         prn_file = os.path.join(smx_dir, f"{job_name}_{ratio:.2f}.prn")
         if os.path.exists(prn_file):
             prn_files[ratio] = prn_file
         else:
             print(f"  Warning: {prn_file} not found")
 
-    if len(prn_files) != len(ca_ratios):
-        print(f"  ⚠ Only {len(prn_files)}/{len(ca_ratios)} .prn files found")
+    if len(prn_files) != len(ca_ratios_sorted):
+        print(f"  ⚠ Only {len(prn_files)}/{len(ca_ratios_sorted)} .prn files found")
 
     if not prn_files:
         print("✗ No .prn files found - DMAX optimization failed")
@@ -241,7 +251,10 @@ def create_emto_inputs(
     optimize_dmax : bool, optional
         Enable DMAX optimization workflow (default: False)
     dmax_initial : float, optional
-        Initial DMAX guess for optimization (default: 2.0)
+        Initial DMAX guess for optimization (default: 2.0).
+        Should be large enough for the LARGEST c/a ratio in your sweep,
+        as optimization processes ratios in descending order.
+        Tip: Start with a generous value (e.g., 2.5-3.0)
     dmax_target_vectors : int, optional
         Target number of k-vectors (default: 100)
     dmax_vector_tolerance : int, optional
@@ -300,6 +313,8 @@ def create_emto_inputs(
     )
 
     # CIF workflow with DMAX optimization
+    # Note: dmax_initial should be large enough for largest c/a (1.04)
+    # Optimization processes ratios in descending order: 1.04 → 1.00 → 0.96 → 0.92
     create_emto_inputs(
         output_path="./fept_optimized",
         job_name="fept",
@@ -308,7 +323,7 @@ def create_emto_inputs(
         sws_values=[2.60, 2.65, 2.70],
         magnetic='F',
         optimize_dmax=True,
-        dmax_initial=2.5,
+        dmax_initial=2.5,  # Large enough for c/a=1.04
         dmax_target_vectors=100,
         kstr_executable="/path/to/kstr.exe"
     )

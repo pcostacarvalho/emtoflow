@@ -25,11 +25,15 @@ print("="*70)
 print("DMAX Optimization Workflow Example")
 print("="*70)
 print("\nThis workflow will:")
-print("1. Create initial KSTR inputs with dmax_initial=2.5")
-print("2. Run KSTR for each c/a ratio")
-print("3. Parse .prn files to analyze neighbor shells")
-print("4. Optimize DMAX values for consistent shells")
-print("5. Generate final input files with optimized DMAX")
+print("1. Sort c/a ratios in descending order (largest first)")
+print("2. Create initial KSTR inputs with dmax_initial=2.5")
+print("3. Run KSTR for each c/a ratio (starting with 1.04)")
+print("4. Parse .prn files to analyze neighbor shells")
+print("5. Optimize DMAX values for consistent shells")
+print("6. Generate final input files with optimized DMAX")
+print()
+print("IMPORTANT: dmax_initial should be large enough for the LARGEST c/a ratio.")
+print("           The workflow tests largest c/a first (1.04) to ensure dmax_initial is sufficient.")
 print()
 
 # Check if KSTR executable path is updated
@@ -48,7 +52,8 @@ create_emto_inputs(
     magnetic='F',
     # DMAX optimization parameters
     optimize_dmax=True,
-    dmax_initial=2.5,              # Initial DMAX guess (should be large enough)
+    dmax_initial=2.5,              # Must be large enough for largest c/a (1.04)
+                                   # Workflow tests in descending order: 1.04 → 1.00 → 0.96 → 0.92
     dmax_target_vectors=100,       # Target number of k-vectors
     dmax_vector_tolerance=15,      # Acceptable deviation from target
     kstr_executable=KSTR_EXECUTABLE,
