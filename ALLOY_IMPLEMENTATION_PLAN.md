@@ -35,7 +35,13 @@ Implement support for disordered alloys using CPA (Coherent Potential Approximat
 6. **Native disorder**: Pymatgen's `Species` handles partial occupancies correctly
 
 ## Scope
-- **Lattice types**: Any structure pymatgen can create (FCC, BCC, SC, tetragonal, Heusler, etc.)
+- **Lattice types**: All 14 EMTO/Bravais lattice types supported
+  - Cubic: SC (1), FCC (2), BCC (3)
+  - Hexagonal: HCP (4)
+  - Tetragonal: P (5), I (6)
+  - Orthorhombic: P (7), I (8), C (9), F (10)
+  - Monoclinic: P (11), C (12)
+  - Triclinic (13), Rhombohedral (14)
 - **Alloy types**:
   - Single-site disorder (CPA on one sublattice)
   - Multi-sublattice disorder (CPA on multiple sublattices independently)
@@ -61,96 +67,178 @@ Implement support for disordered alloys using CPA (Coherent Potential Approximat
 from pymatgen.core import Structure, Lattice, Species
 import numpy as np
 
-def lattice_param_to_sws(a_angstrom, lattice_type):
+def lattice_param_to_sws(structure_pmg):
     """
-    Convert lattice parameter (Angstroms) to Wigner-Seitz radius (Bohr).
+    Convert lattice parameter to Wigner-Seitz radius (Bohr) using pymatgen structure.
 
     Parameters
     ----------
-    a_angstrom : float
-        Lattice parameter in Angstroms
-    lattice_type : str
-        Lattice type: 'fcc', 'bcc', 'sc', etc.
+    structure_pmg : pymatgen.core.Structure
+        Pymatgen Structure object with lattice and sites defined
 
     Returns
     -------
     float
         SWS radius in atomic units (Bohr)
+
+    Notes
+    -----
+    This function uses pymatgen to calculate the number of atoms per unit cell,
+    making it general for any lattice type (not just FCC/BCC/SC).
+
+    The calculation follows:
+    1. Get unit cell volume from pymatgen lattice
+    2. Get number of atoms from len(structure.sites)
+    3. Calculate volume per atom = V_cell / n_atoms
+    4. Calculate SWS = (3 * V_atom / (4*π))^(1/3)
     """
+    import numpy as np
+
     BOHR_TO_ANGSTROM = 0.529177
 
-    # Convert to Bohr
-    a_bohr = a_angstrom / BOHR_TO_ANGSTROM
+    # Get lattice volume in Angstrom³
+    V_cell_angstrom = structure_pmg.lattice.volume
 
-    # Atoms per unit cell
-    atoms_per_cell = {'fcc': 4, 'bcc': 2, 'sc': 1}
-    n = atoms_per_cell.get(lattice_type.lower(), 1)
+    # Convert to Bohr³
+    V_cell_bohr = V_cell_angstrom / (BOHR_TO_ANGSTROM ** 3)
 
-    # Volume per atom
-    V_atom = a_bohr**3 / n
+    # Get number of atoms in unit cell from pymatgen
+    n_atoms = len(structure_pmg.sites)
 
-    # Wigner-Seitz radius
-    sws = (3 * V_atom / (4 * np.pi))**(1/3)
+    # Volume per atom in Bohr³
+    V_atom = V_cell_bohr / n_atoms
+
+    # Wigner-Seitz radius in Bohr
+    sws = (3 * V_atom / (4 * np.pi)) ** (1/3)
 
     return sws
 
-def create_alloy_structure_pymatgen(lattice_type, a, sites, c_over_a=1.0):
+def create_alloy_structure_pymatgen(lat, a, sites, b=None, c=None, alpha=90, beta=90, gamma=90):
     """
-    Create pymatgen Structure for alloy calculation.
+    Create pymatgen Structure for alloy calculation supporting all 14 EMTO lattice types.
 
     Parameters
     ----------
-    lattice_type : str
-        Lattice type: 'fcc', 'bcc', 'sc', 'fct', 'bct'
+    lat : int
+        EMTO Bravais lattice number (1-14):
+        1=SC, 2=FCC, 3=BCC, 4=HCP, 5=Tetragonal-P, 6=Tetragonal-I,
+        7=Orthorhombic-P, 8=Orthorhombic-I, 9=Orthorhombic-C,
+        10=Orthorhombic-F, 11=Monoclinic-P, 12=Monoclinic-C,
+        13=Triclinic, 14=Rhombohedral
     a : float
-        Lattice parameter in Angstroms
+        Lattice parameter a in Angstroms
     sites : list of dict
         Site specifications, e.g.:
         [
             {'position': [0, 0, 0], 'elements': ['Fe', 'Pt'], 'concentrations': [0.5, 0.5]},
             {'position': [0.5, 0.5, 0.5], 'elements': ['Co'], 'concentrations': [1.0]}
         ]
-    c_over_a : float, optional
-        c/a ratio for tetragonal structures
+    b : float, optional
+        Lattice parameter b in Angstroms (defaults to a for cubic)
+    c : float, optional
+        Lattice parameter c in Angstroms (defaults to a for cubic, 1.633*a for HCP)
+    alpha : float, optional
+        Lattice angle α in degrees (default: 90)
+    beta : float, optional
+        Lattice angle β in degrees (default: 90)
+    gamma : float, optional
+        Lattice angle γ in degrees (default: 90 for most, 120 for HCP)
 
     Returns
     -------
     Structure
         Pymatgen Structure object with partial occupancies
+
+    Notes
+    -----
+    - Defaults to cubic lattice (a=b=c, all angles 90°) if b, c not specified
+    - HCP defaults: c = 1.633*a (ideal ratio), gamma = 120°
+    - User has freedom to specify all parameters for any lattice type
     """
-    # Create Lattice based on lattice_type
+    # Set default values for cubic lattices
+    if b is None:
+        b = a
+    if c is None:
+        # Special case for HCP
+        if lat == 4:
+            c = 1.633 * a  # Ideal c/a ratio for HCP
+        else:
+            c = a
+
+    # Special case for HCP: gamma = 120°
+    if lat == 4 and gamma == 90:
+        gamma = 120
+
+    # Create Lattice object from parameters
+    lattice = Lattice.from_parameters(a, b, c, alpha, beta, gamma)
+
     # Add PeriodicSite with Species containing partial occupancies
+    species_list = []
+    coords_list = []
+
+    for site_spec in sites:
+        position = site_spec['position']
+        elements = site_spec['elements']
+        concentrations = site_spec['concentrations']
+
+        # Create Species with partial occupancies
+        if len(elements) == 1 and concentrations[0] == 1.0:
+            # Pure occupancy
+            species_list.append(elements[0])
+        else:
+            # Mixed occupancy (CPA)
+            species_dict = {elem: conc for elem, conc in zip(elements, concentrations)}
+            species_list.append(Species(species_dict))
+
+        coords_list.append(position)
+
+    # Create Structure
+    structure = Structure(lattice, species_list, coords_list)
+
     # Calculate and store SWS
-    sws = lattice_param_to_sws(a, lattice_type)
+    sws = lattice_param_to_sws(structure)
+    structure.properties = {'sws': sws}
 
     # Return Structure object
+    return structure
 ```
 
 ### 2. User Input Interface (REVISED)
 **Required inputs**:
-- Lattice type: 'fcc', 'bcc', 'sc', 'fct', 'bct', etc.
+- `lat`: EMTO Bravais lattice number (1-14) - supports all EMTO lattice types
+  - 1=SC, 2=FCC, 3=BCC, 4=HCP, 5=Tetragonal-P, 6=Tetragonal-I,
+  - 7=Orthorhombic-P, 8=Orthorhombic-I, 9=Orthorhombic-C, 10=Orthorhombic-F,
+  - 11=Monoclinic-P, 12=Monoclinic-C, 13=Triclinic, 14=Rhombohedral
 - Lattice parameter: `a` **in Angstroms (Å)** - will be converted to SWS internally
-- Optional: `c_over_a`, `b_over_a` for non-cubic structures
+- Optional lattice parameters (default to cubic if not specified):
+  - `b`: defaults to `a`
+  - `c`: defaults to `a` (or `1.633*a` for HCP)
+  - `alpha`, `beta`, `gamma`: defaults to 90° (or 120° for HCP gamma)
 - Sites: list of dictionaries specifying:
   - `position`: fractional coordinates [x, y, z]
   - `elements`: list of element symbols on this site
   - `concentrations`: list of concentrations (must sum to 1.0 per site)
-- SWS values: for optimization sweeps (optional, can be auto-calculated from `a`)
+- SWS values: for optimization sweeps (optional, can be auto-calculated from lattice params)
 
 **Lattice Parameter → SWS Conversion**:
-The user provides the experimental lattice parameter in Angstroms, and the code automatically converts it to the Wigner-Seitz radius (SWS) in atomic units (Bohr radii):
+The user provides the experimental lattice parameters in Angstroms, and the code automatically converts to the Wigner-Seitz radius (SWS) in atomic units (Bohr radii).
 
-1. Convert lattice parameter to atomic units: `a_bohr = a_angstrom / 0.529177`
-2. Calculate volume per atom: `V_atom = a_bohr³ / n_atoms_per_cell`
-   - FCC: n = 4 atoms per cell
-   - BCC: n = 2 atoms per cell
-   - SC: n = 1 atom per cell
-3. Calculate SWS: `SWS = (3 * V_atom / (4*π))^(1/3)` (in Bohr radii)
+**Key improvement**: Uses pymatgen to calculate the number of atoms per unit cell, making it general for all 14 EMTO lattice types (not just FCC/BCC/SC).
+
+Algorithm:
+1. Create pymatgen Structure from lattice parameters (a, b, c, alpha, beta, gamma)
+2. Get unit cell volume: `V_cell = structure.lattice.volume` (in Ų)
+3. Convert to Bohr³: `V_cell_bohr = V_cell / (0.529177)³`
+4. Get number of atoms: `n_atoms = len(structure.sites)` (automatically from pymatgen!)
+5. Calculate volume per atom: `V_atom = V_cell_bohr / n_atoms`
+6. Calculate SWS: `SWS = (3 * V_atom / (4*π))^(1/3)` (in Bohr radii)
 
 **Example**: For FCC with a = 3.7 Å:
-- a_bohr = 3.7 / 0.529177 = 6.992 Bohr
-- V_atom = 6.992³ / 4 = 85.53 Bohr³
-- SWS = (3 * 85.53 / (4*π))^(1/3) = 2.69 Bohr
+- Pymatgen determines n_atoms = 4 automatically
+- V_cell = 3.7³ = 50.653 ų
+- V_cell_bohr = 50.653 / 0.148185 = 341.89 Bohr³
+- V_atom = 341.89 / 4 = 85.47 Bohr³
+- SWS = (3 * 85.47 / (4*π))^(1/3) ≈ 2.69 Bohr
 
 **Example inputs**:
 ```python
@@ -160,7 +248,7 @@ create_emto_inputs(
     output_path="./fept_alloy",
     job_name="fept",
     is_alloy=True,
-    lattice_type='fcc',
+    lat=2,  # FCC
     a=3.7,  # Angstroms - will be converted to SWS≈2.69 Bohr internally
     sites=[
         {'position': [0, 0, 0], 'elements': ['Fe', 'Pt'], 'concentrations': [0.5, 0.5]}
@@ -168,19 +256,32 @@ create_emto_inputs(
     sws_values=[2.60, 2.65, 2.70]  # Optional: for SWS optimization sweep
 )
 
-# L10 FePt (ordered, two sublattices)
+# L10 FePt (ordered, two sublattices) - tetragonal
 create_emto_inputs(
     output_path="./fept_l10",
     job_name="fept_l10",
     is_alloy=True,
-    lattice_type='fct',
+    lat=5,  # Tetragonal-P
     a=3.7,  # Angstroms (a-axis)
-    c_over_a=0.96,  # c/a ratio
+    c=3.7 * 0.96,  # c-axis (c/a = 0.96)
     sites=[
         {'position': [0, 0, 0], 'elements': ['Fe'], 'concentrations': [1.0]},
         {'position': [0.5, 0.5, 0.5], 'elements': ['Pt'], 'concentrations': [1.0]}
     ],
     sws_values=[2.65]  # Optional: single SWS or sweep
+)
+
+# HCP Co-Cr alloy (uses default c/a = 1.633 and gamma = 120°)
+create_emto_inputs(
+    output_path="./cocr_hcp",
+    job_name="cocr",
+    is_alloy=True,
+    lat=4,  # HCP
+    a=2.51,  # Angstroms
+    # c defaults to 1.633*a, gamma defaults to 120°
+    sites=[
+        {'position': [0, 0, 0], 'elements': ['Co', 'Cr'], 'concentrations': [0.7, 0.3]}
+    ]
 )
 ```
 
@@ -236,11 +337,12 @@ def create_phase_diagram_sweep(
         base_job_name="fept",
         elements=['Fe', 'Pt'],
         concentration_step=0.1,
-        lattice_type='fcc',
+        lat=2,  # FCC
         a=3.7,
         sws_values=[2.60, 2.65, 2.70]
     )
-    # Creates: Fe00_Pt100/, Fe10_Pt90/, ..., Fe100_Pt00/
+    # Creates: comp_001/, comp_002/, ..., comp_011/
+    # Returns job info with concentration metadata
 
     # Ternary with finer grid, excluding edges (~210 compositions)
     jobs = create_phase_diagram_sweep(
@@ -249,7 +351,7 @@ def create_phase_diagram_sweep(
         elements=['Fe', 'Pt', 'Co'],
         concentration_step=0.05,
         min_concentration=0.05,
-        lattice_type='fcc',
+        lat=2,  # FCC
         a=3.7,
         sws_values=[2.65]
     )
@@ -267,8 +369,12 @@ def create_phase_diagram_sweep(
     print(f"Compositions: {len(concentrations_list)}")
 
     jobs_created = []
-    for concs in concentrations_list:
-        # Directory name: Fe50_Pt30_Co20
+    for idx, concs in enumerate(concentrations_list, start=1):
+        # Simplified directory name: comp_001, comp_002, etc.
+        # Concentration info stored in metadata, not directory name
+        dir_name = f"comp_{idx:03d}"
+
+        # Create composition string for metadata
         conc_str = '_'.join([f"{elem}{int(c*100):02d}"
                              for elem, c in zip(elements, concs)])
 
@@ -279,8 +385,8 @@ def create_phase_diagram_sweep(
 
         # Generate inputs
         create_emto_inputs(
-            output_path=os.path.join(base_output_path, conc_str),
-            job_name=f"{base_job_name}_{conc_str}",
+            output_path=os.path.join(base_output_path, dir_name),
+            job_name=f"{base_job_name}_{idx:03d}",
             cif_file=None,
             is_alloy=True,
             sites=sites,
@@ -288,9 +394,11 @@ def create_phase_diagram_sweep(
         )
 
         jobs_created.append({
+            'composition_id': idx,
             'elements': elements,
             'concentrations': concs,
-            'output_path': os.path.join(base_output_path, conc_str)
+            'composition_string': conc_str,
+            'output_path': os.path.join(base_output_path, dir_name)
         })
 
     return jobs_created
@@ -348,17 +456,19 @@ def _generate_concentration_grid(n_elements, step=0.1, min_conc=0.0):
 **Directory structure example**:
 ```
 fept_phase_diagram/
-├── Fe00_Pt100/
+├── comp_001/          # Fe=0.0, Pt=1.0 (metadata stored in jobs_created list)
 │   ├── smx/, shp/, pot/, chd/, fcd/, tmp/
-│   └── fept_Fe00_Pt100_1.00_*.dat
-├── Fe10_Pt90/
+│   └── fept_001_1.00_*.dat
+├── comp_002/          # Fe=0.1, Pt=0.9
 │   └── ...
-├── Fe20_Pt80/
+├── comp_003/          # Fe=0.2, Pt=0.8
 │   └── ...
 ...
-└── Fe100_Pt00/
+└── comp_011/          # Fe=1.0, Pt=0.0
     └── ...
 ```
+
+**Note**: Directory names are simplified to `comp_XXX` to avoid excessively long names. Composition information (elements and concentrations) is stored in the returned `jobs_created` list metadata.
 
 ### 4. Element Database
 **Required data per element**:
@@ -488,22 +598,41 @@ def create_emto_inputs(..., cif_file=None, is_alloy=False, lattice_type=None, a=
 **Required checks**:
 1. Concentrations sum to 1.0 (with tolerance, e.g., |sum - 1.0| < 1e-6)
 2. Number of elements matches number of concentrations
-3. Valid lattice type ('fcc', 'bcc', 'sc')
+3. Valid EMTO lattice number (1-14)
 4. Valid element symbols (check against database)
-5. All concentrations > 0 and < 1
-6. c/a and SWS are positive numbers
+5. All concentrations > 0 and ≤ 1
+6. Lattice parameters (a, b, c) are positive numbers
+7. Angles (alpha, beta, gamma) are in valid range (0, 180) degrees
 
 **Implementation**:
 ```python
-def validate_alloy_input(lattice_type, elements, concentrations, ca_ratio, sws):
+def validate_alloy_input(lat, elements, concentrations, a, b=None, c=None,
+                         alpha=90, beta=90, gamma=90):
     """Validate alloy input parameters, raise ValueError if invalid"""
-    # Check 1: concentration sum
+    # Check 1: Valid lattice number
+    if lat not in range(1, 15):
+        raise ValueError(f"Lattice number must be 1-14, got {lat}")
+
+    # Check 2: concentration sum
     if abs(sum(concentrations) - 1.0) > 1e-6:
         raise ValueError(f"Concentrations must sum to 1.0, got {sum(concentrations)}")
 
-    # Check 2: length match
+    # Check 3: length match
     if len(elements) != len(concentrations):
         raise ValueError(f"Number of elements ({len(elements)}) must match concentrations ({len(concentrations)})")
+
+    # Check 4: Positive lattice parameters
+    if a <= 0:
+        raise ValueError(f"Lattice parameter a must be positive, got {a}")
+    if b is not None and b <= 0:
+        raise ValueError(f"Lattice parameter b must be positive, got {b}")
+    if c is not None and c <= 0:
+        raise ValueError(f"Lattice parameter c must be positive, got {c}")
+
+    # Check 5: Valid angles
+    for angle_name, angle_val in [('alpha', alpha), ('beta', beta), ('gamma', gamma)]:
+        if not (0 < angle_val < 180):
+            raise ValueError(f"Angle {angle_name} must be in range (0, 180), got {angle_val}")
 
     # ... additional checks
 ```
@@ -567,27 +696,34 @@ job_id/
 ### Phase 2: Pymatgen Structure Builder (NEW)
 4. Modify `parse_emto_structure()` to accept pymatgen `Structure` objects (not just CIF paths)
 5. Create `create_alloy_structure_pymatgen()` in `modules/alloy_input.py`:
-   - Build pymatgen `Lattice` based on lattice_type and parameters
-   - **Implement lattice parameter → SWS conversion**:
-     - Convert `a` from Angstroms to Bohr: `a_bohr = a / 0.529177`
-     - Calculate volume per atom based on lattice type (FCC: n=4, BCC: n=2, SC: n=1)
+   - Accept `lat` (1-14) instead of `lattice_type` string
+   - Accept `a, b, c, alpha, beta, gamma` lattice parameters (with smart defaults)
+   - Build pymatgen `Lattice` using `Lattice.from_parameters(a, b, c, alpha, beta, gamma)`
+   - **Implement generalized lattice parameter → SWS conversion**:
+     - Use pymatgen to get cell volume: `structure.lattice.volume`
+     - Use pymatgen to get number of atoms: `len(structure.sites)`
+     - Convert volume from Ų to Bohr³: `V_bohr = V_angstrom / (0.529177)³`
+     - Calculate V_atom = V_bohr / n_atoms (automatic for any lattice!)
      - Calculate SWS: `(3 * V_atom / (4*π))^(1/3)`
    - Add sites with `Species` containing partial occupancies
    - Return pymatgen `Structure` object with calculated SWS stored
-6. Add lattice builders for common types (FCC, BCC, SC, FCT, BCT)
+6. Support all 14 EMTO lattice types with appropriate defaults:
+   - Cubic (1-3): defaults to a=b=c, 90° angles
+   - HCP (4): defaults to c=1.633*a, gamma=120°
+   - Others: user specifies parameters explicitly
 7. Test that pymatgen structures parse correctly through existing pipeline
 8. Test SWS auto-calculation: verify FCC a=3.7Å → SWS≈2.69 Bohr
 
 ### Phase 3: Integration (SIMPLIFICATION)
 8. Modify `workflows.py`:
-   - Add `is_alloy`, `lattice_type`, `a`, `c_over_a`, `sites` parameters
+   - Add `is_alloy`, `lat`, `a`, `b`, `c`, `alpha`, `beta`, `gamma`, `sites` parameters
    - If `is_alloy`: create pymatgen structure, then call `parse_emto_structure()`
    - If `cif_file`: use existing CIF workflow
    - Remove template copying code (obsolete)
 9. Delete obsolete files:
    - `modules/kstr_template.py`
    - `modules/inputs/templates/kstr/` directory
-10. Update `create_alloy_structure()` to call new pymatgen builder
+10. Update validation to check lat parameter (1-14) instead of lattice_type string
 
 ### Phase 4: Documentation
 11. **Update README.md** with pymatgen-based alloy examples
@@ -609,7 +745,8 @@ job_id/
 ### Phase 6: Phase Diagram Helper (Advanced Features)
 21. Add `create_phase_diagram_sweep()` helper function in `modules/workflows.py`:
     - Generate concentration grids on simplex (binary, ternary, quaternary+)
-    - Automatic directory naming: `Fe50_Pt30_Co20`
+    - **Simplified directory naming**: `comp_001`, `comp_002`, etc.
+    - Store composition metadata (elements, concentrations) in returned list
     - Support `min_concentration` to exclude pure elements
     - Call `create_emto_inputs()` for each composition
 22. Add `_generate_concentration_grid()` internal helper:
@@ -620,11 +757,14 @@ job_id/
 24. **Update README.md** with phase diagram section:
     - Binary example (Fe-Pt with 11 points)
     - Ternary example (Fe-Pt-Co with ~66 points)
+    - Explain simplified directory naming (comp_XXX)
+    - Show how to access composition info from metadata
     - Explain dimensionality scaling
 25. Test phase diagram sweep:
-    - Binary Fe-Pt: verify 11 compositions created
-    - Ternary Fe-Pt-Co: verify ~66 compositions
-    - Check directory naming convention
+    - Binary Fe-Pt: verify 11 compositions created in comp_001 to comp_011
+    - Ternary Fe-Pt-Co: verify ~66 compositions in comp_001 to comp_066
+    - Verify metadata list contains correct composition info
+    - Check that directory names are simple (comp_XXX)
 
 **Rationale for Phase 6:**
 - Phase diagram calculations are common in alloy research
@@ -1108,24 +1248,32 @@ create_emto_inputs(alloy_input)
 - [ ] Test: Create simple pymatgen Structure, pass to `parse_emto_structure()`, verify dict output
 
 ### Step 2: Create pymatgen structure builder in `alloy_input.py`
-- [ ] Implement `create_alloy_structure_pymatgen(lattice_type, a, sites, c_over_a=1.0, b_over_a=1.0)`
-- [ ] **Add lattice parameter → SWS conversion function**:
-  - [ ] `a_bohr = a_angstrom / 0.529177`
-  - [ ] Map lattice_type to atoms per cell: FCC→4, BCC→2, SC→1
-  - [ ] `V_atom = a_bohr³ / n_atoms_per_cell`
+- [ ] Implement `create_alloy_structure_pymatgen(lat, a, sites, b=None, c=None, alpha=90, beta=90, gamma=90)`
+  - [ ] Accept `lat` (1-14) instead of string lattice_type
+  - [ ] Handle all lattice parameters with smart defaults
+- [ ] **Add generalized lattice parameter → SWS conversion function**:
+  - [ ] `lattice_param_to_sws(structure_pmg)` - accepts pymatgen Structure
+  - [ ] Get volume: `V_angstrom = structure.lattice.volume`
+  - [ ] Get atoms: `n_atoms = len(structure.sites)` (automatic!)
+  - [ ] Convert to Bohr³: `V_bohr = V_angstrom / (0.529177)³`
+  - [ ] `V_atom = V_bohr / n_atoms`
   - [ ] `SWS = (3 * V_atom / (4*π))^(1/3)`
-  - [ ] Test: a=3.7Å (FCC) should give SWS≈2.69 Bohr
-- [ ] Map lattice_type to pymatgen `Lattice` object (cubic, tetragonal, etc.)
+  - [ ] Test: FCC a=3.7Å should give SWS≈2.69 Bohr
+  - [ ] Test: HCP with different c/a ratios
+- [ ] Build pymatgen `Lattice` using `Lattice.from_parameters(a, b, c, alpha, beta, gamma)`
 - [ ] Add sites with partial occupancies using pymatgen `Species({'Fe': 0.5, 'Pt': 0.5})`
-- [ ] Return pymatgen `Structure` object
+- [ ] Return pymatgen `Structure` object with SWS stored in properties
 - [ ] Test: FCC with single site containing Fe/Pt 50-50
+- [ ] Test: HCP structure with default c/a and gamma
 
 ### Step 3: Update `workflows.py`
-- [ ] Add parameters: `is_alloy`, `lattice_type`, `a`, `c_over_a`, `sites`
+- [ ] Add parameters: `is_alloy`, `lat`, `a`, `b`, `c`, `alpha`, `beta`, `gamma`, `sites`
 - [ ] In alloy branch: call `create_alloy_structure_pymatgen()` → get pymatgen Structure
 - [ ] Pass pymatgen Structure to `parse_emto_structure()` → get structure dict
 - [ ] Remove `copy_kstr_template()` call (use existing KSTR generation)
-- [ ] Test: Run full workflow for FCC Fe-Pt alloy
+- [ ] Update validation to check `lat` (1-14) instead of string lattice_type
+- [ ] Test: Run full workflow for FCC Fe-Pt alloy (lat=2)
+- [ ] Test: Run workflow for HCP alloy (lat=4) with defaults
 
 ### Step 4: Cleanup obsolete code
 - [ ] Delete `modules/kstr_template.py`
@@ -1150,9 +1298,10 @@ create_emto_inputs(alloy_input)
 - [ ] Implement `create_phase_diagram_sweep()` in `workflows.py`:
   - [ ] Accept `elements`, `concentration_step`, `min_concentration`
   - [ ] Generate concentration grid using `_generate_concentration_grid()`
-  - [ ] Create directory naming: `Fe50_Pt30_Co20`
+  - [ ] **Simplified directory naming**: `comp_001`, `comp_002`, etc.
+  - [ ] Store composition metadata in returned list
   - [ ] Loop over compositions, call `create_emto_inputs()` for each
-  - [ ] Return list of job summaries
+  - [ ] Return list of job summaries with composition info
 - [ ] Implement `_generate_concentration_grid()` helper:
   - [ ] Binary case: 1D list comprehension
   - [ ] Ternary case: 2D nested loops
@@ -1163,15 +1312,23 @@ create_emto_inputs(alloy_input)
 - [ ] Update README.md with "Phase Diagram Calculations" section:
   - [ ] Binary example (Fe-Pt, 11 compositions)
   - [ ] Ternary example (Fe-Pt-Co, 66 compositions)
+  - [ ] Explain simplified naming (comp_XXX) to avoid long filenames
+  - [ ] Show how to access composition info from metadata
   - [ ] Explain complexity scaling (binary=n+1, ternary~n²/2)
-  - [ ] Show directory structure
+  - [ ] Show directory structure with comp_XXX naming
 - [ ] Test phase diagram sweep:
-  - [ ] Binary Fe-Pt: step=0.1 → verify 11 directories created
-  - [ ] Ternary Fe-Pt-Co: step=0.1 → verify 66 directories
+  - [ ] Binary Fe-Pt: step=0.1 → verify 11 directories: comp_001 to comp_011
+  - [ ] Ternary Fe-Pt-Co: step=0.1 → verify 66 directories: comp_001 to comp_066
   - [ ] Ternary with min=0.1 → verify 36 directories (edges excluded)
-  - [ ] Check naming: `Fe50_Pt50`, `Fe33_Pt33_Co33`, etc.
+  - [ ] Verify metadata contains correct composition strings
+  - [ ] Check directory names are simple: comp_XXX format
 
 ---
 
-**Plan Last Updated:** January 12, 2026
-**Major Revision:** Switched from template-based to pymatgen-based approach
+**Plan Last Updated:** January 13, 2026
+**Major Revisions:**
+- **Jan 12, 2026**: Switched from template-based to pymatgen-based approach
+- **Jan 13, 2026**: Enhanced generality and simplicity
+  - SWS conversion now uses pymatgen to calculate atoms per cell (works for any lattice)
+  - Support all 14 EMTO lattice types (not just FCC/BCC/SC)
+  - Simplified phase diagram directory naming: `comp_XXX` instead of `Fe50_Pt30_Co20`
