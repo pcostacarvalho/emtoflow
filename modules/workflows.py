@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import subprocess
 from modules.inputs import (
     create_kstr_input,
     create_shape_input,
@@ -9,6 +10,153 @@ from modules.inputs import (
     write_parallel_sbatch
 )
 from modules.structure_builder import create_emto_structure
+
+
+def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
+                          dmax_initial, target_vectors, vector_tolerance,
+                          kstr_executable):
+    """
+    Run DMAX optimization workflow.
+
+    Workflow:
+    1. Create KSTR inputs with dmax_initial for all ratios
+    2. Run KSTR executable for each ratio
+    3. Parse .prn outputs
+    4. Optimize DMAX values
+    5. Save log file
+
+    Parameters
+    ----------
+    output_path : str
+        Base output directory
+    job_name : str
+        Job identifier
+    structure : dict
+        Structure dictionary from create_emto_structure()
+    ca_ratios : list of float
+        c/a ratios to optimize
+    dmax_initial : float
+        Initial DMAX guess (should be large enough)
+    target_vectors : int
+        Target number of k-vectors
+    vector_tolerance : int
+        Acceptable deviation from target
+    kstr_executable : str
+        Path to KSTR executable
+
+    Returns
+    -------
+    dict or None
+        {ratio: optimized_dmax_value} or None if failed
+    """
+    from modules.dmax_optimizer import (
+        find_optimal_dmax,
+        print_optimization_summary,
+        save_dmax_optimization_log
+    )
+
+    print(f"\nStep 1: Creating initial KSTR inputs (DMAX={dmax_initial})...")
+
+    # Create directory structure
+    smx_dir = os.path.join(output_path, "smx")
+    os.makedirs(smx_dir, exist_ok=True)
+
+    # Create KSTR inputs for all ratios with initial DMAX
+    for ratio in ca_ratios:
+        file_id_ratio = f"{job_name}_{ratio:.2f}"
+        create_kstr_input(
+            structure=structure,
+            output_path=output_path,
+            id_ratio=file_id_ratio,
+            dmax=dmax_initial,
+            ca_ratio=ratio
+        )
+
+    print(f"✓ Created {len(ca_ratios)} KSTR input files")
+
+    # Step 2: Run KSTR for all ratios
+    print(f"\nStep 2: Running KSTR calculations...")
+
+    for ratio in ca_ratios:
+        input_file = f"{job_name}_{ratio:.2f}.dat"
+        input_path = os.path.join(smx_dir, input_file)
+
+        print(f"  Running KSTR for c/a = {ratio:.2f}...", end=" ", flush=True)
+
+        try:
+            # Run KSTR with stdin redirection
+            with open(input_path, 'r') as f:
+                result = subprocess.run(
+                    [kstr_executable],
+                    stdin=f,
+                    cwd=smx_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=300  # 5 minute timeout per job
+                )
+
+            if result.returncode == 0:
+                print("✓")
+            else:
+                print(f"✗ (exit code {result.returncode})")
+                if result.stderr:
+                    print(f"    Error: {result.stderr[:200]}")
+        except subprocess.TimeoutExpired:
+            print("✗ (timeout)")
+        except Exception as e:
+            print(f"✗ (error: {e})")
+
+    # Step 3: Parse .prn outputs
+    print(f"\nStep 3: Parsing KSTR outputs...")
+
+    prn_files = {}
+    for ratio in ca_ratios:
+        prn_file = os.path.join(smx_dir, f"{job_name}_{ratio:.2f}.prn")
+        if os.path.exists(prn_file):
+            prn_files[ratio] = prn_file
+        else:
+            print(f"  Warning: {prn_file} not found")
+
+    if len(prn_files) != len(ca_ratios):
+        print(f"  ⚠ Only {len(prn_files)}/{len(ca_ratios)} .prn files found")
+
+    if not prn_files:
+        print("✗ No .prn files found - DMAX optimization failed")
+        return None
+
+    # Step 4: Optimize DMAX
+    print(f"\nStep 4: Optimizing DMAX values...")
+
+    optimal_dmax = find_optimal_dmax(
+        prn_files,
+        target_vectors=target_vectors,
+        vector_tolerance=vector_tolerance
+    )
+
+    if optimal_dmax is None:
+        print("✗ DMAX optimization failed")
+        return None
+
+    # Print summary
+    print_optimization_summary(optimal_dmax)
+
+    # Step 5: Save log
+    save_dmax_optimization_log(
+        optimal_dmax,
+        output_path,
+        job_name,
+        target_vectors
+    )
+
+    # Convert to simple dict {ratio: DMAX_value}
+    dmax_dict = {ratio: values['DMAX'] for ratio, values in optimal_dmax.items()}
+
+    print("\n" + "="*70)
+    print("DMAX OPTIMIZATION COMPLETE")
+    print("="*70)
+
+    return dmax_dict
+
 
 def create_emto_inputs(
     output_path,
@@ -33,7 +181,13 @@ def create_emto_inputs(
     job_mode='serial',
     prcs=1,
     time="00:30:00",
-    account="naiss2025-1-38"
+    account="naiss2025-1-38",
+    # DMAX optimization parameters
+    optimize_dmax=False,
+    dmax_initial=2.0,
+    dmax_target_vectors=100,
+    dmax_vector_tolerance=15,
+    kstr_executable=None
 ):
     """
     Create complete EMTO input files for c/a and SWS sweeps.
@@ -84,6 +238,16 @@ def create_emto_inputs(
         Job time limit
     account : str
         SLURM account
+    optimize_dmax : bool, optional
+        Enable DMAX optimization workflow (default: False)
+    dmax_initial : float, optional
+        Initial DMAX guess for optimization (default: 2.0)
+    dmax_target_vectors : int, optional
+        Target number of k-vectors (default: 100)
+    dmax_vector_tolerance : int, optional
+        Acceptable deviation from target (default: 15)
+    kstr_executable : str, optional
+        Path to KSTR executable (required if optimize_dmax=True)
 
     Returns
     -------
@@ -133,6 +297,20 @@ def create_emto_inputs(
         ca_ratios=[0.96],
         sws_values=[2.60, 2.65],
         magnetic='F'
+    )
+
+    # CIF workflow with DMAX optimization
+    create_emto_inputs(
+        output_path="./fept_optimized",
+        job_name="fept",
+        cif_file="FePt.cif",
+        ca_ratios=[0.92, 0.96, 1.00, 1.04],
+        sws_values=[2.60, 2.65, 2.70],
+        magnetic='F',
+        optimize_dmax=True,
+        dmax_initial=2.5,
+        dmax_target_vectors=100,
+        kstr_executable="/path/to/kstr.exe"
     )
     """
 
@@ -214,23 +392,56 @@ def create_emto_inputs(
             "  2. lat=<1-14>, a=<value>, sites=<list>"
         )
 
+    # ==================== DMAX OPTIMIZATION (OPTIONAL) ====================
+    if optimize_dmax:
+        if kstr_executable is None:
+            raise ValueError("kstr_executable must be provided when optimize_dmax=True")
+
+        print("\n" + "="*70)
+        print("DMAX OPTIMIZATION WORKFLOW")
+        print("="*70)
+
+        dmax_per_ratio = _run_dmax_optimization(
+            output_path=output_path,
+            job_name=job_name,
+            structure=structure,
+            ca_ratios=ca_ratios,
+            dmax_initial=dmax_initial,
+            target_vectors=dmax_target_vectors,
+            vector_tolerance=dmax_vector_tolerance,
+            kstr_executable=kstr_executable
+        )
+
+        if dmax_per_ratio is None:
+            print("\n✗ DMAX optimization failed - aborting workflow")
+            return
+
+        print("\nProceeding to generate final input files with optimized DMAX values...")
+    else:
+        # Standard workflow - single DMAX for all ratios
+        if dmax is None:
+            dmax = 1.8  # default
+        dmax_per_ratio = {ratio: dmax for ratio in ca_ratios}
 
     # ==================== SWEEP OVER C/A RATIOS ====================
     print(f"\nCreating input files for {len(ca_ratios)} c/a ratios and {len(sws_values)} SWS values...")
 
 
-    
+
     for ratio in ca_ratios:
         print(f"\n  c/a = {ratio:.2f}")
-        
+
         file_id_ratio = f"{job_name}_{ratio:.2f}"
-        
+
+        # Get DMAX for this ratio (optimized or standard)
+        ratio_dmax = dmax_per_ratio[ratio]
+
         # ==================== CREATE KSTR INPUT ====================
         create_kstr_input(
             structure=structure,
             output_path=output_path,
             id_ratio=file_id_ratio,
-            dmax=dmax,
+            dmax=ratio_dmax,
             ca_ratio=ratio
         )
     
