@@ -287,215 +287,46 @@ def generate_emto_primitive_vectors(lat, a, b, c, alpha=90.0, beta=90.0, gamma=9
 
 def parse_emto_structure(structure_input, user_magnetic_moments=None):
     """
-    Complete function to parse structure and extract all EMTO structure information.
+    DEPRECATED: Use modules.structure_builder.create_emto_structure() instead.
 
-    This is the main function for the new workflow. It accepts either a CIF file path
-    or a pymatgen Structure object, making it compatible with both CIF-based and
-    programmatic alloy workflows.
+    This function is kept for backward compatibility but now redirects
+    to the new unified structure builder.
 
     Parameters
     ----------
     structure_input : str or pymatgen.core.Structure
-        Either:
-        - Path to CIF file (str)
-        - Pymatgen Structure object (for programmatic alloy generation)
+        Either CIF file path or pymatgen Structure object
     user_magnetic_moments : dict, optional
-        User-provided magnetic moments per element symbol.
-        Example: {'Fe': 2.5, 'Pt': 0.3}
-        If not provided, uses default database values.
+        User-provided magnetic moments
 
     Returns
     -------
     dict
-        Comprehensive structure dictionary containing:
+        EMTO structure dictionary
 
-        **Lattice information:**
-        - lat: EMTO lattice number (1-14)
-        - lattice_name: Human-readable name (e.g., 'Simple tetragonal')
-        - a, b, c: Lattice parameters (Angstrom)
-        - alpha, beta, gamma: Crystallographic angles (degrees)
-        - boa, coa: Ratios b/a and c/a
-        - BSX, BSY, BSZ: Primitive vectors (normalized to a)
-        - crystal_system: Crystal system (e.g., 'tetragonal')
-        - centering: Centering type ('P', 'I', 'F', 'C', 'R')
-
-        **Atomic information:**
-        - NQ3: Total number of atoms in unit cell
-        - NL: Number of angular momentum layers (auto-determined)
-        - atoms: List of element symbols ['Pt', 'Pt', 'Fe', 'Fe']
-        - unique_elements: List of unique elements ['Fe', 'Pt']
-        - fractional_coords: Fractional coordinates (Nx3 array)
-        - coords: Cartesian coordinates (Nx3 array, Angstrom)
-
-        **KGRN-specific information:**
-        - atom_info: List of dicts, one per atom, containing:
-            - IQ: Atom index (1-based)
-            - symbol: Element symbol (e.g., 'Fe')
-            - IT: Inequivalent atom type (from symmetry analysis)
-            - ITA: Alloy component index (always 1 for ordered structures)
-            - conc: Concentration (always 1.0 for ordered structures)
-            - default_moment: Default magnetic moment (Bohr magnetons)
-            - a_scr: Screening parameter a (default 0.750)
-            - b_scr: Screening parameter b (default 1.100)
-
-        **Raw data (for advanced use):**
-        - matrix: 3x3 lattice matrix from pymatgen
-        - structure: Pymatgen Structure object (conventional cell)
-
-    Examples
+    See Also
     --------
-    >>> # From CIF file
-    >>> structure = parse_emto_structure('FePt.cif')
-    >>> print(f"LAT={structure['lat']}, NQ3={structure['NQ3']}, NL={structure['NL']}")
-
-    >>> # From pymatgen Structure (alloy workflow)
-    >>> from pymatgen.core import Structure, Lattice
-    >>> lattice = Lattice.cubic(3.7)
-    >>> structure_pmg = Structure(lattice, ['Fe', 'Pt'], [[0, 0, 0], [0.5, 0.5, 0.5]])
-    >>> structure = parse_emto_structure(structure_pmg)
+    modules.structure_builder.create_emto_structure : New unified interface
     """
-    # ==================== INPUT TYPE DETECTION ====================
-    # Check if input is a string (CIF path) or Structure object
+    from modules.structure_builder import create_emto_structure
+
+    # Determine if it's a CIF file or Structure object
     if isinstance(structure_input, str):
-        # CIF file path - use existing extraction functions
-        from modules.parse_cif import get_LatticeVectors
-        matrix, coords, a, b, c, atoms_species = get_LatticeVectors(structure_input)
-
-        # Load structure from CIF
-        structure = Structure.from_file(structure_input)
-        sga = SpacegroupAnalyzer(structure)
-        conv_structure = sga.get_conventional_standard_structure()
-
+        # CIF file path
+        return create_emto_structure(
+            cif_file=structure_input,
+            user_magnetic_moments=user_magnetic_moments
+        )
     elif isinstance(structure_input, Structure):
-        # Pymatgen Structure object - extract info directly
-        sga = SpacegroupAnalyzer(structure_input)
-        conv_structure = sga.get_conventional_standard_structure()
-
-        # Extract lattice parameters
-        a = conv_structure.lattice.a
-        b = conv_structure.lattice.b
-        c = conv_structure.lattice.c
-
-        # Get matrix and coordinates
-        matrix = conv_structure.lattice.matrix
-        coords = conv_structure.cart_coords
-        atoms_species = [site.specie for site in conv_structure.sites]
-
+        # Pymatgen Structure - convert through new interface
+        # We need to pass it through structure_to_emto_dict
+        from modules.structure_builder import _structure_to_emto_dict
+        return _structure_to_emto_dict(structure_input, user_magnetic_moments)
     else:
         raise TypeError(
             f"structure_input must be either a string (CIF path) or "
             f"pymatgen Structure object, got {type(structure_input)}"
         )
-
-    # ==================== COMMON EXTRACTION ====================
-    sites_frac = conv_structure.frac_coords
-    alpha = conv_structure.lattice.alpha
-    beta = conv_structure.lattice.beta
-    gamma = conv_structure.lattice.gamma
-
-    # ==================== LAT DETECTION ====================
-    # Detect LAT number from conventional structure
-    crystal_system = sga.get_crystal_system()
-    spacegroup_symbol = sga.get_space_group_symbol()
-    centering = spacegroup_symbol[0]  # First letter
-    lat, lattice_name = map_to_lat_number(crystal_system, centering)
-
-    # Generate primitive vectors using EMTO formulas
-    BSX, BSY, BSZ, boa, coa = generate_emto_primitive_vectors(
-        lat, a, b, c, alpha, beta, gamma
-    )
-
-    # ==================== ATOM INFORMATION ====================
-    # Convert pymatgen Species to symbols
-    atoms = [str(atom.symbol) for atom in atoms_species]
-    unique_elements = sorted(set(atoms))  # Sorted for consistency
-    NQ3 = len(atoms)
-
-    # Determine NL from electronic structure (maximum orbital angular momentum)
-    # NL represents the basis set size needed: includes ALL orbitals (core + valence)
-    # NL=1: s,p orbitals needed
-    # NL=2: s,p,d orbitals needed
-    # NL=3: s,p,d,f orbitals needed
-    NLs = []
-    for atom_symbol in set(atoms):
-        from pymatgen.core import Element
-        elem = Element(atom_symbol)
-        electronic_str = elem.electronic_structure
-
-        # Check if f-orbitals are present (even as core electrons)
-        if 'f' in electronic_str:
-            NLs.append(3)
-        # Check if d-orbitals are present
-        elif 'd' in electronic_str:
-            NLs.append(2)
-        # Check if p-orbitals are present
-        elif 'p' in electronic_str:
-            NLs.append(1)
-        else:
-            NLs.append(1)  # Default to s,p (NL=1)
-
-    NL = max(NLs) if NLs else 2  # Default to 2 if can't determine
-
-    # ==================== INEQUIVALENT ATOMS (IT) ====================
-    site_to_it = get_inequivalent_atoms(conv_structure)
-
-    # ==================== BUILD ATOM_INFO LIST ====================
-    atom_info = []
-
-    for iq in range(NQ3):
-        symbol = atoms[iq]
-
-        # Get magnetic moment (user-provided or default)
-        if user_magnetic_moments and symbol in user_magnetic_moments:
-            moment = user_magnetic_moments[symbol]
-        else:
-            moment = get_default_magnetic_moment(symbol)
-
-        atom_info.append({
-            'IQ': iq + 1,  # 1-based indexing for EMTO
-            'symbol': symbol,
-            'IT': site_to_it[iq],  # From symmetry analysis
-            'ITA': 1,  # Always 1 for ordered structures
-            'conc': 1.0,  # Always 1.0 for ordered structures
-            'default_moment': moment,
-            'a_scr': 0.750,  # Default screening parameter
-            'b_scr': 1.100,  # Default screening parameter
-        })
-
-    # ==================== RETURN COMPREHENSIVE DICTIONARY ====================
-    return {
-        # Lattice information
-        'lat': lat,
-        'lattice_name': lattice_name,
-        'a': a,
-        'b': b,
-        'c': c,
-        'alpha': alpha,
-        'beta': beta,
-        'gamma': gamma,
-        'boa': boa,
-        'coa': coa,
-        'BSX': BSX,
-        'BSY': BSY,
-        'BSZ': BSZ,
-        'crystal_system': crystal_system,
-        'centering': centering,
-
-        # Atomic information
-        'NQ3': NQ3,
-        'NL': NL,
-        'atoms': atoms,
-        'unique_elements': unique_elements,
-        'fractional_coords': sites_frac,
-        'coords': coords,
-
-        # KGRN-specific
-        'atom_info': atom_info,
-
-        # Raw data
-        'matrix': matrix,
-        'structure': conv_structure,
-    }
 
 
 # Backward compatibility alias
