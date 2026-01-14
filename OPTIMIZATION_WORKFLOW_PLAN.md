@@ -377,8 +377,7 @@ class OptimizationWorkflow:
         6. Extract optimal c/a from EOS results
         7. Save results:
            - EOS plot (e.g., 'ca_optimization/eos_ca.png')
-           - Parsed EOS results (e.g., 'ca_optimization/eos_ca_results.json')
-           - Optimal parameters (e.g., 'ca_optimization/optimal_ca.txt')
+           - Parsed EOS results with optimal c/a (e.g., 'ca_optimization/eos_ca_results.json')
         8. Return results for use in Phase 2
 
         Returns:
@@ -407,9 +406,8 @@ class OptimizationWorkflow:
            c = a*ca
         8. Save results:
            - EOS plot (e.g., 'sws_optimization/eos_sws.png')
-           - Parsed EOS results (e.g., 'sws_optimization/eos_sws_results.json')
-           - Optimal parameters (e.g., 'sws_optimization/optimal_sws.txt')
-           - Derived parameters (a, c, volume) in JSON
+           - Parsed EOS results with optimal SWS (e.g., 'sws_optimization/eos_sws_results.json')
+           - Derived parameters: a, c, volume (e.g., 'sws_optimization/derived_params.json')
         9. Return results for use in Phase 3
 
         Returns:
@@ -774,8 +772,7 @@ results = workflow.run_complete_workflow(ca_ratios, sws_range, initial_sws)
 - [ ] Run EOS fit and extract optimal c/a
 - [ ] Save results:
   - EOS plot (eos_ca.png)
-  - Parsed EOS results (eos_ca_results.json)
-  - Optimal parameters (optimal_ca.txt)
+  - Parsed EOS results with optimal c/a (eos_ca_results.json)
 - [ ] Return results for Phase 2
 
 ### 6. Implement Phase 2: SWS Optimization
@@ -786,9 +783,8 @@ results = workflow.run_complete_workflow(ca_ratios, sws_range, initial_sws)
 - [ ] Calculate derived parameters (a, c, volume)
 - [ ] Save results:
   - EOS plot (eos_sws.png)
-  - Parsed EOS results (eos_sws_results.json)
-  - Optimal parameters (optimal_sws.txt)
-  - Derived parameters JSON
+  - Parsed EOS results with optimal SWS (eos_sws_results.json)
+  - Derived parameters: a, c, volume (derived_params.json)
 - [ ] Return results for Phase 3
 
 ### 7. Implement Phase 3: Optimized Calculation
@@ -1008,11 +1004,10 @@ results = workflow.run_complete_workflow()
 
 # Results automatically saved to files:
 # - ca_optimization/eos_ca.png
-# - ca_optimization/eos_ca_results.json
-# - ca_optimization/optimal_ca.txt
+# - ca_optimization/eos_ca_results.json (includes optimal c/a)
 # - sws_optimization/eos_sws.png
-# - sws_optimization/eos_sws_results.json
-# - sws_optimization/optimal_sws.txt
+# - sws_optimization/eos_sws_results.json (includes optimal SWS)
+# - sws_optimization/derived_params.json (a, c, volume)
 # - optimized/summary.txt
 # - optimized/convergence.png
 
