@@ -1,0 +1,10 @@
+ KSTR: job = Co_1.80, cmode = KSTR, nl = 2 Kappa2 =  0.0
+ Primv: Construct lattice
+
+ Stop:     KSTR Latt3d
+           ncrq =  69 < mriq =  80 after 10 iterations                                                                             
+           DMAX =   2.00000 too small                                                                                              
+           Try DMAX =   2.44000 or decrease mriq                                                                                   
+           ./Co_1.80.tfm: deleted
+           ./Co_1.80.tfh: deleted
+           ./Co_1.80.mdl: deleted

@@ -1,0 +1,47 @@
+ Fhndlr:   Program: KSTR, Version: LV-HLS 23 Oct 2003                TM: 11:19
+           Slope & Madelung matrices, Lat= hex, Job=Co_1.70    11:19/14-Jan-26  
+
+           JOB   : Co_1.70, cmode = KSTR
+           FOR001: ./Co_1.70.tfm
+           FOR002: ./Co_1.70.tfh
+           FOR003: ./Co_1.70.mdl
+           FOR006: Co_1.70.prn
+           FOR050: Co_1.70.log
+
+ Input:    MODE  =  B STORE =  Y NPRN  =  1
+
+           NL   =  2 NLH  =  9 NLW  =  9 NDER =  6
+
+           DMAX    =  2.000000 DWATS  =  0.100000
+
+           (K*W)^2 =  0.000000 ITRANS = 3
+
+ Primv:    Special choice of primitive vectors, lattice= hex
+
+           A     =  1.000000 B     =  1.000000 C     =  1.700000
+           Alpha =    90.000 Beta  =    90.000 Gamma =   120.000
+
+           Primitive vectors for  hex lattice in
+           units of the lattice spacing a:
+
+           (   1.00000,   0.00000,   0.00000 )
+           (  -0.50000,   0.86603,   0.00000 )
+           (   0.00000,   0.00000,   1.70000 )
+
+           Basis vectors:            NQ3 =   2
+
+           (   0.00000,   0.00000,   0.00000 )
+           (  -0.50000,   0.28868,  -0.85000 )
+
+
+ Primkr:   Wigner Seitz radius:  0.560128 VOL   =  1.472243
+
+
+           Primitive vectors of reciprocal space
+           in units of 2*pi/a
+
+           (   1.00000,   0.57735,   0.00000  )
+           (   0.00000,   1.15470,   0.00000  )
+           (   0.00000,   0.00000,   0.58824  )
+
+ Set3d:    Basis vectors in 3D cell are set.
