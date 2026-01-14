@@ -89,7 +89,7 @@ def create_kstr_input(
     
 
     template = f"""KSTR      HP......=N                               xx xxx xx
-JOBNAM...={id_ratio:<10} MSGL.=  1 MODE...=B STORE..=Y HIGH...=Y
+JOBNAM...={id_ratio:<13} MSGL.=  1 MODE...=B STORE..=Y HIGH...=Y
 DIR001=./
 DIR006=
 Slope and Madelung matrices
