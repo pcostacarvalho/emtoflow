@@ -567,130 +567,42 @@ The workflow will need:
 Proposed organization for workflow outputs:
 
 ```
-base_path/
-├── composition_0.0/
-│   ├── ca_optimization/
-│   │   ├── smx/              # KSTR files
-│   │   ├── shp/              # SHAPE files
-│   │   ├── fcd/              # KFCD files
-│   │   ├── *.dat             # KGRN files
-│   │   ├── eos.dat           # EOS input
-│   │   ├── eos.out           # EOS output
-│   │   └── ca_eos_plot.png
-│   ├── sws_optimization/
-│   │   ├── smx/
-│   │   ├── shp/
-│   │   ├── fcd/
-│   │   ├── *.dat
-│   │   ├── eos.dat
-│   │   ├── eos.out
-│   │   └── sws_eos_plot.png
-│   ├── optimized/
-│   │   ├── smx/
-│   │   ├── shp/
-│   │   ├── fcd/
-│   │   ├── *.dat
-│   │   ├── *.dos
-│   │   ├── convergence.png
-│   │   └── summary.txt
-│   └── results_composition_0.0.json
-├── composition_0.1/
-│   └── ...
-├── analysis/
-│   ├── lattice_parameters.png
-│   ├── magnetic_moments.png
-│   ├── volumes.png
-│   ├── dos_comparison.png
-│   └── all_results.csv
-└── workflow_summary.md
-```
-
----
-
-## Workflow Execution Modes
-
-### Mode 1: Full Automated Workflow
-
-```python
-from modules.optimization_workflow import OptimizationWorkflow
-from modules.multi_composition_analysis import MultiCompositionAnalysis
-
-# Setup
-compositions = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
-ca_ratios = np.linspace(0.89, 1.01, 7)
-sws_range = np.linspace(2.77, 2.95, 7)
-initial_sws = [2.82]
-
-# Configuration
-emto_config = {
-    'lat': 5,                    # Body-centered tetragonal
-    'dmax': 1.52,
-    'magnetic': 'P',             # Paramagnetic
-    'NL': 3,
-    'NQ3': 4,
-    'fractional_coords': np.array([...]),
-    'sites': [...]
-}
-
-# Multi-composition analysis
-analysis = MultiCompositionAnalysis(compositions, reference_composition=0.0)
-
-# Run workflow for each composition
-for comp in compositions:
-    workflow = OptimizationWorkflow(
-        base_path=f'composition_{comp:.1f}',
-        job_name=f'system_p{comp:.1f}',
-        emto_config=emto_config,
-        eos_executable='/path/to/eos.exe'
-    )
-
-    # Run complete workflow
-    results = workflow.run_complete_workflow(ca_ratios, sws_range, initial_sws)
-
-    # Add to analysis
-    analysis.add_results(comp, results)
-
-# Generate comparative analysis
-analysis.calculate_percentage_changes()
-analysis.generate_full_report(output_dir='analysis')
-```
-
-### Mode 2: Step-by-Step Workflow
-
-```python
-# Run each phase manually with full control
-workflow = OptimizationWorkflow(...)
-
-# Phase 1: c/a optimization
-optimal_ca, ca_results = workflow.run_ca_optimization(ca_ratios, initial_sws)
-print(f"Optimal c/a: {optimal_ca}")
-
-# Phase 2: SWS optimization
-optimal_sws, sws_results, derived = workflow.run_sws_optimization(optimal_ca, sws_range)
-print(f"Optimal SWS: {optimal_sws}")
-print(f"Derived: a={derived['a']:.4f}, c={derived['c']:.4f}, V={derived['vol']:.4f}")
-
-# Phase 3: Optimized calculation
-calc_path = workflow.run_optimized_calculation(optimal_ca, optimal_sws)
-
-# Phase 4: Parse results
-kgrn, kfcd, report = workflow.parse_results(calc_path)
-
-# Phase 5: DOS analysis
-dos_data = workflow.analyze_dos(calc_path, plot=True)
-
-# Phase 6: Generate report
-workflow.generate_report(output_file='final_summary.txt')
-```
-
-### Mode 3: Resume from Existing Calculations
-
-```python
-# Skip calculation steps if output already exists
-workflow = OptimizationWorkflow(..., skip_existing=True)
-
-# Will check for existing output and skip if found
-results = workflow.run_complete_workflow(ca_ratios, sws_range, initial_sws)
+base_path/                    # User-specified output directory
+├── ca_optimization/          # Phase 1: c/a ratio optimization
+│   ├── smx/                  # KSTR files (structural data)
+│   ├── shp/                  # SHAPE files
+│   ├── fcd/                  # KFCD files (energy outputs)
+│   ├── *.dat                 # KGRN input files
+│   ├── *.prn                 # KGRN/KFCD output files
+│   ├── run_*.sh              # Job submission scripts
+│   ├── eos.dat               # EOS input file
+│   ├── eos.out               # EOS output file
+│   ├── eos_ca.png            # EOS plot
+│   └── eos_ca_results.json   # Parsed EOS results with optimal c/a
+├── sws_optimization/         # Phase 2: SWS optimization
+│   ├── smx/
+│   ├── shp/
+│   ├── fcd/
+│   ├── *.dat
+│   ├── *.prn
+│   ├── run_*.sh
+│   ├── eos.dat
+│   ├── eos.out
+│   ├── eos_sws.png           # EOS plot
+│   ├── eos_sws_results.json  # Parsed EOS results with optimal SWS
+│   └── derived_params.json   # Derived parameters (a, c, volume)
+├── optimized/                # Phase 3: Final calculation with optimal parameters
+│   ├── smx/
+│   ├── shp/
+│   ├── fcd/
+│   ├── *.dat
+│   ├── *.prn
+│   ├── *.dos                 # DOS files
+│   ├── run_*.sh
+│   ├── convergence.png       # Convergence plot
+│   ├── dos_plot.png          # DOS plot
+│   └── summary.txt           # Summary report
+└── workflow_results.json     # Complete workflow results
 ```
 
 ---
