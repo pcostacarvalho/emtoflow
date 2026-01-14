@@ -218,12 +218,36 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
 
         return None
 
+    # Step 2b: Organize KSTR output files
+    print(f"\nStep 2b: Organizing KSTR output files...")
+
+    # Create logs directory inside smx
+    logs_dir = os.path.join(smx_dir, "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+
+    # Move KSTR output files to logs (keep .dat input files in smx/)
+    output_extensions = ['.log', '.mdl', '.prn', '.tfh', '.tfm']
+    moved_files = 0
+
+    for ratio in ca_ratios_sorted:
+        for ext in output_extensions:
+            filename = f"{job_name}_{ratio:.2f}{ext}"
+            src = os.path.join(smx_dir, filename)
+            dst = os.path.join(logs_dir, filename)
+
+            if os.path.exists(src):
+                os.rename(src, dst)
+                moved_files += 1
+
+    print(f"  ✓ Moved {moved_files} output files to smx/logs/")
+
     # Step 3: Parse .prn outputs
     print(f"\nStep 3: Parsing KSTR outputs...")
 
     prn_files = {}
     for ratio in ca_ratios_sorted:
-        prn_file = os.path.join(smx_dir, f"{job_name}_{ratio:.2f}.prn")
+        # Now look for .prn files in logs directory
+        prn_file = os.path.join(logs_dir, f"{job_name}_{ratio:.2f}.prn")
         if os.path.exists(prn_file):
             prn_files[ratio] = prn_file
         else:
