@@ -245,8 +245,29 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
                 text=True
             )
 
-            # Give process a moment to start
-            time.sleep(0.05)
+            # Give process a moment to start and check it's running
+            time.sleep(0.1)
+
+            # Check if process started successfully
+            initial_poll = process.poll()
+            if initial_poll is not None:
+                # Process already ended - this is suspicious
+                stdout_f.flush()
+                stdout_f.close()
+                stdin_file.close()
+
+                with open(stdout_file, 'r') as f:
+                    early_stdout = f.read()
+
+                _, early_stderr = process.communicate(timeout=1)
+
+                print(f"✗ (process ended immediately, code {initial_poll})")
+                if early_stderr:
+                    print(f"    stderr: {early_stderr[:200]}")
+                if early_stdout:
+                    print(f"    stdout: {early_stdout[:200]}")
+                failed_ratios.append(ratio)
+                continue
 
             # Poll for .prn file with IQ=1 section complete
             poll_interval = 0.1  # seconds
@@ -255,6 +276,10 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
             prn_complete = False
 
             while elapsed_time < max_wait_time:
+                # Flush stdout to disk so we can see output even if process is killed
+                if stdout_f and not stdout_f.closed:
+                    stdout_f.flush()
+
                 # Check if process is still running
                 poll_result = process.poll()
 
@@ -275,11 +300,18 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
 
                 # If process finished naturally, check for completion
                 if poll_result is not None:
+                    # Flush and close files to ensure everything is written
+                    if stdout_f and not stdout_f.closed:
+                        stdout_f.flush()
+
                     if _check_prn_iq1_complete(prn_file):
                         prn_complete = True
                         print(f"✓ (completed in {elapsed_time:.1f}s)")
                     else:
-                        print("✗ (process ended without complete data)")
+                        # Check what files were actually created
+                        import glob
+                        created_files = glob.glob(os.path.join(smx_dir, f"{job_name}_{ratio:.2f}.*"))
+                        print(f"✗ (process ended without complete data, created {len(created_files)} files)")
                     break
 
                 time.sleep(poll_interval)
