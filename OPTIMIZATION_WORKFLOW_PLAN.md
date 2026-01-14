@@ -46,7 +46,7 @@ This workflow is based on the notebook `files/codes_for_opt/pm_parse_percentages
 - EOS fitting with EMTO's Fortran executable
 - Results parsing (energies, magnetic moments)
 - DOS generation and plotting
-- Multi-composition comparative analysis
+- Comprehensive results reporting
 
 ---
 
