@@ -1,5 +1,6 @@
 import re
 import os
+import math
 
 def parse_prn_file(filepath):
     """
@@ -21,45 +22,52 @@ def parse_prn_file(filepath):
         content = f.read()
     
     lines = content.split('\n')
-    
-    shell_data = []
+
+    # Use dictionary to track shells - will keep last neighbor's data for each shell
+    shell_dict = {}
     cumulative_vectors = 0
-    current_shell = 0
-    
+
     # Flag to track if we're in the IQ = 1 section
     in_iq1_section = False
-    
+
     for line in lines:
         # Start capturing when we find "IQ =  1"
         if 'IQ =  1' in line and 'QP' in line:
             in_iq1_section = True
             continue
-        
+
         # Stop capturing when we find the next "IQ =" (IQ = 2, 3, etc.)
         if in_iq1_section and re.search(r'IQ\s*=\s*[2-9]', line):
             break
-        
+
         # Pattern to match data lines: IS IN IR JQ D ...
         if in_iq1_section:
             pattern = r'^\s+(\d+)\s+\d+\s+\d+\s+\d+\s+([\d.]+)\s+'
             match = re.match(pattern, line)
-            
+
             if match:
                 shell_num = int(match.group(1))
                 d_value = float(match.group(2))
-                
+
                 # Each line represents one neighbor (vector)
                 cumulative_vectors += 1
-                
-                # When shell number changes, record the shell
-                if shell_num != current_shell:
-                    current_shell = shell_num
-                    shell_data.append({
-                        'D': d_value,
-                        'shell': shell_num,
-                        'cumulative_vectors': cumulative_vectors
-                    })
-    
+
+                # Update entry for this shell (keeps last neighbor's data)
+                shell_dict[shell_num] = {
+                    'D': d_value,
+                    'cumulative_vectors': cumulative_vectors
+                }
+
+    # Convert dictionary to sorted list
+    shell_data = [
+        {
+            'D': data['D'],
+            'shell': shell,
+            'cumulative_vectors': data['cumulative_vectors']
+        }
+        for shell, data in sorted(shell_dict.items())
+    ]
+
     return shell_data
 
 
@@ -166,6 +174,19 @@ def find_optimal_dmax(prn_files_dict, target_vectors=100, vector_tolerance=10):
     ref_dmax, ref_shell, ref_vectors = candidates[0]
 
     print(f"  Reference: DMAX={ref_dmax:.6f}, Shell={ref_shell}, Vectors={ref_vectors}")
+
+    # Check if the found shell is within tolerance
+    distance_from_target = abs(ref_vectors - target_vectors)
+    if distance_from_target > vector_tolerance:
+        print(f"\n  ✗ ERROR: Tolerance not satisfied!")
+        print(f"  Closest available shell ({ref_shell}) has {ref_vectors} vectors.")
+        print(f"  Target was {target_vectors} ± {vector_tolerance} vectors.")
+        print(f"  Distance from target: {distance_from_target} vectors (exceeds tolerance: {vector_tolerance})")
+        print(f"\n  SUGGESTION: Increase 'dmax_initial' to reach higher shells with more vectors.")
+        print(f"  Current dmax_initial captured up to DMAX={ref_dmax:.3f}")
+        print(f"  Try increasing to dmax_initial={ref_dmax * 1.5:.1f} or higher.\n")
+        return None
+
     print(f"  Using Shell {ref_shell} as target for all ratios\n")
 
     # Initialize results with first ratio
@@ -206,7 +227,30 @@ def find_optimal_dmax(prn_files_dict, target_vectors=100, vector_tolerance=10):
             print(f"DMAX={matching_entry['D']:.6f}, Vectors={matching_entry['cumulative_vectors']}")
         else:
             print(f"ERROR: Shell {ref_shell} not found in output")
-            # This shouldn't happen if DMAX_initial was large enough
+
+    # CHECK: Did all ratios succeed?
+    if len(result) != len(ratios):
+        print(f"\n  ✗ ERROR: Could not find Shell {ref_shell} for all ratios!")
+        print(f"  Successfully optimized: {len(result)}/{len(ratios)} ratios")
+        print(f"  Failed ratios: {[r for r in ratios if r not in result]}")
+        print(f"\n  SOLUTION: Increase 'dmax_initial' parameter to capture higher shells.")
+        print(f"  Current dmax_initial captured up to DMAX={ref_dmax:.3f} for c/a={first_ratio:.2f}")
+        print(f"  Suggestion: Try dmax_initial={ref_dmax * 1.5:.1f} or higher.\n")
+        return None
+
+    # STEP 3: Round DMAX values to 3 decimals (round up)
+    print(f"\nStep 3: Rounding DMAX values to 3 decimals...")
+
+    for ratio in result.keys():
+        original_dmax = result[ratio]['DMAX']
+        # Round up to 3 decimals using ceiling
+        rounded_dmax = math.ceil(original_dmax * 1000) / 1000.0
+        result[ratio]['DMAX'] = rounded_dmax
+
+        if abs(original_dmax - rounded_dmax) > 0.0001:
+            print(f"  c/a = {ratio:.2f}: {original_dmax:.6f} → {rounded_dmax:.3f}")
+        else:
+            print(f"  c/a = {ratio:.2f}: {rounded_dmax:.3f} (no change)")
 
     return result
 
@@ -236,18 +280,18 @@ def update_kstr_files(path, ratio_dmax_dict, name_id):
             content = f.read()
         
         # Replace DMAX value using regex
-        # Pattern: DMAX....=    X.XXXXXX
+        # Pattern: DMAX....=    X.XXX (3 decimal places)
         dmax_value = values['DMAX']
-        new_dmax_str = f"{dmax_value:>6.6f}"
-        
+        new_dmax_str = f"{dmax_value:>6.3f}"
+
         pattern = r'(DMAX....=\s+)([\d.]+)'
         updated_content = re.sub(pattern, rf'\g<1>{new_dmax_str}', content)
-        
+
         # Write back
         with open(filename, 'w') as f:
             f.write(updated_content)
-        
-        print(f"Updated {filename}: DMAX = {dmax_value:.6f} "
+
+        print(f"Updated {filename}: DMAX = {dmax_value:.3f} "
               f"(shells={values['shells']}, vectors={values['vectors']})")
 
 
@@ -272,7 +316,7 @@ def print_optimization_summary(optimal_dmax):
     
     for ratio in sorted(optimal_dmax.keys()):
         values = optimal_dmax[ratio]
-        print(f"{ratio:<15.2f} {values['DMAX']:<12.6f} {values['shells']:<10} {values['vectors']:<10}")
+        print(f"{ratio:<15.2f} {values['DMAX']:<12.3f} {values['shells']:<10} {values['vectors']:<10}")
     
     print("="*70)
     
@@ -331,7 +375,7 @@ def save_dmax_optimization_log(optimal_dmax, log_path, job_name, target_vectors)
 
         for ratio in sorted(optimal_dmax.keys()):
             values = optimal_dmax[ratio]
-            f.write(f"{ratio:<15.2f} {values['DMAX']:<12.6f} "
+            f.write(f"{ratio:<15.2f} {values['DMAX']:<12.3f} "
                    f"{values['shells']:<10} {values['vectors']:<10}\n")
 
         f.write("="*70 + "\n")
@@ -343,8 +387,8 @@ def save_dmax_optimization_log(optimal_dmax, log_path, job_name, target_vectors)
 
         f.write("\nSTATISTICS\n")
         f.write("-"*70 + "\n")
-        f.write(f"DMAX Range: {min(dmaxes):.6f} - {max(dmaxes):.6f} "
-               f"(Δ={max(dmaxes)-min(dmaxes):.6f})\n")
+        f.write(f"DMAX Range: {min(dmaxes):.3f} - {max(dmaxes):.3f} "
+               f"(Δ={max(dmaxes)-min(dmaxes):.3f})\n")
         f.write(f"Shell Range: {min(shells)} - {max(shells)} "
                f"(Δ={max(shells)-min(shells)})\n")
         f.write(f"Vector Range: {min(vectors)} - {max(vectors)} "

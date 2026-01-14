@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import re
 import subprocess
 from modules.inputs import (
     create_kstr_input,
@@ -10,6 +11,68 @@ from modules.inputs import (
     write_parallel_sbatch
 )
 from modules.structure_builder import create_emto_structure
+
+
+def _check_kstr_success(stdout, stderr, log_file=None):
+    """
+    Check if KSTR execution succeeded by analyzing output.
+
+    KSTR can return exit code 0 even when it fails, so we need to check
+    the actual output for success/failure indicators.
+
+    Parameters
+    ----------
+    stdout : str
+        Standard output from KSTR
+    stderr : str
+        Standard error from KSTR
+    log_file : str, optional
+        Path to .log file to check (if available)
+
+    Returns
+    -------
+    tuple: (success: bool, error_message: str or None)
+
+    Success indicators:
+    - Contains "KSTR: OK  Finished at:"
+
+    Failure indicators:
+    - Contains "Stop:" or "DMAX =" with "too small"
+    - Files deleted messages (tfm, tfh, mdl)
+    """
+    # Combine stdout and stderr for checking
+    output = stdout + "\n" + stderr
+
+    # Check log file if provided
+    if log_file and os.path.exists(log_file):
+        with open(log_file, 'r') as f:
+            output += "\n" + f.read()
+
+    # Check for success indicator
+    if "KSTR: OK" in output and "Finished at:" in output:
+        return True, None
+
+    # Check for failure indicators
+    if "Stop:" in output:
+        # Extract error details
+        lines = output.split('\n')
+        error_lines = []
+        for i, line in enumerate(lines):
+            if "Stop:" in line:
+                # Get the next few lines for context
+                error_lines = lines[i:min(i+5, len(lines))]
+                break
+
+        error_msg = "\n".join(error_lines)
+
+        # Check if it's a DMAX too small error
+        if "DMAX" in error_msg and "too small" in error_msg:
+            return False, "DMAX_TOO_SMALL: " + error_msg
+        else:
+            return False, "KSTR_ERROR: " + error_msg
+
+    # If we reach here, no clear success indicator was found
+    return False, "KSTR did not complete successfully (no 'KSTR: OK' found)"
 
 
 def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
@@ -87,9 +150,14 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
     # Step 2: Run KSTR for all ratios
     print(f"\nStep 2: Running KSTR calculations...")
 
+    failed_ratios = []
+    dmax_too_small_errors = []
+
     for ratio in ca_ratios_sorted:
         input_file = f"{job_name}_{ratio:.2f}.dat"
         input_path = os.path.join(smx_dir, input_file)
+        log_file = os.path.join(smx_dir, f"{job_name}_{ratio:.2f}.log")
+        stdout_file = os.path.join(smx_dir, f"{job_name}_{ratio:.2f}_stdout.log")
 
         print(f"  Running KSTR for c/a = {ratio:.2f}...", end=" ", flush=True)
 
@@ -105,23 +173,106 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
                     timeout=300  # 5 minute timeout per job
                 )
 
-            if result.returncode == 0:
+            # Save stdout to file
+            with open(stdout_file, 'w') as f:
+                f.write(result.stdout)
+                if result.stderr:
+                    f.write("\n\n=== STDERR ===\n")
+                    f.write(result.stderr)
+
+            # Check if KSTR succeeded (don't rely on return code alone)
+            success, error_msg = _check_kstr_success(
+                result.stdout,
+                result.stderr,
+                log_file
+            )
+
+            if success:
                 print("✓")
             else:
-                print(f"✗ (exit code {result.returncode})")
-                if result.stderr:
-                    print(f"    Error: {result.stderr[:200]}")
+                print("✗")
+                failed_ratios.append(ratio)
+
+                # Print error details
+                if error_msg:
+                    print(f"    {error_msg.split(':')[0]}")
+                    if "DMAX_TOO_SMALL" in error_msg:
+                        dmax_too_small_errors.append((ratio, error_msg))
+
         except subprocess.TimeoutExpired:
             print("✗ (timeout)")
+            failed_ratios.append(ratio)
         except Exception as e:
             print(f"✗ (error: {e})")
+            failed_ratios.append(ratio)
+
+    # Check if any KSTR runs failed
+    if failed_ratios:
+        print(f"\n✗ ERROR: KSTR failed for {len(failed_ratios)}/{len(ca_ratios_sorted)} ratios")
+        print(f"  Failed ratios: {failed_ratios}")
+
+        if dmax_too_small_errors:
+            print("\n  DMAX TOO SMALL detected:")
+            for ratio, error_msg in dmax_too_small_errors:
+                # Extract suggested DMAX if available
+                if "Try DMAX =" in error_msg:
+                    match = re.search(r'Try DMAX\s*=\s*([\d.]+)', error_msg)
+                    if match:
+                        suggested_dmax = float(match.group(1))
+                        print(f"    c/a = {ratio:.2f}: Increase dmax_initial to at least {suggested_dmax:.2f}")
+
+            print(f"\n  SOLUTION: Increase 'dmax_initial' parameter (currently {dmax_initial:.2f})")
+            print(f"  Suggestion: Try dmax_initial={dmax_initial * 1.5:.2f} or higher")
+
+        return None
+
+    # Step 2b: Organize KSTR output files
+    print(f"\nStep 2b: Organizing KSTR output files...")
+
+    # Create logs directory inside smx
+    logs_dir = os.path.join(smx_dir, "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+
+    # Move KSTR output files to logs
+    output_extensions = ['.log', '.mdl', '.prn', '.tfh', '.tfm']
+    moved_files = 0
+
+    for ratio in ca_ratios_sorted:
+        # Move output files
+        for ext in output_extensions:
+            filename = f"{job_name}_{ratio:.2f}{ext}"
+            src = os.path.join(smx_dir, filename)
+            dst = os.path.join(logs_dir, filename)
+
+            if os.path.exists(src):
+                os.rename(src, dst)
+                moved_files += 1
+
+        # Move stdout log file
+        stdout_filename = f"{job_name}_{ratio:.2f}_stdout.log"
+        stdout_src = os.path.join(smx_dir, stdout_filename)
+        stdout_dst = os.path.join(logs_dir, stdout_filename)
+        if os.path.exists(stdout_src):
+            os.rename(stdout_src, stdout_dst)
+            moved_files += 1
+
+        # Move initial .dat file (with dmax_initial) to logs with descriptive name
+        dat_filename = f"{job_name}_{ratio:.2f}.dat"
+        dat_src = os.path.join(smx_dir, dat_filename)
+        dat_dst = os.path.join(logs_dir, f"{job_name}_{ratio:.2f}_dmax_initial_{dmax_initial:.2f}.dat")
+        if os.path.exists(dat_src):
+            os.rename(dat_src, dat_dst)
+            moved_files += 1
+
+    print(f"  ✓ Moved {moved_files} files to smx/logs/ (outputs + initial .dat files)")
 
     # Step 3: Parse .prn outputs
     print(f"\nStep 3: Parsing KSTR outputs...")
 
     prn_files = {}
     for ratio in ca_ratios_sorted:
-        prn_file = os.path.join(smx_dir, f"{job_name}_{ratio:.2f}.prn")
+        # Now look for .prn files in logs directory
+        prn_file = os.path.join(logs_dir, f"{job_name}_{ratio:.2f}.prn")
         if os.path.exists(prn_file):
             prn_files[ratio] = prn_file
         else:
