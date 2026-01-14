@@ -47,6 +47,13 @@ if not os.path.exists(KSTR_EXECUTABLE):
     print("   - HPC: /proj/your_project/bin/kstr.exe")
     sys.exit(1)
 
+# Clean up previous test output
+import shutil
+if os.path.exists("./test_fast_cu"):
+    print("🧹 Cleaning up previous test output...")
+    shutil.rmtree("./test_fast_cu")
+    print()
+
 # Test Case 1: Small system (Cu FCC) - should be very fast
 print("\n" + "="*70)
 print("TEST CASE 1: Copper (FCC) - 3 c/a ratios")

@@ -227,18 +227,26 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
         print(f"  Running KSTR for c/a = {ratio:.2f}...", end=" ", flush=True)
 
         process = None
+        stdin_file = None
+        stdout_f = None
+
         try:
+            # Open file handles (must stay open for subprocess)
+            stdin_file = open(input_path, 'r')
+            stdout_f = open(stdout_file, 'w')
+
             # Start KSTR process (non-blocking)
-            with open(input_path, 'r') as stdin_file:
-                with open(stdout_file, 'w') as stdout_f:
-                    process = subprocess.Popen(
-                        [kstr_executable],
-                        stdin=stdin_file,
-                        stdout=stdout_f,
-                        stderr=subprocess.PIPE,
-                        cwd=smx_dir,
-                        text=True
-                    )
+            process = subprocess.Popen(
+                [kstr_executable],
+                stdin=stdin_file,
+                stdout=stdout_f,
+                stderr=subprocess.PIPE,
+                cwd=smx_dir,
+                text=True
+            )
+
+            # Give process a moment to start
+            time.sleep(0.05)
 
             # Poll for .prn file with IQ=1 section complete
             poll_interval = 0.1  # seconds
@@ -276,6 +284,12 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
 
                 time.sleep(poll_interval)
                 elapsed_time += poll_interval
+
+            # Close file handles before reading outputs
+            if stdin_file:
+                stdin_file.close()
+            if stdout_f:
+                stdout_f.close()
 
             # If we timed out waiting for .prn data
             if not prn_complete:
@@ -330,6 +344,12 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
             if process and process.poll() is None:
                 process.kill()
                 process.wait()
+        finally:
+            # Ensure file handles are closed
+            if stdin_file and not stdin_file.closed:
+                stdin_file.close()
+            if stdout_f and not stdout_f.closed:
+                stdout_f.close()
 
     # Check if any KSTR runs failed
     if failed_ratios:
