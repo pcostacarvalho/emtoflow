@@ -141,6 +141,10 @@ create_emto_inputs(
 )
 ```
 
+**📖 For lattice type reference (LAT 1-14), see:** [LATTICE_TYPES.md](LATTICE_TYPES.md)
+
+---
+
 ### Workflow 3: DMAX Optimization
 
 Automatically find optimal cutoff distances for consistent neighbor shells across c/a ratios:
@@ -208,6 +212,7 @@ EMTO_input_automation/
 │   ├── K6Si2O7.cif
 │   └── code.ipynb            # Usage examples
 ├── DMAX_OPTIMIZATION.md      # DMAX optimization documentation
+├── LATTICE_TYPES.md          # Reference table for LAT parameter (1-14)
 ├── ALLOY_WORKFLOW_GUIDE.md   # Detailed alloy workflow documentation
 ├── LICENSE                   # MIT License
 └── README.md                 # This file
