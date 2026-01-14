@@ -1,0 +1,18 @@
+ SHAPE: job = Co_1.80   
+        NSR = 129 Lmax =  30 Nfi =  11
+
+           Site number :   1
+ Blatts:   Generate WS cell
+ Setrot:   Generate rotation matrices
+           Number of non equivalent tetrahedra : 26
+
+ Intsig:   Start shape function calculation
+
+           Site number :   2
+ Blatts:   Generate WS cell
+ Setrot:   Generate rotation matrices
+           Number of non equivalent tetrahedra : 26
+
+ Intsig:   Start shape function calculation
+
+ SHAPE: Shape function completed

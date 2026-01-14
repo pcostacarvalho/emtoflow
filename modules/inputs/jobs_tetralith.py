@@ -22,6 +22,8 @@ def create_job_ca(
 #SBATCH -t 00:30:00
 #SBATCH -J fept_{folder}
 
+module load buildenv-intel/2023a-eb
+
 echo "Running {folder}"
 echo ""
 
@@ -110,6 +112,8 @@ def create_job_volume(
 #SBATCH -t 00:30:00
 #SBATCH -J fept_vol_opt
 
+module load buildenv-intel/2023a-eb
+
 cd smx
 
 echo "Running KSTR:"
@@ -188,6 +192,8 @@ def write_serial_sbatch(path,ratios, volumes, job_name, prcs=1, time="00:30:00",
 #SBATCH -n {prcs}
 #SBATCH -t {time}
 #SBATCH -J {job_name}
+
+module load buildenv-intel/2023a-eb
 
 id_ratio="{id_ratio}"
 
@@ -276,6 +282,8 @@ def write_parallel_sbatch(path, ratios, volumes, job_name, prcs=1, time="00:30:0
 #SBATCH -t {time}
 #SBATCH -J {job_name}_prep_r{r_fmt}
 
+module load buildenv-intel/2023a-eb
+
 id_ratio="{id_ratio}"
 r={r_fmt}
 
@@ -327,6 +335,8 @@ cd ../
 #SBATCH -t {time}
 #SBATCH -J {job_name}_r{r_fmt}_v{v_fmt}
 #SBATCH --dependency=afterok:$PREP_R{r_var}_JOBID
+
+module load buildenv-intel/2023a-eb
 
 id_ratio="{id_ratio}"
 r={r_fmt}

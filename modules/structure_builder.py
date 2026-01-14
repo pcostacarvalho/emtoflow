@@ -296,15 +296,15 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
         electronic_str = elem.electronic_structure
 
         if 'f' in electronic_str:
-            NLs.append(3)
+            NLs.append(4)
         elif 'd' in electronic_str:
-            NLs.append(2)
+            NLs.append(3)
         elif 'p' in electronic_str:
-            NLs.append(1)
+            NLs.append(2)
         else:
             NLs.append(1)
 
-    NL = max(NLs) if NLs else 2
+    NL = max(NLs) if NLs else 3
 
     # Build atom_info list with proper CPA support
     atom_info = []

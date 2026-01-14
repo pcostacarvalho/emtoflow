@@ -1,8 +1,8 @@
- KSTR: job = Co_1.40, cmode = KSTR, nl = 2 Kappa2 =  0.0
+ KSTR: job = Co_1.60, cmode = KSTR, nl = 3 Kappa2 =  0.0
  Primv: Construct lattice
- Latt3d: r_max = 2.24 nriq(iq) =    87 Nshell =   12
- Latt3d: r_max = 2.24 nriq(iq) =   174 Nshell =   12
- Madl3: Calculate and store 3D Madelung matrices, Lmax=  4
+ Latt3d: r_max = 2.44 nriq(iq) =    87 Nshell =   12
+ Latt3d: r_max = 2.44 nriq(iq) =   174 Nshell =   12
+ Madl3: Calculate and store 3D Madelung matrices, Lmax=  6
  Mgaunt: Generate real Gaunt numbers
  Storel: Store crystal data, cmode = KSTR
 

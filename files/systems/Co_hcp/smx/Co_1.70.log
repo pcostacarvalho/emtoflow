@@ -1,11 +1,4 @@
- Fhndlr:   Program: KSTR, Version: LV-HLS 23 Oct 2003                TM: 11:19
-           Slope & Madelung matrices, Lat= hex, Job=Co_1.70    11:19/14-Jan-26  
+ Fhndlr:   Program: KSTR, Version: LV-HLS 23 Oct 2003                TM: 15:34
+           Slope & Madelung matrices, Lat= hex, Job=Co_1.70    15:34/14-Jan-26  
 
-
- Stop:     KSTR Latt3d
-           ncrq =  69 < mriq =  80 after 10 iterations                                                                             
-           DMAX =   2.00000 too small                                                                                              
-           Try DMAX =   2.44000 or decrease mriq                                                                                   
-           ./Co_1.70.tfm: deleted
-           ./Co_1.70.tfh: deleted
-           ./Co_1.70.mdl: deleted
+ KSTR: OK  Finished at: 15:34 14-Jan-26

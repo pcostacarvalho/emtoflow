@@ -1,0 +1,33 @@
+ KSTR: job = Co_1.50, cmode = KSTR, nl = 3 Kappa2 =  0.0
+ Primv: Construct lattice
+ Latt3d: r_max = 2.32 nriq(iq) =    87 Nshell =   12
+ Latt3d: r_max = 2.32 nriq(iq) =   174 Nshell =   12
+ Madl3: Calculate and store 3D Madelung matrices, Lmax=  6
+ Mgaunt: Generate real Gaunt numbers
+ Storel: Store crystal data, cmode = KSTR
+
+ Salpl: Site   1
+        Initialize unscreened low-low subblock
+        Construct low-low subblock
+        First order derivative
+        Higher order derivatives
+
+ Stores: Store low-low slope matrices on FOR001
+
+ Salplh: Site   1
+         Initialize unscreened high-low subblock
+
+ Storeh: Store high-low slope matrices on FOR002
+
+ Salpl: Site   2
+        Initialize unscreened low-low subblock
+        Construct low-low subblock
+        First order derivative
+        Higher order derivatives
+
+ Stores: Store low-low slope matrices on FOR001
+
+ Salplh: Site   2
+         Initialize unscreened high-low subblock
+
+ Storeh: Store high-low slope matrices on FOR002

@@ -1,4 +1,4 @@
- Fhndlr:   Program: SHAPE, Version: HLS 03 Apr 2002                  TM: 11:43
+ Fhndlr:   Program: SHAPE, Version: HLS 03 Apr 2002                  TM: 15:29
                                                                      14-Jan-26
 
            FOR001: ../smx/Co_1.50.tfh                                          
@@ -8,7 +8,7 @@
 
  Input:    NSR =  129 Lmax=   30 NFI =   11 IVEF=    3
 
- Strinp:   Slope & Madelung matrices, Lat= hex, Job=Co_1.50    11:41/14-Jan-26  
+ Strinp:   Slope & Madelung matrices, Lat= hex, Job=Co_1.50    15:28/14-Jan-26  
 
            Site number :   1
 

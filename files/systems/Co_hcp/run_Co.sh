@@ -5,6 +5,8 @@
 #SBATCH -t 00:30:00
 #SBATCH -J run_Co
 
+module load buildenv-intel/2023a-eb
+
 id_ratio="Co"
 
 for r in 1.40 1.50 1.60 1.70 1.80; do

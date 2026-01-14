@@ -1,0 +1,65 @@
+c/a ratio: 1.40
+Running KSTR:
+DONE!
+Info about DMAX:
+ Primv: Construct lattice
+ Latt3d: r_max = 2.23 nriq(iq) =    87 Nshell =   12
+Running SHAPE:
+DONE!
+WSW: 2.60
+Running KGRN:
+DONE!
+Running KFCD:
+DONE!
+c/a ratio: 1.50
+Running KSTR:
+DONE!
+Info about DMAX:
+ Primv: Construct lattice
+ Latt3d: r_max = 2.32 nriq(iq) =    87 Nshell =   12
+Running SHAPE:
+DONE!
+WSW: 2.60
+Running KGRN:
+DONE!
+Running KFCD:
+DONE!
+c/a ratio: 1.60
+Running KSTR:
+DONE!
+Info about DMAX:
+ Primv: Construct lattice
+ Latt3d: r_max = 2.44 nriq(iq) =    87 Nshell =   12
+Running SHAPE:
+DONE!
+WSW: 2.60
+Running KGRN:
+DONE!
+Running KFCD:
+DONE!
+c/a ratio: 1.70
+Running KSTR:
+DONE!
+Info about DMAX:
+ Primv: Construct lattice
+ Latt3d: r_max = 2.46 nriq(iq) =    87 Nshell =   12
+Running SHAPE:
+DONE!
+WSW: 2.60
+Running KGRN:
+DONE!
+Running KFCD:
+DONE!
+c/a ratio: 1.80
+Running KSTR:
+DONE!
+Info about DMAX:
+ Primv: Construct lattice
+ Latt3d: r_max = 2.50 nriq(iq) =    87 Nshell =   12
+Running SHAPE:
+DONE!
+WSW: 2.60
+Running KGRN:
+DONE!
+Running KFCD:
+DONE!

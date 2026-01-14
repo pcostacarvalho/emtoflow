@@ -15,13 +15,13 @@ Self-consistent KKR calculation
 SCFP:  information for self-consistency procedure:                   *
 **********************************************************************
 NITER.= 99 NLIN.= 31 NCPA.=  7 NPRN....=000000000
-FRC...=  N DOS..=  Y OPS..=  N AFM..=  P CRT..=  M STMP..= A
+FRC...=  N DOS..=  Y OPS..=  N AFM..=  F CRT..=  M STMP..= A
 Lmaxh.=  8 Lmaxt=  4 NFI..= 31 FIXG.=  2 SHF..=  0 SOFC.=  Y
 KMSH...= S IBZ..=  4 NKX..= 21 NKY..= 21 NKZ..= 21 FBZ..=  N
 ZMSH...= E NZ1..= 16 NZ2..= 16 NZ3..= 16 NRES.=  4 NZD..=999
 DEPTH..=  1.100 IMAGZ.=  0.005 EPS...=  0.200 ELIM..= -1.000
 AMIX...=  0.010 VMIX..=   0.70 EFMIX.=  0.900 VMTZ..=  0.000
-TOLE...= 1.d-07 TOLEF.= 1.d-06 TOLCPA= 1.d-06 TFERMI=  300.0 (K)
+TOLE...= 1.d-07 TOLEF.= 1.d-08 TOLCPA= 1.d-06 TFERMI=  300.0 (K)
 SWS....=   2.60 MMOM..=  0.000
 EFGS...=  0.000 HX....=  0.101 NX...=  5 NZ0..= 16 KPOLE=  0
 **********************************************************************

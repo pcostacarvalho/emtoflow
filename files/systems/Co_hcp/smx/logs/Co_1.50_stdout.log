@@ -1,0 +1,17 @@
+ KSTR: job = Co_1.50, cmode = KSTR, nl = 3 Kappa2 =  0.0
+ Primv: Construct lattice
+ Latt3d: r_max = 3.00 nriq(iq) =   161 Nshell =   20
+ Latt3d: r_max = 3.00 nriq(iq) =   322 Nshell =   20
+
+
+=== STDERR ===
+forrtl: error (78): process killed (SIGTERM)
+Image              PC                Routine            Line        Source             
+libc.so.6          00007FD2A463FC30  Unknown               Unknown  Unknown
+kstr.exe           000000000042EE4D  Unknown               Unknown  Unknown
+kstr.exe           0000000000408A2D  Unknown               Unknown  Unknown
+kstr.exe           00000000004057F1  Unknown               Unknown  Unknown
+kstr.exe           00000000004051FD  Unknown               Unknown  Unknown
+libc.so.6          00007FD2A462A610  Unknown               Unknown  Unknown
+libc.so.6          00007FD2A462A6C0  __libc_start_main     Unknown  Unknown
+kstr.exe           0000000000405115  Unknown               Unknown  Unknown
