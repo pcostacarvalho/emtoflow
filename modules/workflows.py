@@ -148,6 +148,21 @@ def create_emto_inputs(
     )
 
     # Parameter workflow - FCC Fe-Pt random alloy (50-50)
+    config_dict = {
+        'base_path': './fept_alloy',
+        'job_name': 'fept',
+        'lat': 2,  # FCC
+        'a': 3.7,
+        'sites': [{'position': [0,0,0], 'elements': ['Fe','Pt'],
+                   'concentrations': [0.5, 0.5]}],
+        'dmax': 1.3,
+        'ca_ratios': [1.00],
+        'sws_values': [2.60, 2.65, 2.70],
+        'magnetic': 'F'
+    }
+    create_emto_inputs(config=config_dict)
+
+    # OR using individual parameters (old way still works)
     sites = [{'position': [0,0,0], 'elements': ['Fe','Pt'],
               'concentrations': [0.5, 0.5]}]
     create_emto_inputs(
@@ -163,6 +178,24 @@ def create_emto_inputs(
     )
 
     # Parameter workflow - L10 FePt ordered structure
+    config_dict = {
+        'base_path': './fept_l10',
+        'job_name': 'fept_l10',
+        'lat': 5,  # BCT
+        'a': 3.7,
+        'c': 3.7*0.96,
+        'sites': [
+            {'position': [0,0,0], 'elements': ['Fe'], 'concentrations': [1.0]},
+            {'position': [0.5,0.5,0.5], 'elements': ['Pt'], 'concentrations': [1.0]}
+        ],
+        'dmax': 1.3,
+        'ca_ratios': [0.96],
+        'sws_values': [2.60, 2.65],
+        'magnetic': 'F'
+    }
+    create_emto_inputs(config=config_dict)
+
+    # OR using individual parameters (old way still works)
     sites = [
         {'position': [0,0,0], 'elements': ['Fe'], 'concentrations': [1.0]},
         {'position': [0.5,0.5,0.5], 'elements': ['Pt'], 'concentrations': [1.0]}
