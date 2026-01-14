@@ -21,6 +21,124 @@ The `lat` parameter in EMTO specifies the Bravais lattice type. Values range fro
 | 13 | MCL | Monoclinic | Base-centered monoclinic |
 | 14 | MCLC | Monoclinic | C-centered monoclinic |
 
+## Primitive Vectors
+
+Primitive vectors for each lattice type in units of lattice parameters (a, b, c):
+
+### LAT 1: Simple Cubic (SC)
+```
+v1 = (1, 0, 0)
+v2 = (0, 1, 0)
+v3 = (0, 0, 1)
+```
+
+### LAT 2: Face-Centered Cubic (FCC)
+```
+v1 = (0.5, 0.5, 0)
+v2 = (0, 0.5, 0.5)
+v3 = (0.5, 0, 0.5)
+```
+
+### LAT 3: Body-Centered Cubic (BCC)
+```
+v1 = (-0.5, 0.5, 0.5)
+v2 = (0.5, -0.5, 0.5)
+v3 = (0.5, 0.5, -0.5)
+```
+
+### LAT 4: Hexagonal Close-Packed (HCP)
+```
+v1 = (1, 0, 0)
+v2 = (-0.5, 0.866025, 0)      # sqrt(3)/2 ≈ 0.866025
+v3 = (0, 0, c/a)               # typically c/a ≈ 1.633
+Basis: 2 atoms
+  atom1 = (0, 0, 0)
+  atom2 = (0.333333, 0.666667, 0.5)
+```
+
+### LAT 5: Body-Centered Tetragonal (BCT)
+```
+v1 = (-0.5, 0.5, 0.5*c/a)
+v2 = (0.5, -0.5, 0.5*c/a)
+v3 = (0.5, 0.5, -0.5*c/a)
+```
+
+### LAT 6: Simple Tetragonal (ST)
+```
+v1 = (1, 0, 0)
+v2 = (0, 1, 0)
+v3 = (0, 0, c/a)
+```
+
+### LAT 7: C-Centered Orthorhombic (ORC)
+```
+v1 = (0.5*b/a, 0.5, 0)
+v2 = (-0.5*b/a, 0.5, 0)
+v3 = (0, 0, c/a)
+```
+
+### LAT 8: Face-Centered Orthorhombic (ORCF)
+```
+v1 = (0, 0.5*b/a, 0.5*c/a)
+v2 = (0.5, 0, 0.5*c/a)
+v3 = (0.5, 0.5*b/a, 0)
+```
+
+### LAT 9: Body-Centered Orthorhombic (ORCI)
+```
+v1 = (-0.5, 0.5*b/a, 0.5*c/a)
+v2 = (0.5, -0.5*b/a, 0.5*c/a)
+v3 = (0.5, 0.5*b/a, -0.5*c/a)
+```
+
+### LAT 10: Base-Centered Orthorhombic (ORCC)
+```
+v1 = (1, 0, 0)
+v2 = (0, 1*b/a, 0)
+v3 = (0, 0, c/a)
+```
+
+### LAT 11: Simple Hexagonal (HEX)
+```
+v1 = (1, 0, 0)
+v2 = (-0.5, 0.866025, 0)      # sqrt(3)/2 ≈ 0.866025
+v3 = (0, 0, c/a)
+Basis: 1 atom
+  atom1 = (0, 0, 0)
+```
+
+### LAT 12: Rhombohedral (RHL)
+```
+v1 = (1, 0, 0)
+v2 = (cos(alpha), sin(alpha), 0)
+v3 = (cos(alpha), cos(alpha)*(1-cos(alpha))/sin(alpha), sqrt(1-3*cos²(alpha)+2*cos³(alpha))/sin(alpha))
+Note: All three angles are equal (alpha = beta = gamma)
+```
+
+### LAT 13: Base-Centered Monoclinic (MCL)
+```
+v1 = (1, 0, 0)
+v2 = (0, b/a, 0)
+v3 = (0, (c/a)*cos(beta), (c/a)*sin(beta))
+Note: beta ≠ 90°, alpha = gamma = 90°
+```
+
+### LAT 14: C-Centered Monoclinic (MCLC)
+```
+v1 = (0.5, -0.5*b/a, 0)
+v2 = (0.5, 0.5*b/a, 0)
+v3 = (0, (c/a)*cos(beta), (c/a)*sin(beta))
+Note: beta ≠ 90°, alpha = gamma = 90°
+```
+
+### Notes on Vectors
+
+- All vectors are normalized to lattice parameter `a`
+- Ratios like `b/a`, `c/a` define the unit cell shape
+- For cubic systems (LAT 1-3): `b/a = c/a = 1`
+- Angles are in radians for calculations (converted from degrees)
+- EMTO internally uses these primitive vectors to construct the crystal
+
 ## Common Examples
 
 ### Cubic Systems
