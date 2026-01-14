@@ -157,6 +157,7 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
         input_file = f"{job_name}_{ratio:.2f}.dat"
         input_path = os.path.join(smx_dir, input_file)
         log_file = os.path.join(smx_dir, f"{job_name}_{ratio:.2f}.log")
+        stdout_file = os.path.join(smx_dir, f"{job_name}_{ratio:.2f}_stdout.log")
 
         print(f"  Running KSTR for c/a = {ratio:.2f}...", end=" ", flush=True)
 
@@ -171,6 +172,13 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
                     text=True,
                     timeout=300  # 5 minute timeout per job
                 )
+
+            # Save stdout to file
+            with open(stdout_file, 'w') as f:
+                f.write(result.stdout)
+                if result.stderr:
+                    f.write("\n\n=== STDERR ===\n")
+                    f.write(result.stderr)
 
             # Check if KSTR succeeded (don't rely on return code alone)
             success, error_msg = _check_kstr_success(
@@ -225,11 +233,12 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
     logs_dir = os.path.join(smx_dir, "logs")
     os.makedirs(logs_dir, exist_ok=True)
 
-    # Move KSTR output files to logs (keep .dat input files in smx/)
+    # Move KSTR output files to logs
     output_extensions = ['.log', '.mdl', '.prn', '.tfh', '.tfm']
     moved_files = 0
 
     for ratio in ca_ratios_sorted:
+        # Move output files
         for ext in output_extensions:
             filename = f"{job_name}_{ratio:.2f}{ext}"
             src = os.path.join(smx_dir, filename)
@@ -239,7 +248,23 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
                 os.rename(src, dst)
                 moved_files += 1
 
-    print(f"  ✓ Moved {moved_files} output files to smx/logs/")
+        # Move stdout log file
+        stdout_filename = f"{job_name}_{ratio:.2f}_stdout.log"
+        stdout_src = os.path.join(smx_dir, stdout_filename)
+        stdout_dst = os.path.join(logs_dir, stdout_filename)
+        if os.path.exists(stdout_src):
+            os.rename(stdout_src, stdout_dst)
+            moved_files += 1
+
+        # Move initial .dat file (with dmax_initial) to logs with descriptive name
+        dat_filename = f"{job_name}_{ratio:.2f}.dat"
+        dat_src = os.path.join(smx_dir, dat_filename)
+        dat_dst = os.path.join(logs_dir, f"{job_name}_{ratio:.2f}_dmax_initial_{dmax_initial:.2f}.dat")
+        if os.path.exists(dat_src):
+            os.rename(dat_src, dat_dst)
+            moved_files += 1
+
+    print(f"  ✓ Moved {moved_files} files to smx/logs/ (outputs + initial .dat files)")
 
     # Step 3: Parse .prn outputs
     print(f"\nStep 3: Parsing KSTR outputs...")
