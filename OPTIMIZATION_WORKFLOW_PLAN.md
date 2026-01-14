@@ -628,9 +628,9 @@ base_path/                    # User-specified output directory
 - Validation of input parameters
 
 ### 4. **Parallel Execution**
-- Run multiple compositions in parallel
-- Parallel EMTO calculations where possible
+- Parallel EMTO calculations within phases (future enhancement)
 - Efficient resource utilization
+- Sequential phase execution (Phase 1 → Phase 2 → Phase 3)
 
 ### 5. **Visualization**
 - Consistent plot styling
