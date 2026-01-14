@@ -1,5 +1,7 @@
 import os
 import numpy as np
+from typing import Union, Dict, Any
+from pathlib import Path
 from modules.inputs import (
     create_kstr_input,
     create_shape_input,
@@ -10,11 +12,14 @@ from modules.inputs import (
 )
 from modules.structure_builder import create_emto_structure
 from modules.dmax_optimizer import _run_dmax_optimization
+from utils.config_parser import load_and_validate_config, apply_config_defaults
 
 def create_emto_inputs(
-    output_path,
-    job_name,
+    output_path=None,
+    job_name=None,
     cif_file=None,
+    # Configuration file support
+    config=None,
     # New parameter workflow parameters
     lat=None,
     a=None,
@@ -45,18 +50,23 @@ def create_emto_inputs(
     """
     Create complete EMTO input files for c/a and SWS sweeps.
 
-    Supports two workflows:
-    1. CIF workflow: Provide cif_file
-    2. Parameter workflow: Provide lat, a, sites
+    Supports three workflows:
+    1. Config file workflow: Provide config (YAML/JSON file or dict)
+    2. CIF workflow: Provide cif_file
+    3. Parameter workflow: Provide lat, a, sites
 
     Parameters
     ----------
-    output_path : str
-        Base output directory
-    job_name : str
-        Job identifier (e.g., 'fept')
+    output_path : str, optional
+        Base output directory (required if config not provided)
+    job_name : str, optional
+        Job identifier (required if config not provided)
     cif_file : str, optional
         Path to CIF file (for CIF workflow)
+    config : str, Path, or dict, optional
+        Configuration file path (YAML/JSON) or configuration dictionary.
+        If provided, extracts all parameters from config.
+        Individual parameters can override config values.
     lat : int, optional
         EMTO lattice type 1-14 (for parameter workflow)
         1=SC, 2=FCC, 3=BCC, 4=HCP, 5=BCT, etc.
@@ -111,7 +121,22 @@ def create_emto_inputs(
 
     Examples
     --------
-    # CIF workflow (existing)
+    # Config file workflow (NEW - recommended)
+    create_emto_inputs(config='optimization_config.yaml')
+
+    # Config dict workflow (NEW)
+    config_dict = {
+        'base_path': './cu_sweep',
+        'job_name': 'cu',
+        'cif_file': 'Cu.cif',
+        'dmax': 1.3,
+        'ca_ratios': [1.00],
+        'sws_values': [2.60, 2.65, 2.70],
+        'magnetic': 'P'
+    }
+    create_emto_inputs(config=config_dict)
+
+    # CIF workflow (existing - still supported)
     create_emto_inputs(
         output_path="./cu_sweep",
         job_name="cu",
@@ -171,6 +196,50 @@ def create_emto_inputs(
         kstr_executable="/path/to/kstr.exe"
     )
     """
+
+    # ==================== HANDLE CONFIGURATION ====================
+    if config is not None:
+        # Load and validate configuration
+        cfg = load_and_validate_config(config)
+        cfg = apply_config_defaults(cfg)
+
+        # Extract parameters from config (use config as default, allow overrides)
+        output_path = output_path or cfg.get('base_path')
+        job_name = job_name or cfg.get('job_name')
+        cif_file = cif_file or cfg.get('cif_file')
+        lat = lat or cfg.get('lat')
+        a = a or cfg.get('a')
+        sites = sites or cfg.get('sites')
+        b = b or cfg.get('b')
+        c = c or cfg.get('c')
+        alpha = alpha if alpha != 90 else cfg.get('alpha', 90)
+        beta = beta if beta != 90 else cfg.get('beta', 90)
+        gamma = gamma if gamma != 90 else cfg.get('gamma', 90)
+        dmax = dmax or cfg.get('dmax')
+        ca_ratios = ca_ratios or cfg.get('ca_ratios')
+        sws_values = sws_values or cfg.get('sws_values')
+        magnetic = magnetic or cfg.get('magnetic')
+        user_magnetic_moments = user_magnetic_moments or cfg.get('user_magnetic_moments')
+        create_job_script = cfg.get('create_job_script', create_job_script)
+        job_mode = cfg.get('job_mode', job_mode)
+        prcs = cfg.get('prcs', prcs)
+        time = cfg.get('slurm_time', time)
+        account = cfg.get('slurm_account', account)
+        optimize_dmax = cfg.get('optimize_dmax', optimize_dmax)
+        dmax_initial = cfg.get('dmax_initial', dmax_initial)
+        dmax_target_vectors = cfg.get('dmax_target_vectors', dmax_target_vectors)
+        dmax_vector_tolerance = cfg.get('dmax_vector_tolerance', dmax_vector_tolerance)
+        kstr_executable = kstr_executable or cfg.get('kstr_executable')
+
+    # Validate required parameters
+    if output_path is None:
+        raise ValueError("output_path is required (provide directly or via config)")
+    if job_name is None:
+        raise ValueError("job_name is required (provide directly or via config)")
+    if dmax is None:
+        raise ValueError("dmax is required (provide directly or via config)")
+    if magnetic is None:
+        raise ValueError("magnetic is required (provide directly or via config)")
 
     if magnetic not in ['P', 'F']:
         raise ValueError("Magnetic parameter must be 'P' (paramagnetic) or 'F' (ferromagnetic).")
