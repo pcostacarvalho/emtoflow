@@ -66,7 +66,7 @@ start_time = time.time()
 try:
     create_emto_inputs(
         output_path="./test_fast_cu",
-        job_name="cu_fast",
+        job_name="cu",  # Short name (2 chars) + ratio (5 chars) = 7 chars total (<=10)
         cif_file="./testing/Cu-Copper.cif",
         ca_ratios=[0.98, 1.00, 1.02],  # 3 ratios for testing
         sws_values=[2.60],              # Single SWS for simplicity
@@ -99,9 +99,9 @@ print(f"   Per ratio: {elapsed/3:.1f} seconds")
 print(f"   Speedup: ~{180/elapsed:.1f}x faster than old approach (estimated)")
 print()
 print("📁 Output location: ./test_fast_cu/")
-print("   - Optimized DMAX values: smx/logs/cu_fast_dmax_optimization.log")
+print("   - Optimized DMAX values: smx/logs/cu_dmax_optimization.log")
 print("   - KSTR outputs: smx/logs/")
-print("   - Final input files: smx/cu_fast_*.dat")
+print("   - Final input files: smx/cu_*.dat")
 print()
 print("="*70)
 print("✨ SUCCESS - Fast extraction is working!")
@@ -109,7 +109,7 @@ print("="*70)
 print()
 print("💡 NEXT STEPS:")
 print("   1. Check the optimization log:")
-print("      cat ./test_fast_cu/smx/logs/cu_fast_dmax_optimization.log")
+print("      cat ./test_fast_cu/smx/logs/cu_dmax_optimization.log")
 print()
 print("   2. Verify .prn files were captured correctly:")
 print("      ls -lh ./test_fast_cu/smx/logs/*.prn")

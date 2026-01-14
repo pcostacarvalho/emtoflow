@@ -82,14 +82,22 @@ def create_kstr_input(
 
     if dmax is None:
         dmax = 1.8
-    
+
+    # Validate job name length (Fortran fixed-format requirement)
+    if len(id_ratio) > 10:
+        raise ValueError(
+            f"Job name '{id_ratio}' is too long ({len(id_ratio)} chars). "
+            f"KSTR input format requires job names <= 10 characters. "
+            f"Please use a shorter job name (e.g., shorten '{id_ratio}' to '{id_ratio[:10]}')."
+        )
+
     # Create output directory structure
     os.makedirs(output_path, exist_ok=True)
     os.makedirs(f"{output_path}/smx", exist_ok=True)  # NEW LINE
-    
+
 
     template = f"""KSTR      HP......=N                               xx xxx xx
-JOBNAM...={id_ratio:<13} MSGL.=  1 MODE...=B STORE..=Y HIGH...=Y
+JOBNAM...={id_ratio:<10} MSGL.=  1 MODE...=B STORE..=Y HIGH...=Y
 DIR001=./
 DIR006=
 Slope and Madelung matrices
