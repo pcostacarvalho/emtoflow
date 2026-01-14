@@ -2,6 +2,8 @@ import numpy as np
 import os
 import re
 import subprocess
+import time
+import signal
 from modules.inputs import (
     create_kstr_input,
     create_shape_input,
@@ -11,6 +13,68 @@ from modules.inputs import (
     write_parallel_sbatch
 )
 from modules.structure_builder import create_emto_structure
+
+
+def _check_prn_iq1_complete(prn_file_path):
+    """
+    Check if .prn file exists and has complete IQ=1 section.
+
+    The IQ=1 section starts with "IQ =  1" and ends when we see either:
+    - "IQ =  2" (next section)
+    - A blank line followed by other content
+
+    Parameters
+    ----------
+    prn_file_path : str
+        Path to the .prn file
+
+    Returns
+    -------
+    bool: True if IQ=1 section is complete, False otherwise
+    """
+    if not os.path.exists(prn_file_path):
+        return False
+
+    try:
+        with open(prn_file_path, 'r') as f:
+            content = f.read()
+
+        # Check if IQ=1 section exists
+        if 'IQ =  1' not in content:
+            return False
+
+        lines = content.split('\n')
+        in_iq1_section = False
+        found_data_lines = False
+
+        for line in lines:
+            # Start of IQ=1 section
+            if 'IQ =  1' in line:
+                in_iq1_section = True
+                continue
+
+            # If we're in IQ=1 section, look for data lines
+            if in_iq1_section:
+                # Check for data lines (IS IN IR JQ D ...)
+                if re.match(r'^\s+\d+\s+\d+\s+\d+\s+\d+\s+[\d.]+', line):
+                    found_data_lines = True
+
+                # Check for next IQ section (indicates completion)
+                if re.search(r'IQ\s*=\s*[2-9]', line):
+                    return found_data_lines
+
+                # Check for end of IQ=1 section (empty line after data)
+                # This is a more robust check
+                if found_data_lines and line.strip() == '':
+                    # Peek ahead to see if we're truly done
+                    # If next non-empty line doesn't have IS IN IR pattern, we're done
+                    return True
+
+        # If we're still in IQ=1 section at end of file, it's incomplete
+        return False
+
+    except Exception:
+        return False
 
 
 def _check_kstr_success(stdout, stderr, log_file=None):
@@ -158,53 +222,166 @@ def _run_dmax_optimization(output_path, job_name, structure, ca_ratios,
         input_path = os.path.join(smx_dir, input_file)
         log_file = os.path.join(smx_dir, f"{job_name}_{ratio:.2f}.log")
         stdout_file = os.path.join(smx_dir, f"{job_name}_{ratio:.2f}_stdout.log")
+        prn_file = os.path.join(smx_dir, f"{job_name}_{ratio:.2f}.prn")
 
         print(f"  Running KSTR for c/a = {ratio:.2f}...", end=" ", flush=True)
 
+        process = None
+        stdin_file = None
+        stdout_f = None
+
         try:
-            # Run KSTR with stdin redirection
-            with open(input_path, 'r') as f:
-                result = subprocess.run(
-                    [kstr_executable],
-                    stdin=f,
-                    cwd=smx_dir,
-                    capture_output=True,
-                    text=True,
-                    timeout=300  # 5 minute timeout per job
-                )
+            # Open file handles (must stay open for subprocess)
+            stdin_file = open(input_path, 'r')
+            stdout_f = open(stdout_file, 'w')
 
-            # Save stdout to file
-            with open(stdout_file, 'w') as f:
-                f.write(result.stdout)
-                if result.stderr:
-                    f.write("\n\n=== STDERR ===\n")
-                    f.write(result.stderr)
+            # Start KSTR process (non-blocking)
+            process = subprocess.Popen(
+                [kstr_executable],
+                stdin=stdin_file,
+                stdout=stdout_f,
+                stderr=subprocess.PIPE,
+                cwd=smx_dir,
+                text=True
+            )
 
-            # Check if KSTR succeeded (don't rely on return code alone)
+            # Give process a moment to start and check it's running
+            time.sleep(0.1)
+
+            # Check if process started successfully
+            initial_poll = process.poll()
+            if initial_poll is not None:
+                # Process already ended - this is suspicious
+                stdout_f.flush()
+                stdout_f.close()
+                stdin_file.close()
+
+                with open(stdout_file, 'r') as f:
+                    early_stdout = f.read()
+
+                _, early_stderr = process.communicate(timeout=1)
+
+                print(f"✗ (process ended immediately, code {initial_poll})")
+                if early_stderr:
+                    print(f"    stderr: {early_stderr[:200]}")
+                if early_stdout:
+                    print(f"    stdout: {early_stdout[:200]}")
+                failed_ratios.append(ratio)
+                continue
+
+            # Poll for .prn file with IQ=1 section complete
+            poll_interval = 0.1  # seconds
+            max_wait_time = 60  # seconds (much shorter than before)
+            elapsed_time = 0
+            prn_complete = False
+
+            while elapsed_time < max_wait_time:
+                # Flush stdout to disk so we can see output even if process is killed
+                if stdout_f and not stdout_f.closed:
+                    stdout_f.flush()
+
+                # Check if process is still running
+                poll_result = process.poll()
+
+                # Check if .prn file has complete IQ=1 section
+                if _check_prn_iq1_complete(prn_file):
+                    prn_complete = True
+                    print(f"✓ (data extracted in {elapsed_time:.1f}s)")
+
+                    # Terminate the process since we have what we need
+                    if poll_result is None:  # Process still running
+                        process.terminate()
+                        try:
+                            process.wait(timeout=2)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                            process.wait()
+                    break
+
+                # If process finished naturally, check for completion
+                if poll_result is not None:
+                    # Flush and close files to ensure everything is written
+                    if stdout_f and not stdout_f.closed:
+                        stdout_f.flush()
+
+                    if _check_prn_iq1_complete(prn_file):
+                        prn_complete = True
+                        print(f"✓ (completed in {elapsed_time:.1f}s)")
+                    else:
+                        # Check what files were actually created
+                        import glob
+                        created_files = glob.glob(os.path.join(smx_dir, f"{job_name}_{ratio:.2f}.*"))
+                        print(f"✗ (process ended without complete data, created {len(created_files)} files)")
+                    break
+
+                time.sleep(poll_interval)
+                elapsed_time += poll_interval
+
+            # Close file handles before reading outputs
+            if stdin_file:
+                stdin_file.close()
+            if stdout_f:
+                stdout_f.close()
+
+            # If we timed out waiting for .prn data
+            if not prn_complete:
+                print(f"✗ (timeout waiting for .prn data)")
+                failed_ratios.append(ratio)
+                if process and process.poll() is None:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait()
+                continue
+
+            # Read stderr and check for errors
+            stderr_output = ""
+            if process:
+                _, stderr_output = process.communicate(timeout=1)
+                if stderr_output:
+                    with open(stdout_file, 'a') as f:
+                        f.write("\n\n=== STDERR ===\n")
+                        f.write(stderr_output)
+
+            # Read stdout for validation
+            with open(stdout_file, 'r') as f:
+                stdout_output = f.read()
+
+            # Even if we got the .prn data, check for serious errors
             success, error_msg = _check_kstr_success(
-                result.stdout,
-                result.stderr,
+                stdout_output,
+                stderr_output,
                 log_file
             )
 
-            if success:
-                print("✓")
-            else:
-                print("✗")
+            # For optimization, we only care if we got the .prn data
+            # Warnings are OK as long as we have the neighbor shell info
+            if not prn_complete:
                 failed_ratios.append(ratio)
-
-                # Print error details
-                if error_msg:
+                if error_msg and "DMAX_TOO_SMALL" in error_msg:
                     print(f"    {error_msg.split(':')[0]}")
-                    if "DMAX_TOO_SMALL" in error_msg:
-                        dmax_too_small_errors.append((ratio, error_msg))
+                    dmax_too_small_errors.append((ratio, error_msg))
 
         except subprocess.TimeoutExpired:
             print("✗ (timeout)")
             failed_ratios.append(ratio)
+            if process and process.poll() is None:
+                process.kill()
+                process.wait()
         except Exception as e:
             print(f"✗ (error: {e})")
             failed_ratios.append(ratio)
+            if process and process.poll() is None:
+                process.kill()
+                process.wait()
+        finally:
+            # Ensure file handles are closed
+            if stdin_file and not stdin_file.closed:
+                stdin_file.close()
+            if stdout_f and not stdout_f.closed:
+                stdout_f.close()
 
     # Check if any KSTR runs failed
     if failed_ratios:

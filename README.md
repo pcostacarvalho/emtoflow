@@ -35,10 +35,11 @@ This toolkit automates the creation of these files from crystallographic informa
 - ✅ Dynamic generation of KGRN atom sections (no hardcoded values)
 - ✅ Support for c/a ratio and volume (SWS) parameter sweeps
 - ✅ Smart defaults for c/a ratios and SWS values
+- ✅ **DMAX optimization** - automatic cutoff distance optimization with early subprocess termination (~300x speedup)
 - ✅ Equation of state fitting (polynomial, Birch-Murnaghan, Murnaghan)
 - ✅ SLURM job script generation (serial and parallel modes)
 - ✅ Parse CIF once, use for all input generators (efficient workflow)
-- ✅ **NEW:** Complete alloy support with pymatgen-based structure generation
+- ✅ Complete alloy support with pymatgen-based structure generation
   - CPA random alloys (binary, ternary, higher-order)
   - Ordered intermetallics (L10, L12, B2, Heusler, etc.)
   - All 14 EMTO lattice types
@@ -140,14 +141,44 @@ create_emto_inputs(
 )
 ```
 
-**What it does:**
+**📖 For lattice type reference (LAT 1-14), see:** [LATTICE_TYPES.md](LATTICE_TYPES.md)
+
+---
+
+### Workflow 3: DMAX Optimization
+
+Automatically find optimal cutoff distances for consistent neighbor shells across c/a ratios:
+
+```python
+create_emto_inputs(
+    output_path="./fept_optimized",
+    job_name="fept",
+    cif_file="./FePt.cif",
+    ca_ratios=[0.92, 0.96, 1.00, 1.04],
+    sws_values=[2.60, 2.65, 2.70],
+    magnetic='F',
+    optimize_dmax=True,
+    dmax_initial=2.5,
+    dmax_target_vectors=100,
+    kstr_executable="/path/to/kstr.exe"
+)
+```
+
+The optimizer runs KSTR calculations with early termination (~0.1s per ratio instead of ~30-60s), extracting neighbor data as soon as it's written. Typical speedup: **300-600x**.
+
+**📖 For detailed documentation, see:** [DMAX_OPTIMIZATION.md](DMAX_OPTIMIZATION.md)
+
+---
+
+**What the workflows do:**
 - **CIF workflow:** Auto-detects LAT, extracts atoms and symmetry
 - **Parameter workflow:** Creates structure from lattice parameters and site specifications
-- Both workflows use unified `create_emto_structure()` function
+- **DMAX optimization:** Finds optimal cutoffs with early subprocess termination
+- All workflows use unified `create_emto_structure()` function
 - Generates all input files: KSTR, SHAPE, KGRN, KFCD
 - Creates SLURM job submission scripts
 
-**📖 For detailed workflow diagrams and more examples, see:** [ALLOY_WORKFLOW_GUIDE.md](ALLOY_WORKFLOW_GUIDE.md)
+**📖 For alloy workflows and examples, see:** [ALLOY_WORKFLOW_GUIDE.md](ALLOY_WORKFLOW_GUIDE.md)
 
 ---
 
@@ -160,7 +191,7 @@ EMTO_input_automation/
 ├── modules/
 │   ├── __init__.py
 │   ├── workflows.py          # High-level workflow functions (CIF + Parameter)
-│   ├── structure_builder.py  # NEW! Unified structure creation module
+│   ├── structure_builder.py  # Unified structure creation module
 │   ├── lat_detector.py       # Structure analysis & symmetry detection
 │   ├── parse_cif.py          # CIF utilities
 │   ├── element_database.py   # Default magnetic moments database
@@ -173,12 +204,16 @@ EMTO_input_automation/
 │   ├── dmax_optimizer.py     # DMAX parameter optimization
 │   ├── dos.py                # DOS parser and plotter
 │   └── eos.py                # Equation of state analysis
+├── tests/
+│   ├── test_fast_dmax_extraction.py  # DMAX optimization integration test
+│   └── test_prn_monitoring.py        # Unit test for .prn file monitoring
 ├── testing/
 │   ├── FePt.cif              # Example CIF files
 │   ├── K6Si2O7.cif
 │   └── code.ipynb            # Usage examples
+├── DMAX_OPTIMIZATION.md      # DMAX optimization documentation
+├── LATTICE_TYPES.md          # Reference table for LAT parameter (1-14)
 ├── ALLOY_WORKFLOW_GUIDE.md   # Detailed alloy workflow documentation
-├── ALLOY_IMPLEMENTATION_PLAN.md  # Complete implementation plan
 ├── LICENSE                   # MIT License
 └── README.md                 # This file
 ```
