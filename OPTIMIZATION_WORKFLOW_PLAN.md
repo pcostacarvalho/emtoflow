@@ -3,13 +3,164 @@
 ## Overview
 
 This document outlines the plan to implement an automated workflow for EMTO calculations that performs:
-1. **c/a ratio optimization** - Find equilibrium tetragonal distortion
+1. **c/a ratio optimization** - Find equilibrium c/a ratio for any structure with c≠a (not just tetragonal)
 2. **SWS (volume) optimization** - Find equilibrium Wigner-Seitz radius
 3. **Optimized structure calculation** - Run final calculation with optimized parameters
 4. **Results parsing and analysis** - Extract energies, magnetic moments, DOS
 5. **Visualization and reporting** - Generate plots and summary reports
 
+The workflow will support running **only c/a optimization**, **only SWS optimization**, or **both in sequence**.
+
 This workflow is based on the notebook `files/codes_for_opt/pm_parse_percentages.ipynb` and will integrate with the existing repo structure.
+
+---
+
+## Key Features
+
+### 1. Flexible Structure Input
+- **CIF file**: Auto-detect lattice type and parameters
+- **Lattice parameters**: Manually specify lat, a, c, sites (for alloys)
+
+### 2. Smart Parameter Auto-generation
+- Single value → auto-generate range (±3×step, 7 points)
+- List → use as-is
+- None → calculate from structure, then generate range
+- **Steps**: 0.02 for c/a, 0.05 for SWS
+
+### 3. Modular Optimization Workflow
+- Run c/a only: `optimize_ca=True, optimize_sws=False`
+- Run SWS only: `optimize_ca=False, optimize_sws=True`
+- Run both: `optimize_ca=True, optimize_sws=True`
+
+### 4. Automated Execution
+- **SLURM**: `run_mode="sbatch"` (submit jobs with sbatch)
+- **Local**: `run_mode="local"` (run with ./script.sh)
+- Integrated with `utils/running_bash.py`
+
+### 5. Configuration File Support
+- YAML or JSON configuration files
+- Alternative: Python dict for simple cases
+- Example config provided below
+
+### 6. Complete Analysis Pipeline
+- EOS fitting with EMTO's Fortran executable
+- Results parsing (energies, magnetic moments)
+- DOS generation and plotting
+- Multi-composition comparative analysis
+
+---
+
+## Configuration File Example
+
+### YAML Format (Recommended)
+```yaml
+# Basic settings
+base_path: "fept_optimization"
+job_name: "fept_p0.0"
+
+# Structure input (choose one approach)
+cif_file: "FePt.cif"
+# OR for alloys/custom structures:
+# lat: 5
+# a: 3.86
+# c: 3.76
+# sites:
+#   - position: [0.0, 0.5, 0.5]
+#     elements: ["Fe", "Pt"]
+#     concentrations: [0.5, 0.5]
+
+# Optimization settings
+optimize_ca: true
+optimize_sws: true
+
+# Parameter ranges (three options for each):
+# Option 1: Single value (auto-generate range)
+ca_ratios: 0.95
+sws_values: 2.86
+
+# Option 2: List of values (use as-is)
+# ca_ratios: [0.89, 0.91, 0.93, 0.95, 0.97, 0.99, 1.01]
+# sws_values: [2.77, 2.80, 2.83, 2.86, 2.89, 2.92, 2.95]
+
+# Option 3: Null (calculate from structure)
+# ca_ratios: null
+# sws_values: null
+
+initial_sws: [2.82]  # For c/a optimization
+
+# EMTO parameters
+dmax: 1.52
+magnetic: "P"  # Paramagnetic
+NL: 3
+NQ3: 4
+
+# Execution settings
+run_mode: "sbatch"  # or "local"
+slurm_account: "naiss2025-1-38"
+slurm_time: "02:00:00"
+slurm_partition: "main"
+prcs: 8
+
+# EOS settings
+eos_executable: "/home/user/emto/bin/eos.exe"
+eos_type: "MO88"  # MO88, POLN, SPLN, ALL
+
+# Analysis settings
+generate_plots: true
+export_csv: true
+```
+
+---
+
+## Input Parameter Handling
+
+### Structure Input (Same as `create_emto_inputs()`)
+Users provide either:
+- **CIF file**: `cif_file='structure.cif'`
+- **Lattice parameters**: `lat=5, a=3.86, sites=[...], c=3.76, ...`
+
+### c/a Ratio and SWS Input (New Smart Behavior)
+
+#### Option 1: User provides lists (explicit sweep)
+```python
+ca_ratios = [0.89, 0.91, 0.93, 0.95, 0.97, 0.99, 1.01]  # 7 points
+sws_values = [2.77, 2.80, 2.83, 2.86, 2.89, 2.92, 2.95]  # 7 points
+```
+
+#### Option 2: User provides single value (auto-generate range)
+```python
+ca_ratios = 0.95       # Experimental value
+sws_values = 2.86      # Experimental value
+```
+→ Workflow will auto-generate:
+- `ca_ratios = np.linspace(0.95 - 3*0.02, 0.95 + 3*0.02, 7)` = `[0.89, 0.91, 0.93, 0.95, 0.97, 0.99, 1.01]`
+- `sws_values = np.linspace(2.86 - 3*0.05, 2.86 + 3*0.05, 7)` = `[2.71, 2.76, 2.81, 2.86, 2.91, 2.96, 3.01]`
+
+**Steps**: 0.02 for c/a, 0.05 for SWS, total of 7 points
+
+#### Option 3: Not provided (auto-calculate from structure)
+```python
+ca_ratios = None
+sws_values = None
+```
+→ Workflow will:
+- Calculate `ca_ratios` from structure's c/a ratio (if c≠a), otherwise 1.0 for cubic
+- Calculate `sws_values` from structure using `lattice_param_to_sws()` function
+- Then create ranges around these calculated values (same as Option 2)
+
+### Optimization Modes (Flags)
+
+Users can choose which optimization to run:
+```python
+optimize_ca = True      # Run c/a ratio optimization
+optimize_sws = True     # Run SWS optimization
+optimize_both = True    # Run both in sequence (ca → sws)
+```
+
+**Examples**:
+- `optimize_ca=True, optimize_sws=False` → Only Phase 1 (c/a optimization)
+- `optimize_ca=False, optimize_sws=True` → Only Phase 2 (SWS optimization, requires `ca_ratios` input)
+- `optimize_ca=True, optimize_sws=True` → Full workflow (Phase 1 → Phase 2)
 
 ---
 
@@ -102,27 +253,107 @@ class OptimizationWorkflow:
     """
     Manages complete optimization workflow for EMTO calculations.
 
-    Workflow:
-    1. c/a ratio optimization
-    2. SWS optimization
+    Workflow (configurable):
+    1. c/a ratio optimization (optional)
+    2. SWS optimization (optional)
     3. Optimized structure calculation
     4. Results parsing
     5. DOS analysis
     6. Visualization and reporting
     """
 
-    def __init__(self, base_path, job_name, emto_config, eos_executable):
+    def __init__(self, config_file=None, config_dict=None, eos_executable=None):
         """
         Parameters:
         -----------
-        base_path : str
-            Base directory for all calculations
-        job_name : str
-            Job identifier
-        emto_config : dict
-            Configuration for EMTO (lat, sites, dmax, magnetic, etc.)
+        config_file : str, optional
+            Path to YAML/JSON configuration file
+        config_dict : dict, optional
+            Configuration dictionary (alternative to file)
         eos_executable : str
-            Path to EMTO EOS executable
+            Path to EMTO EOS executable (user must provide)
+
+        Configuration file structure (YAML example):
+        -------------------------------------------
+        base_path: "fept_optimization"
+        job_name: "fept"
+
+        # Structure input (choose one)
+        cif_file: "FePt.cif"
+        # OR
+        lat: 5
+        a: 3.86
+        c: 3.76
+        sites: [...]
+
+        # Optimization settings
+        optimize_ca: true
+        optimize_sws: true
+        ca_ratios: 0.95           # Single value or list
+        sws_values: 2.86          # Single value or list
+        initial_sws: [2.82]       # For c/a optimization
+
+        # EMTO parameters
+        dmax: 1.52
+        magnetic: "P"
+        NL: 3
+        NQ3: 4
+
+        # Execution settings
+        run_mode: "sbatch"        # "sbatch" or "local"
+        slurm_account: "naiss2025-1-38"
+        slurm_time: "02:00:00"
+        prcs: 8
+
+        # EOS settings
+        eos_type: "MO88"          # MO88, POLN, SPLN, ALL
+        """
+        pass
+
+    def _prepare_ranges(self, ca_ratios, sws_values, structure):
+        """
+        Auto-generate c/a and SWS ranges if needed.
+
+        Handles three cases:
+        1. List provided → use as-is
+        2. Single value → create range around it (±3*step, 7 points)
+        3. None → calculate from structure, then create range
+
+        Steps: 0.02 for c/a, 0.05 for SWS
+        """
+        pass
+
+    def _run_calculations(self, calculation_path, run_mode="sbatch"):
+        """
+        Execute EMTO calculations using utils/running_bash.py.
+
+        Parameters:
+        -----------
+        calculation_path : str
+            Directory containing run script
+        run_mode : str
+            "sbatch" → run with sbatch (SLURM)
+            "local" → run locally with ./run_script.sh
+
+        Uses:
+        - run_sbatch() from utils/running_bash.py for SLURM
+        - chmod_and_run() from utils/running_bash.py for local execution
+        """
+        pass
+
+    def _run_eos_fit(self, r_or_v_data, energy_data, output_path,
+                     job_name, comment, eos_type='MO88'):
+        """
+        Run EMTO EOS executable and parse results.
+
+        Steps:
+        1. Create EOS input file using create_eos_input()
+        2. Run EOS executable: subprocess.run(eos_executable + ' < eos.dat')
+        3. Parse output using parse_eos_output()
+        4. Extract optimal parameter (rwseq)
+
+        Similar to notebook cell that runs:
+        result = subprocess.run('/path/to/eos.exe < eos.dat', ...)
         """
         pass
 
@@ -131,11 +362,15 @@ class OptimizationWorkflow:
         Phase 1: Optimize c/a ratio.
 
         Steps:
-        1. Create EMTO inputs for c/a sweep
-        2. Run calculations (or use existing results)
-        3. Parse energies
-        4. Fit EOS and find optimal c/a
-        5. Save results and plots
+        1. Create EMTO inputs for c/a sweep using create_emto_inputs()
+        2. Run EMTO calculations:
+           - If run_mode='sbatch': use run_sbatch()
+           - If run_mode='local': use chmod_and_run()
+        3. Wait for calculations to complete
+        4. Parse energies from KFCD outputs using parse_energies()
+        5. Run EOS fit using _run_eos_fit()
+        6. Extract optimal c/a from EOS results
+        7. Save results and create EOS plot
 
         Returns:
         --------
@@ -152,11 +387,16 @@ class OptimizationWorkflow:
 
         Steps:
         1. Create EMTO inputs for SWS sweep at optimal c/a
-        2. Run calculations
-        3. Parse energies
-        4. Fit EOS and find optimal SWS
-        5. Calculate derived parameters (a, c, volume)
-        6. Save results and plots
+        2. Run EMTO calculations (sbatch or local)
+        3. Wait for calculations to complete
+        4. Parse energies from KFCD outputs
+        5. Run EOS fit
+        6. Extract optimal SWS
+        7. Calculate derived parameters (a, c, volume) using:
+           volume = 4*π*((sws*bohr_to_angstrom)**3)*4/3
+           a = (volume/ca)**(1/3)
+           c = a*ca
+        8. Save results and create EOS plot
 
         Returns:
         --------
@@ -658,43 +898,74 @@ for method in ['MO88', 'POLN', 'SPLN', 'ALL']:
 
 ---
 
-## Questions for Discussion
+## Design Decisions
 
-1. **Calculation Management**: Should the workflow actually submit/run EMTO calculations, or assume they're already done?
-   - Option A: Full automation (submit jobs, wait for completion)
-   - Option B: Semi-automated (user runs calculations, workflow does analysis)
-   - Option C: Hybrid (detect if calculations exist, run if missing)
+### ✅ Decided
 
-2. **Configuration Format**: How should users specify workflow parameters?
-   - Option A: Python dictionaries (as shown above)
-   - Option B: YAML configuration files
-   - Option C: Both (YAML for complex workflows, dict for quick scripts)
+1. **Calculation Management**: ✅ **Full automation with execution mode choice**
+   - Workflow will actually run EMTO calculations
+   - User chooses execution mode: `run_mode="sbatch"` or `run_mode="local"`
+   - Uses utilities from `utils/running_bash.py`
 
-3. **EOS Executable**: How to handle EMTO EOS executable path?
-   - Option A: Always require user to specify path
-   - Option B: Auto-detect from environment variables
-   - Option C: Optional - use Python EOS fitting if executable not available
+2. **Configuration Format**: ✅ **Configuration file (YAML/JSON preferred) + dict support**
+   - Primary: YAML/JSON configuration file (easier for complex workflows)
+   - Alternative: Python dict for simple cases
+   - Constructor accepts both: `config_file=` or `config_dict=`
 
-4. **Plotting Backend**: What plotting approach to use?
-   - Option A: Matplotlib only (current approach)
-   - Option B: Add Plotly for interactive plots
-   - Option C: Both (Matplotlib default, Plotly optional)
+3. **EOS Executable**: ✅ **User must provide path**
+   - Required parameter: `eos_executable="/path/to/eos.exe"`
+   - No auto-detection (simpler, more explicit)
+   - Can be reused from notebook approach
 
-5. **Parallel Execution**: How to handle parallel calculations?
-   - Option A: Built-in using multiprocessing
-   - Option B: Integrate with SLURM/job schedulers
-   - Option C: Leave to user (provide utilities but don't enforce)
+4. **c/a Optimization Scope**: ✅ **Any structure with c≠a**
+   - Not limited to tetragonal structures
+   - Works for any lattice type where c/a ≠ 1
 
-6. **Results Storage**: What format for storing intermediate results?
-   - Option A: JSON only (human-readable)
+5. **Optimization Modes**: ✅ **Flags to run c/a, SWS, or both**
+   - `optimize_ca=True/False` - Run c/a optimization
+   - `optimize_sws=True/False` - Run SWS optimization
+   - Can run independently or in sequence
+
+6. **Parameter Auto-generation**: ✅ **Smart range generation**
+   - Single value → create range (±3*step, 7 points, linspace)
+   - Steps: 0.02 for c/a, 0.05 for SWS
+   - None → calculate from structure, then create range
+   - List → use as-is
+
+7. **Parallel Execution**: ✅ **Optional with sequential phases**
+   - Can parallelize within phases (future enhancement)
+   - Phases must run in order: Phase 1 → Phase 2 → Phase 3
+
+8. **Plotting**: ✅ **Matplotlib only**
+   - Keep it simple with matplotlib
+   - No need for interactive plots for now
+
+### ❓ To Discuss
+
+1. **Results Storage**: What format for storing intermediate results?
+   - Option A: JSON only (human-readable, easy to inspect)
    - Option B: Pickle (Python objects, but not portable)
    - Option C: HDF5 (efficient for large data)
    - Option D: Multiple formats with user choice
+   - **Recommendation**: JSON for workflow metadata + CSV for tabular data
 
-7. **Notebook Integration**: Should we provide Jupyter notebook templates?
+2. **Notebook Integration**: Should we provide Jupyter notebook templates?
    - Option A: Yes, provide interactive notebook examples
    - Option B: No, focus on Python scripts
    - Option C: Both
+   - **Recommendation**: Start with Python scripts, add notebooks later if needed
+
+3. **Job Monitoring**: How to handle waiting for calculation completion?
+   - Option A: Block and wait (simple but ties up process)
+   - Option B: Poll with timeout (check every N seconds)
+   - Option C: Return immediately and provide status check function
+   - **Recommendation**: Poll with timeout + progress reporting
+
+4. **Error Handling**: What if EMTO calculations fail?
+   - Option A: Stop entire workflow
+   - Option B: Continue with available results
+   - Option C: Retry with different parameters
+   - **Recommendation**: Stop with informative error message, allow manual retry
 
 ---
 
