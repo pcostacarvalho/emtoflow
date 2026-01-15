@@ -35,6 +35,14 @@ sites:                               # Atomic sites
 #optimize_ca: true                      # Run c/a ratio optimization
 optimize_sws: true                     # Run SWS optimization
 
+# DMAX optimization settings (optional)
+optimize_dmax: false                   # Enable DMAX optimization
+dmax_initial: 2.0                      # Initial DMAX guess for optimization
+dmax_target_vectors: 100               # Target number of k-vectors
+dmax_vector_tolerance: 15              # Acceptable deviation (±N vectors)
+kstr_executable: null                  # Path to KSTR executable (required if optimize_dmax=true)
+                                       # Example: "/home/user/emto/bin/kstr.exe"
+
 # ------------------------------------------------------------------------------
 # Parameter Ranges (choose ONE option for each)
 # ------------------------------------------------------------------------------
