@@ -43,7 +43,7 @@ def load_config(config_source: Union[str, Path, Dict[str, Any]]) -> Dict[str, An
     >>> config = load_config('config.yaml')
 
     >>> # From dictionary
-    >>> config = load_config({'base_path': 'output', 'job_name': 'test'})
+    >>> config = load_config({'output_path ': 'output', 'job_name': 'test'})
     """
     # If already a dictionary, return it
     if isinstance(config_source, dict):
@@ -101,18 +101,18 @@ def validate_config(config: Dict[str, Any]) -> None:
 
     Examples
     --------
-    >>> config = {'base_path': 'output', 'job_name': 'test', 'dmax': 1.52}
+    >>> config = {'output_path': 'output', 'job_name': 'test', 'dmax': 1.52}
     >>> validate_config(config)  # Passes if all required fields present
     """
     # Required fields
-    required_fields = ['base_path', 'job_name', 'dmax', 'magnetic']
+    required_fields = ['output_path', 'job_name', 'dmax', 'magnetic']
 
     for field in required_fields:
         if field not in config:
             raise ConfigValidationError(f"Missing required field: {field}")
 
     # Validate structure input (must have either cif_file OR lattice params)
-    has_cif = 'cif_file' in config
+    has_cif = config.get('cif_file') is not None
     has_lattice = all(k in config for k in ['lat', 'a', 'sites'])
 
     if not has_cif and not has_lattice:
@@ -227,7 +227,7 @@ def load_and_validate_config(
     Examples
     --------
     >>> config = load_and_validate_config('optimization_config.yaml')
-    >>> print(config['base_path'])
+    >>> print(config['output_path'])
     'my_optimization'
     """
     config = load_config(config_source)
@@ -251,7 +251,7 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
 
     Examples
     --------
-    >>> config = {'base_path': 'output', 'job_name': 'test'}
+    >>> config = {'output_path': 'output', 'job_name': 'test'}
     >>> config = apply_config_defaults(config)
     >>> print(config['ca_step'])
     0.02
@@ -314,7 +314,7 @@ if __name__ == '__main__':
         config = load_and_validate_config(config_file)
         config = apply_config_defaults(config)
         print("Configuration loaded and validated successfully!")
-        print(f"\nBase path: {config['base_path']}")
+        print(f"\nOutput path: {config['output_path']}")
         print(f"Job name: {config['job_name']}")
         print(f"Magnetic: {config['magnetic']}")
         print(f"DMAX: {config['dmax']}")

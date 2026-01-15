@@ -126,7 +126,7 @@ def create_emto_inputs(
 
     # Config dict workflow (NEW)
     config_dict = {
-        'base_path': './cu_sweep',
+        'output_path': './cu_sweep',
         'job_name': 'cu',
         'cif_file': 'Cu.cif',
         'dmax': 1.3,
@@ -149,7 +149,7 @@ def create_emto_inputs(
 
     # Parameter workflow - FCC Fe-Pt random alloy (50-50)
     config_dict = {
-        'base_path': './fept_alloy',
+        'output_path': './fept_alloy',
         'job_name': 'fept',
         'lat': 2,  # FCC
         'a': 3.7,
@@ -179,7 +179,7 @@ def create_emto_inputs(
 
     # Parameter workflow - L10 FePt ordered structure
     config_dict = {
-        'base_path': './fept_l10',
+        'output_path': './fept_l10',
         'job_name': 'fept_l10',
         'lat': 5,  # BCT
         'a': 3.7,
@@ -237,7 +237,7 @@ def create_emto_inputs(
         cfg = apply_config_defaults(cfg)
 
         # Extract parameters from config (use config as default, allow overrides)
-        output_path = output_path or cfg.get('base_path')
+        output_path = output_path or cfg.get('output_path')
         job_name = job_name or cfg.get('job_name')
         cif_file = cif_file or cfg.get('cif_file')
         lat = lat or cfg.get('lat')
