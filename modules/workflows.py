@@ -13,6 +13,7 @@ from modules.inputs import (
 from modules.structure_builder import create_emto_structure, lattice_param_to_sws
 from modules.dmax_optimizer import _run_dmax_optimization
 from utils.config_parser import load_and_validate_config, apply_config_defaults
+from utils.aux_lists import prepare_ranges
 
 def create_emto_inputs(config):
     """
@@ -204,6 +205,9 @@ def create_emto_inputs(config):
     ca_ratios = cfg['ca_ratios']
     sws_values = cfg['sws_values']
     auto_generate = cfg['auto_generate']
+    ca_step = cfg['ca_step']
+    sws_step = cfg['sws_step']
+    n_points = cfg['n_points']
     magnetic = cfg['magnetic']
     user_magnetic_moments = cfg['user_magnetic_moments']
     create_job_script = cfg['create_job_script']
@@ -273,9 +277,23 @@ def create_emto_inputs(config):
 
     # ==================== DMAX OPTIMIZATION (OPTIONAL) ====================
     if optimize_dmax:
-
+        # DMAX optimization requires at least 2 c/a ratios
+        # If auto_generate is True, generate ranges from single values
         if len(ca_ratios) <= 1:
-            raise ValueError("At least two c/a ratio must be provided for DMAX optimization.")
+            if auto_generate:
+                print(f"Auto-generating c/a and SWS ranges for DMAX optimization...")
+                ca_ratios, sws_values = prepare_ranges(
+                    ca_ratios=ca_ratios,
+                    sws_values=sws_values,
+                    ca_step=ca_step,
+                    sws_step=sws_step,
+                    n_points=n_points
+                )
+            else:
+                raise ValueError(
+                    "At least two c/a ratios must be provided for DMAX optimization. "
+                    "Either provide multiple values or set auto_generate=True."
+                )
 
         if kstr_executable is None:
             raise ValueError("kstr_executable must be provided when optimize_dmax=True")
