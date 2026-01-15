@@ -192,7 +192,13 @@ def create_structure_from_params(lat, a, sites, b=None, c=None,
 
     # Calculate and store SWS and LAT in properties
     sws = lattice_param_to_sws(structure)
-    structure.properties = {'sws': sws, 'user_lat': lat}
+    # IMPORTANT: Store original site specifications to preserve zero-concentration elements
+    # Pymatgen removes zero-concentration species, but EMTO needs them in KGRN input
+    structure.properties = {
+        'sws': sws,
+        'user_lat': lat,
+        'original_sites': sites  # Preserve original site specs with all elements
+    }
 
     return structure
 
@@ -279,11 +285,21 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     site_to_it = get_inequivalent_atoms(conv_structure)
 
     # Extract all unique elements across all sites (for NL calculation)
+    # Include zero-concentration elements if original_sites are available
+    original_sites = structure_pmg.properties.get('original_sites') if structure_pmg.properties else None
+
     all_elements = set()
-    for site in conv_structure.sites:
-        # site.species is a Composition object containing all elements at that site
-        for elem in site.species.elements:
-            all_elements.add(str(elem))
+    if original_sites:
+        # Use original sites to get ALL elements including zero-concentration ones
+        for site_spec in original_sites:
+            for elem in site_spec['elements']:
+                all_elements.add(elem)
+    else:
+        # Fall back to pymatgen composition
+        for site in conv_structure.sites:
+            # site.species is a Composition object containing all elements at that site
+            for elem in site.species.elements:
+                all_elements.add(str(elem))
 
     unique_elements = sorted(all_elements)
     NQ3 = len(conv_structure.sites)
@@ -310,16 +326,25 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     atom_info = []
     atoms = []  # Simple list of elements at each site (for reference)
 
+    # original_sites already retrieved above for all_elements calculation
+    # Reuse it here to preserve zero-concentration elements
+
     for iq, site in enumerate(conv_structure.sites):
         it = site_to_it[iq]
 
-        # Extract all elements and concentrations at this site
-        # site.species is a Composition: {'Fe': 0.5, 'Pt': 0.5} for alloys
-        # or {'Cu': 1.0} for pure elements
-        site_composition = site.species.as_dict()
-
-        # Sort by element symbol for consistent ordering
-        sorted_elements = sorted(site_composition.items())
+        # If original sites are available, use them to get ALL elements (including 0% concentration)
+        # Otherwise, fall back to pymatgen's composition (which filters out zeros)
+        if original_sites and iq < len(original_sites):
+            # Use original site specification - preserves zero-concentration elements
+            elements = original_sites[iq]['elements']
+            concentrations = original_sites[iq]['concentrations']
+            sorted_elements = sorted(zip(elements, concentrations), key=lambda x: x[0])
+        else:
+            # Fall back to pymatgen composition (CIF workflow or no original sites)
+            # site.species is a Composition: {'Fe': 0.5, 'Pt': 0.5} for alloys
+            # or {'Cu': 1.0} for pure elements
+            site_composition = site.species.as_dict()
+            sorted_elements = sorted(site_composition.items())
 
         # For the atoms list, store comma-separated elements for this site
         site_elements = ','.join([elem for elem, _ in sorted_elements])

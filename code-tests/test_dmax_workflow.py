@@ -16,7 +16,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from modules.workflows import create_emto_inputs
+from modules.create_input import create_emto_inputs
 
 # Update this path to your KSTR executable location
 KSTR_EXECUTABLE = "/home/x_pamca/postdoc_proj/emto/bin/kstr.exe"

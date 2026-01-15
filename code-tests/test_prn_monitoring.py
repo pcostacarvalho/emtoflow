@@ -13,7 +13,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from modules.workflows import _check_prn_iq1_complete
+from modules.create_input import _check_prn_iq1_complete
 
 print("="*70)
 print("PRN File Monitoring - Unit Test")

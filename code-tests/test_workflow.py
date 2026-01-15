@@ -10,7 +10,7 @@ import shutil
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from modules.workflows import create_emto_inputs
+from modules.create_input import create_emto_inputs
 
 # Clean up previous test output
 test_output = "./test_output"
