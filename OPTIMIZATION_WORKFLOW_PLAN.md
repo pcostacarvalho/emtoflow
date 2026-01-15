@@ -677,32 +677,39 @@ base_path/                    # User-specified output directory
   - Extract optimal parameter (rwseq)
 - [x] Add error handling for EOS executable failures
 
-### 5. Implement Phase 1: c/a Optimization
-- [ ] Create EMTO inputs for c/a sweep
-- [ ] Run calculations and wait for completion
-- [ ] Parse energies from KFCD outputs
-- [ ] Run EOS fit and extract optimal c/a
-- [ ] Save results:
-  - EOS plot (eos_ca.png)
-  - Parsed EOS results with optimal c/a (eos_ca_results.json)
-- [ ] Return results for Phase 2
+### 5. Implement Phase 1: c/a Optimization ✅ COMPLETED
+- [x] Create EMTO inputs for c/a sweep
+- [x] Run calculations and wait for completion
+- [x] Parse energies from KFCD outputs using parse_kfcd()
+- [x] Run EOS fit and extract optimal c/a
+- [x] Save results to ca_optimization_results.json with:
+  - Optimal c/a ratio
+  - Energy vs c/a data
+  - EOS fit parameters (rwseq, v_eq, eeq, bulk_modulus)
+- [x] Return results for Phase 2
 
-### 6. Implement Phase 2: SWS Optimization
-- [ ] Create EMTO inputs for SWS sweep at optimal c/a
-- [ ] Run calculations and wait for completion
-- [ ] Parse energies from KFCD outputs
-- [ ] Run EOS fit and extract optimal SWS
-- [ ] Calculate derived parameters (a, c, volume)
-- [ ] Save results:
-  - EOS plot (eos_sws.png)
-  - Parsed EOS results with optimal SWS (eos_sws_results.json)
-  - Derived parameters: a, c, volume (derived_params.json)
-- [ ] Return results for Phase 3
+### 6. Implement Phase 2: SWS Optimization ✅ COMPLETED
+- [x] Create EMTO inputs for SWS sweep at optimal c/a
+- [x] Run calculations and wait for completion
+- [x] Parse energies from KFCD outputs using parse_kfcd()
+- [x] Run EOS fit and extract optimal SWS
+- [x] Calculate derived parameters (a, c, volume) based on lattice type
+- [x] Save results to sws_optimization_results.json with:
+  - Optimal SWS value
+  - Energy vs SWS data
+  - EOS fit parameters
+  - Derived lattice parameters (a, c, c/a, volume)
+- [x] Return results for Phase 3
 
-### 7. Implement Phase 3: Optimized Calculation
-- [ ] Create EMTO input with optimal c/a and SWS
-- [ ] Run full calculation including DOS
-- [ ] Monitor convergence
+### 7. Implement Phase 3: Optimized Structure Calculation ✅ COMPLETED
+- [x] Create EMTO inputs with optimal c/a and SWS
+- [x] Run final calculation
+- [x] Parse results from KFCD and KGRN using parse_kfcd() and parse_kgrn()
+- [x] Save results to optimized_results.json with:
+  - Optimal parameters (c/a, SWS)
+  - Final energies (KFCD and KGRN)
+  - Magnetic moments
+  - File identifier
 
 ### 8. Implement Phase 4: Results Parsing
 - [ ] Parse KGRN output (convergence, iterations)
