@@ -289,6 +289,104 @@ class OptimizationWorkflow:
 
 
 
+    def _validate_calculations(
+        self,
+        phase_path: Union[str, Path],
+        ca_ratios: List[float],
+        sws_values: List[float],
+        job_name: str
+    ) -> None:
+        """
+        Validate that EMTO calculations completed successfully.
+
+        Checks that output files exist and contain success indicators:
+        - KSTR: "KSTR:     Finished at:"
+        - KGRN: "KGRN: OK  Finished at:"
+        - KFCD: "KFCD: OK  Finished at:"
+
+        Parameters
+        ----------
+        phase_path : str or Path
+            Directory containing calculation outputs
+        ca_ratios : list of float
+            c/a ratios that were calculated
+        sws_values : list of float
+            SWS values that were calculated
+        job_name : str
+            Job identifier used in filenames
+
+        Raises
+        ------
+        RuntimeError
+            If any calculation failed or output files are missing/incomplete
+        """
+        phase_path = Path(phase_path)
+
+        print(f"\n{'='*70}")
+        print(f"VALIDATING CALCULATIONS")
+        print(f"{'='*70}")
+
+        errors = []
+
+        # For each c/a ratio, check KSTR and SHAPE outputs
+        for ca_ratio in ca_ratios:
+            file_id = f"{job_name}_{ca_ratio:.2f}"
+
+            # Check KSTR output in smx directory
+            kstr_log = phase_path / f"smx/smx_{ca_ratio:.2f}.log"
+            if not kstr_log.exists():
+                errors.append(f"Missing KSTR log: {kstr_log}")
+            else:
+                # Check for success indicator
+                with open(kstr_log, 'r') as f:
+                    content = f.read()
+                    if "KSTR:     Finished at:" not in content:
+                        errors.append(f"KSTR did not complete successfully: {kstr_log}")
+                    else:
+                        print(f"✓ KSTR completed for c/a={ca_ratio:.2f}")
+
+        # For each (c/a, sws) pair, check KGRN and KFCD outputs
+        for ca_ratio in ca_ratios:
+            for sws in sws_values:
+                file_id = f"{job_name}_{ca_ratio:.2f}_{sws:.2f}"
+
+                # Check KGRN output
+                kgrn_log = phase_path / f"kgrn_{ca_ratio:.2f}_{sws:.2f}.log"
+                if not kgrn_log.exists():
+                    errors.append(f"Missing KGRN log: {kgrn_log}")
+                else:
+                    # Check for success indicator
+                    with open(kgrn_log, 'r') as f:
+                        content = f.read()
+                        if "KGRN: OK  Finished at:" not in content:
+                            errors.append(f"KGRN did not complete successfully: {kgrn_log}")
+                        else:
+                            print(f"✓ KGRN completed for c/a={ca_ratio:.2f}, SWS={sws:.2f}")
+
+                # Check KFCD output
+                kfcd_log = phase_path / f"fcd/kfcd_{ca_ratio:.2f}_{sws:.2f}.log"
+                if not kfcd_log.exists():
+                    errors.append(f"Missing KFCD log: {kfcd_log}")
+                else:
+                    # Check for success indicator
+                    with open(kfcd_log, 'r') as f:
+                        content = f.read()
+                        if "KFCD: OK  Finished at:" not in content:
+                            errors.append(f"KFCD did not complete successfully: {kfcd_log}")
+                        else:
+                            print(f"✓ KFCD completed for c/a={ca_ratio:.2f}, SWS={sws:.2f}")
+
+        print(f"{'='*70}\n")
+
+        if errors:
+            error_msg = "\n".join(errors)
+            raise RuntimeError(
+                f"Calculation validation failed with {len(errors)} error(s):\n{error_msg}\n\n"
+                f"Please check the calculation logs in: {phase_path}"
+            )
+
+        print("✓ All calculations validated successfully\n")
+
     def _run_eos_fit(
         self,
         r_or_v_data: List[float],
@@ -511,6 +609,14 @@ class OptimizationWorkflow:
             script_name=script_name
         )
 
+        # Validate calculations completed successfully
+        self._validate_calculations(
+            phase_path=phase_path,
+            ca_ratios=ca_ratios,
+            sws_values=sws_list,
+            job_name=self.config['job_name']
+        )
+
         # Parse energies from KFCD outputs
         print("\nParsing energies from KFCD outputs...")
         ca_values = []
@@ -664,6 +770,14 @@ class OptimizationWorkflow:
         self._run_calculations(
             calculation_path=phase_path,
             script_name=script_name
+        )
+
+        # Validate calculations completed successfully
+        self._validate_calculations(
+            phase_path=phase_path,
+            ca_ratios=[optimal_ca],
+            sws_values=sws_values,
+            job_name=self.config['job_name']
         )
 
         # Parse energies from KFCD outputs
@@ -875,6 +989,14 @@ class OptimizationWorkflow:
         self._run_calculations(
             calculation_path=phase_path,
             script_name=script_name
+        )
+
+        # Validate calculations completed successfully
+        self._validate_calculations(
+            phase_path=phase_path,
+            ca_ratios=[optimal_ca],
+            sws_values=[optimal_sws],
+            job_name=self.config['job_name']
         )
 
         # Parse results from KFCD and KGRN outputs
