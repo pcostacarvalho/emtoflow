@@ -170,6 +170,48 @@ The optimizer runs KSTR calculations with early termination (~0.1s per ratio ins
 
 ---
 
+### Workflow 4: Complete Optimization Workflow (c/a + SWS)
+
+Automated optimization workflow for finding equilibrium structural parameters:
+
+```python
+# From YAML configuration file
+python bin/run_optimization.py config.yaml
+
+# Or programmatically
+from modules.optimization_workflow import OptimizationWorkflow
+
+workflow = OptimizationWorkflow(config_file='optimization_config.yaml')
+results = workflow.run_complete_workflow()
+
+# Access optimized parameters
+print(f"Optimal c/a: {results['phase2_sws_optimization']['optimal_ca']:.6f}")
+print(f"Optimal SWS: {results['phase2_sws_optimization']['optimal_sws']:.6f}")
+print(f"Lattice a: {results['phase2_sws_optimization']['derived_parameters']['a_angstrom']:.6f} Å")
+```
+
+**The workflow automatically performs:**
+1. **Phase 1**: c/a ratio optimization (if enabled)
+2. **Phase 2**: SWS (volume) optimization (if enabled)
+3. **Phase 3**: Final calculation with optimized parameters
+4. **Phase 4**: Results parsing (energies, magnetic moments)
+5. **Phase 5**: DOS analysis (if enabled)
+6. **Phase 6**: Summary report generation
+
+**Features:**
+- Smart parameter auto-generation (single value → range, null → calculate from structure)
+- YAML configuration files for reproducibility
+- Equation of state fitting with multiple methods (Morse, Birch-Murnaghan, Murnaghan)
+- Organized output with JSON results per phase
+- Human-readable summary reports
+- Optional DOS analysis and plotting
+
+**Configuration template**: `refs/optimization_config_template.yaml`
+
+**📖 For complete documentation, see:** [OPTIMIZATION_WORKFLOW.md](OPTIMIZATION_WORKFLOW.md)
+
+---
+
 **What the workflows do:**
 - **CIF workflow:** Auto-detects LAT, extracts atoms and symmetry
 - **Parameter workflow:** Creates structure from lattice parameters and site specifications
@@ -187,10 +229,12 @@ The optimizer runs KSTR calculations with early termination (~0.1s per ratio ins
 ```
 EMTO_input_automation/
 ├── bin/
+│   ├── run_optimization.py   # CLI tool for optimization workflow
 │   └── skr_input.py          # CLI tool for generating KSTR from CIF
 ├── modules/
 │   ├── __init__.py
 │   ├── workflows.py          # High-level workflow functions (CIF + Parameter)
+│   ├── optimization_workflow.py  # Complete c/a + SWS optimization workflow
 │   ├── structure_builder.py  # Unified structure creation module
 │   ├── lat_detector.py       # Structure analysis & symmetry detection
 │   ├── parse_cif.py          # CIF utilities
@@ -204,6 +248,8 @@ EMTO_input_automation/
 │   ├── dmax_optimizer.py     # DMAX parameter optimization
 │   ├── dos.py                # DOS parser and plotter
 │   └── eos.py                # Equation of state analysis
+├── refs/
+│   └── optimization_config_template.yaml  # Complete config template
 ├── tests/
 │   ├── test_fast_dmax_extraction.py  # DMAX optimization integration test
 │   └── test_prn_monitoring.py        # Unit test for .prn file monitoring
@@ -212,6 +258,7 @@ EMTO_input_automation/
 │   ├── K6Si2O7.cif
 │   └── code.ipynb            # Usage examples
 ├── DMAX_OPTIMIZATION.md      # DMAX optimization documentation
+├── OPTIMIZATION_WORKFLOW.md  # Complete c/a + SWS optimization workflow
 ├── LATTICE_TYPES.md          # Reference table for LAT parameter (1-14)
 ├── ALLOY_WORKFLOW_GUIDE.md   # Detailed alloy workflow documentation
 ├── LICENSE                   # MIT License
@@ -430,6 +477,25 @@ print(f"Equilibrium energy: {E_eq:.6f} Ry")
 4. **(Optional) Optimize DMAX** - Find consistent neighbor shells across c/a ratios
 5. **(Optional) Re-run** - With optimized DMAX
 6. **Analyze results** - Extract energies and fit EOS
+
+### Optimization Workflow (c/a + SWS) - ✅ Complete
+
+**Automated multi-phase optimization** (see `OPTIMIZATION_WORKFLOW.md` for details):
+
+1. **Structure input** - CIF file or lattice parameters
+2. **Phase 1** - c/a ratio optimization (optional)
+3. **Phase 2** - SWS (volume) optimization (optional)
+4. **Phase 3** - Optimized structure calculation
+5. **Phase 4** - Results parsing and analysis
+6. **Phase 5** - DOS analysis (optional)
+7. **Phase 6** - Summary report generation
+
+**Key features:**
+- YAML configuration files (`refs/optimization_config_template.yaml`)
+- Smart parameter auto-generation
+- EOS fitting (Morse, Birch-Murnaghan, Murnaghan)
+- Organized JSON results per phase
+- Command-line tool: `python bin/run_optimization.py config.yaml`
 
 ### Alloy Workflow (CPA Disorder) - ✅ Complete
 
@@ -925,10 +991,13 @@ except TimeoutError:
 - **No hardcoded values:** All parameters determined automatically or specified by user
 
 **What's New (January 2026):**
-- Complete alloy implementation with pymatgen-based structure builder
-- 453 lines of obsolete code removed (simplified architecture)
-- Unified code path for all structure types
-- Comprehensive testing and documentation
+- ✅ **Complete optimization workflow** - Automated c/a + SWS optimization with EOS fitting
+- ✅ Complete alloy implementation with pymatgen-based structure builder
+- ✅ Zero-concentration element support in KGRN inputs
+- ✅ 453 lines of obsolete code removed (simplified architecture)
+- ✅ Unified code path for all structure types
+- ✅ Comprehensive testing and documentation
+- ✅ YAML configuration support for workflows
 
 ---
 

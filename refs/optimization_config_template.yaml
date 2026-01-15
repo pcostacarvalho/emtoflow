@@ -1,0 +1,214 @@
+# ==============================================================================
+# EMTO Optimization Workflow Configuration Template
+# ==============================================================================
+# Complete reference for all configuration options in the optimization workflow.
+# Copy and modify this file for your specific calculations.
+#
+# Usage:
+#   python bin/run_optimization.py your_config.yaml
+#
+# For more information, see OPTIMIZATION_WORKFLOW.md
+
+# ------------------------------------------------------------------------------
+# Basic Settings (REQUIRED)
+# ------------------------------------------------------------------------------
+output_path: "my_optimization"           # Output directory for all results
+job_name: "material_opt"                 # Job identifier (used in file names)
+
+# ------------------------------------------------------------------------------
+# Structure Input (REQUIRED - choose ONE approach)
+# ------------------------------------------------------------------------------
+
+# Option A: CIF file (recommended for known structures)
+cif_file: "structure.cif"
+# OR set to null if using Option B:
+# cif_file: null
+
+# Option B: Lattice parameters (for alloys or custom structures)
+# Uncomment and set these if not using a CIF file:
+# lat: 5                               # EMTO lattice type (1-14, see LATTICE_TYPES.md)
+# a: 3.86                              # Lattice parameter a (Angstroms)
+# b: null                              # Lattice parameter b (default: same as a)
+# c: 3.76                              # Lattice parameter c (default: same as a)
+# alpha: 90                            # Lattice angle alpha (degrees, default: 90)
+# beta: 90                             # Lattice angle beta (degrees, default: 90)
+# gamma: 90                            # Lattice angle gamma (degrees, default: 90)
+# sites:                               # Atomic sites with positions and compositions
+#   - position: [0.0, 0.5, 0.5]
+#     elements: ["Fe"]
+#     concentrations: [1.0]
+#   - position: [0.5, 0.0, 0.5]
+#     elements: ["Fe"]
+#     concentrations: [1.0]
+#   - position: [0.0, 0.0, 0.0]
+#     elements: ["Pt"]
+#     concentrations: [1.0]
+#   - position: [0.5, 0.5, 0.0]
+#     elements: ["Pt"]
+#     concentrations: [1.0]
+
+# ------------------------------------------------------------------------------
+# Optimization Settings (REQUIRED)
+# ------------------------------------------------------------------------------
+optimize_ca: true                      # Enable c/a ratio optimization (Phase 1)
+optimize_sws: true                     # Enable SWS optimization (Phase 2)
+
+# DMAX optimization settings (optional, advanced)
+optimize_dmax: false                   # Enable automatic DMAX cutoff optimization
+dmax_initial: 2.0                      # Initial DMAX guess for optimization
+dmax_target_vectors: 100               # Target number of k-vectors
+dmax_vector_tolerance: 15              # Acceptable deviation (±N vectors)
+kstr_executable: null                  # Path to KSTR executable (required if optimize_dmax=true)
+                                       # Example: "/home/user/emto/bin/kstr.exe"
+
+# ------------------------------------------------------------------------------
+# Parameter Ranges (choose ONE option for each parameter)
+# ------------------------------------------------------------------------------
+
+# Three options for specifying c/a ratios and SWS values:
+
+# Option 1: Single value (workflow auto-generates range around it)
+ca_ratios: 0.95                        # Experimental c/a ratio (auto-generates ±3 steps)
+sws_values: 2.86                       # Experimental SWS (auto-generates ±3 steps)
+
+# Option 2: List of values (use explicitly provided values)
+# ca_ratios: [0.89, 0.91, 0.93, 0.95, 0.97, 0.99, 1.01]
+# sws_values: [2.77, 2.80, 2.83, 2.86, 2.89, 2.92, 2.95]
+
+# Option 3: Auto-calculate from structure (null)
+# ca_ratios: null                      # Calculate from structure's c/a ratio
+# sws_values: null                     # Calculate from structure's volume
+
+# Initial SWS for c/a optimization (required if optimize_ca=true)
+initial_sws: [2.82]                    # SWS value(s) to use during c/a sweep
+
+# ------------------------------------------------------------------------------
+# Range Generation Parameters (OPTIONAL - for auto-generation)
+# ------------------------------------------------------------------------------
+ca_step: 0.02                          # Step size for c/a range (default: 0.02)
+sws_step: 0.05                         # Step size for SWS range (default: 0.05)
+n_points: 7                            # Number of points in range (default: 7)
+
+# ------------------------------------------------------------------------------
+# EMTO Calculation Parameters (REQUIRED)
+# ------------------------------------------------------------------------------
+dmax: 1.52                             # Maximum distance parameter for neighbor shells
+magnetic: "P"                          # Magnetic type: "P" (paramagnetic) or "F" (ferromagnetic)
+
+# Optional EMTO parameters (usually auto-detected from structure)
+# NL: 3                                # Maximum angular momentum (auto-detected from elements)
+# NQ3: 4                               # Number of atoms (auto-detected from structure)
+# fractional_coords:                   # Fractional coordinates (if not from CIF)
+#   - [0.0, 0.5, 0.5]
+#   - [0.5, 0.0, 0.5]
+#   - [0.0, 0.0, 0.0]
+#   - [0.5, 0.5, 0.0]
+
+# Custom magnetic moments (optional, overrides database defaults)
+# user_magnetic_moments:
+#   Fe: 2.5
+#   Pt: 0.4
+
+# ------------------------------------------------------------------------------
+# Execution Settings (REQUIRED)
+# ------------------------------------------------------------------------------
+run_mode: "sbatch"                     # Execution mode: "sbatch" (SLURM) or "local"
+
+# SLURM settings (required if run_mode="sbatch")
+slurm_account: "naiss2025-1-38"        # SLURM account for job submission
+slurm_time: "02:00:00"                 # Time limit (HH:MM:SS)
+slurm_partition: "main"                # SLURM partition
+prcs: 8                                # Number of processors per job
+
+# Job script settings (optional)
+# job_script_name: "run_calc.sh"       # Name of generated job script (default: auto-generated)
+# job_mode: "serial"                   # Job execution: "serial" or "parallel"
+
+# ------------------------------------------------------------------------------
+# EOS Settings (REQUIRED)
+# ------------------------------------------------------------------------------
+eos_executable: "/home/user/emto/bin/eos.exe"  # Path to EMTO EOS executable
+eos_type: "MO88"                       # EOS fit type: MO88, POLN, SPLN, MU37, ALL
+
+# ------------------------------------------------------------------------------
+# Analysis Settings (OPTIONAL)
+# ------------------------------------------------------------------------------
+generate_plots: true                   # Generate EOS and DOS plots
+export_csv: true                       # Export results to CSV format
+plot_format: "png"                     # Plot format: png, pdf, svg
+
+# DOS analysis settings (optional)
+# generate_dos: true                   # Generate DOS files during calculations
+# dos_plot_range: [-0.8, 0.15]        # Energy range for DOS plots (eV relative to Fermi)
+
+# Reference values for percentage calculations (optional)
+# reference_ca: null                   # Reference c/a ratio for % change calculations
+# reference_sws: null                  # Reference SWS for % change calculations
+# reference_volume: null               # Reference volume for % change calculations
+
+# ------------------------------------------------------------------------------
+# Advanced Settings (OPTIONAL)
+# ------------------------------------------------------------------------------
+# skip_existing: false                 # Skip calculations if output files exist
+# save_intermediate: true              # Save intermediate results to JSON files
+# cleanup_temp: false                  # Remove temporary files after completion
+# log_level: "INFO"                    # Logging level: DEBUG, INFO, WARNING, ERROR
+# max_iterations: 100                  # Maximum SCF iterations
+# convergence_tolerance: 1e-6          # SCF convergence tolerance
+
+# Job monitoring settings (optional)
+# poll_interval: 30                    # Check job status every N seconds
+# max_wait_time: 7200                  # Maximum wait time in seconds (2 hours)
+# timeout_action: "stop"               # Action on timeout: stop, continue, retry
+
+# ------------------------------------------------------------------------------
+# Output Organization
+# ------------------------------------------------------------------------------
+# The workflow automatically creates the following directory structure:
+#
+# output_path/
+# ├── phase1_ca_optimization/          # c/a optimization results (if optimize_ca=True)
+# │   ├── smx/, shp/, fcd/             # EMTO calculation files
+# │   ├── eos.dat, eos.out             # EOS input and output
+# │   └── ca_optimization_results.json # Parsed results with optimal c/a
+# ├── phase2_sws_optimization/         # SWS optimization results (if optimize_sws=True)
+# │   ├── smx/, shp/, fcd/             # EMTO calculation files
+# │   ├── eos.dat, eos.out             # EOS input and output
+# │   └── sws_optimization_results.json # Parsed results with optimal SWS and derived params
+# ├── phase3_optimized_calculation/    # Final calculation with optimal parameters
+# │   ├── smx/, shp/, fcd/             # EMTO calculation files
+# │   ├── optimized_results.json       # Parsed KFCD and KGRN results
+# │   └── dos_analysis/                # DOS plots (if generated)
+# └── workflow_summary.txt             # Human-readable summary report
+
+# ------------------------------------------------------------------------------
+# Examples
+# ------------------------------------------------------------------------------
+
+# Example 1: Full c/a + SWS optimization from CIF file
+# cif_file: "FePt.cif"
+# optimize_ca: true
+# optimize_sws: true
+# ca_ratios: null                      # Auto-calculate from CIF
+# sws_values: null                     # Auto-calculate from CIF
+# initial_sws: [2.82]
+
+# Example 2: SWS-only optimization for cubic alloy
+# lat: 2                               # FCC
+# a: 3.7
+# sites:
+#   - position: [0, 0, 0]
+#     elements: ["Fe", "Pt"]
+#     concentrations: [0.5, 0.5]
+# optimize_ca: false                   # Skip c/a (cubic structure)
+# optimize_sws: true                   # Optimize volume only
+# ca_ratios: [1.0]                     # Fixed c/a for cubic
+# sws_values: [2.70, 2.75, 2.80, 2.85, 2.90]
+
+# Example 3: Quick test with explicit values
+# cif_file: "structure.cif"
+# optimize_ca: false
+# optimize_sws: false
+# ca_ratios: [0.96]                    # Single c/a value
+# sws_values: [2.65]                   # Single SWS value
+# run_mode: "local"                    # Run locally for testing
