@@ -12,7 +12,7 @@ from modules.inputs import (
 )
 from modules.structure_builder import create_emto_structure, lattice_param_to_sws
 from modules.dmax_optimizer import _run_dmax_optimization
-from utils.config_parser import load_and_validate_config, apply_config_defaults
+from utils.config_parser import load_and_validate_config
 from utils.aux_lists import prepare_ranges
 
 def create_emto_inputs(config):

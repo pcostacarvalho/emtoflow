@@ -50,7 +50,7 @@ def main():
     try:
         # Initialize and run workflow
         workflow = OptimizationWorkflow(config_file=config_file)
-        results = workflow.run_complete_workflow()
+        results = workflow.run()
 
         # Print final summary
         print("\n" + "="*80)

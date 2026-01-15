@@ -436,7 +436,7 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
         'export_csv': True,
         'plot_format': 'png',
         'generate_dos': False,
-        'dos_plot_range': None,
+        'dos_plot_range': [-0.8, 0.15],
 
         # Reference values for percentage calculations
         'reference_ca': None,

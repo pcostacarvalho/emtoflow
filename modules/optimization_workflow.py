@@ -18,7 +18,7 @@ from modules.create_input import create_emto_inputs
 from modules.inputs.eos_emto import create_eos_input, parse_eos_output
 from utils.running_bash import run_sbatch, chmod_and_run
 from utils.config_parser import load_and_validate_config, apply_config_defaults
-from utils.aux_lists import generate_range
+from utils.aux_lists import prepare_ranges
 
 
 class OptimizationWorkflow:
@@ -333,15 +333,15 @@ class OptimizationWorkflow:
             file_id = f"{job_name}_{ca_ratio:.2f}"
 
             # Check KSTR output in smx directory
-            kstr_log = phase_path / f"smx/smx_{ca_ratio:.2f}.log"
-            if not kstr_log.exists():
-                errors.append(f"Missing KSTR log: {kstr_log}")
+            kstr_out = phase_path / f"smx/{file_id}.prn"
+            if not kstr_out.exists():
+                errors.append(f"Missing KSTR output: {kstr_out}")
             else:
                 # Check for success indicator
-                with open(kstr_log, 'r') as f:
+                with open(kstr_out, 'r') as f:
                     content = f.read()
                     if "KSTR:     Finished at:" not in content:
-                        errors.append(f"KSTR did not complete successfully: {kstr_log}")
+                        errors.append(f"KSTR did not complete successfully: {kstr_out}")
                     else:
                         print(f"✓ KSTR completed for c/a={ca_ratio:.2f}")
 
@@ -351,28 +351,28 @@ class OptimizationWorkflow:
                 file_id = f"{job_name}_{ca_ratio:.2f}_{sws:.2f}"
 
                 # Check KGRN output
-                kgrn_log = phase_path / f"kgrn_{ca_ratio:.2f}_{sws:.2f}.log"
-                if not kgrn_log.exists():
-                    errors.append(f"Missing KGRN log: {kgrn_log}")
+                kgrn_out = phase_path / f"{file_id}.prn"
+                if not kgrn_out.exists():
+                    errors.append(f"Missing KGRN output: {kgrn_out}")
                 else:
                     # Check for success indicator
-                    with open(kgrn_log, 'r') as f:
+                    with open(kgrn_out, 'r') as f:
                         content = f.read()
                         if "KGRN: OK  Finished at:" not in content:
-                            errors.append(f"KGRN did not complete successfully: {kgrn_log}")
+                            errors.append(f"KGRN did not complete successfully: {kgrn_out}")
                         else:
                             print(f"✓ KGRN completed for c/a={ca_ratio:.2f}, SWS={sws:.2f}")
 
                 # Check KFCD output
-                kfcd_log = phase_path / f"fcd/kfcd_{ca_ratio:.2f}_{sws:.2f}.log"
-                if not kfcd_log.exists():
-                    errors.append(f"Missing KFCD log: {kfcd_log}")
+                kfcd_out = phase_path / f"fcd/{file_id}.prn"
+                if not kfcd_out.exists():
+                    errors.append(f"Missing KFCD output: {kfcd_out}")
                 else:
                     # Check for success indicator
-                    with open(kfcd_log, 'r') as f:
+                    with open(kfcd_out, 'r') as f:
                         content = f.read()
                         if "KFCD: OK  Finished at:" not in content:
-                            errors.append(f"KFCD did not complete successfully: {kfcd_log}")
+                            errors.append(f"KFCD did not complete successfully: {kfcd_out}")
                         else:
                             print(f"✓ KFCD completed for c/a={ca_ratio:.2f}, SWS={sws:.2f}")
 
@@ -735,33 +735,15 @@ class OptimizationWorkflow:
 
         # Create EMTO inputs with optimal c/a
         try:
-            create_emto_inputs(
-                output_path=str(phase_path),
-                job_name=self.config['job_name'],
-                lat=structure['lat'],
-                a=structure['a'],
-                sites=structure.get('sites_for_input'),
-                b=structure.get('b'),
-                c=structure.get('c'),
-                alpha=structure.get('alpha', 90),
-                beta=structure.get('beta', 90),
-                gamma=structure.get('gamma', 90),
-                dmax=self.config['dmax'],
-                ca_ratios=[optimal_ca],  # Use optimal c/a from Phase 1
-                sws_values=sws_values,
-                magnetic=self.config['magnetic'],
-                user_magnetic_moments=self.config.get('user_magnetic_moments'),
-                create_job_script=True,
-                job_mode=self.config.get('job_mode', 'serial'),
-                prcs=self.config.get('prcs', 8),
-                time=self.config.get('slurm_time', '02:00:00'),
-                account=self.config.get('slurm_account'),
-                optimize_dmax=self.config.get('optimize_dmax', False),
-                dmax_initial=self.config.get('dmax_initial', 2.0),
-                dmax_target_vectors=self.config.get('dmax_target_vectors', 100),
-                dmax_vector_tolerance=self.config.get('dmax_vector_tolerance', 15),
-                kstr_executable=self.config.get('kstr_executable')
-            )
+            phase_config = {
+                **self.config,  # All validated defaults from constructor
+                'output_path': str(phase_path),  # Override for this phase
+                'ca_ratios': [optimal_ca],
+                'sws_values': sws_values,
+                # Only override what's different for this phase
+            }
+
+            create_emto_inputs(phase_config)
         except Exception as e:
             raise RuntimeError(f"Failed to create EMTO inputs: {e}")
 
@@ -954,33 +936,15 @@ class OptimizationWorkflow:
 
         # Create EMTO inputs with optimal parameters
         try:
-            create_emto_inputs(
-                output_path=str(phase_path),
-                job_name=self.config['job_name'],
-                lat=structure['lat'],
-                a=structure['a'],
-                sites=structure.get('sites_for_input'),
-                b=structure.get('b'),
-                c=structure.get('c'),
-                alpha=structure.get('alpha', 90),
-                beta=structure.get('beta', 90),
-                gamma=structure.get('gamma', 90),
-                dmax=self.config['dmax'],
-                ca_ratios=[optimal_ca],
-                sws_values=[optimal_sws],
-                magnetic=self.config['magnetic'],
-                user_magnetic_moments=self.config.get('user_magnetic_moments'),
-                create_job_script=True,
-                job_mode=self.config.get('job_mode', 'serial'),
-                prcs=self.config.get('prcs', 8),
-                time=self.config.get('slurm_time', '02:00:00'),
-                account=self.config.get('slurm_account'),
-                optimize_dmax=self.config.get('optimize_dmax', False),
-                dmax_initial=self.config.get('dmax_initial', 2.0),
-                dmax_target_vectors=self.config.get('dmax_target_vectors', 100),
-                dmax_vector_tolerance=self.config.get('dmax_vector_tolerance', 15),
-                kstr_executable=self.config.get('kstr_executable')
-            )
+            phase_config = {
+                **self.config,  # All validated defaults from constructor
+                'output_path': str(phase_path),  # Override for this phase
+                'ca_ratios': [optimal_ca],
+                'sws_values': [optimal_sws],
+                # Only override what's different for this phase
+            }
+
+            create_emto_inputs(phase_config)
         except Exception as e:
             raise RuntimeError(f"Failed to create EMTO inputs: {e}")
 
@@ -1122,8 +1086,7 @@ class OptimizationWorkflow:
 
         # Get plot range
         if plot_range is None:
-            plot_range = self.config.get('dos_plot_range', [-0.8, 0.15])
-
+            plot_range = self.config['dos_plot_range']
         # Generate plots
         try:
             # Total DOS
@@ -1286,7 +1249,7 @@ class OptimizationWorkflow:
 
         return report_text
 
-    def run_complete_workflow(self) -> Dict[str, Any]:
+    def run(self) -> Dict[str, Any]:
         """
         Execute complete optimization workflow.
 
@@ -1518,7 +1481,7 @@ def main():
         print(f"  DOS analysis: {workflow.config.get('generate_dos', False)}")
 
         # Run complete workflow
-        results = workflow.run_complete_workflow()
+        results = workflow.run()
 
         print("\n" + "=" * 80)
         print("Workflow completed successfully!")
