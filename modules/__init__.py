@@ -9,7 +9,7 @@ This package provides tools for automating EMTO input file creation:
 - eos: Equation of state analysis
 """
 
-from .workflows import create_emto_inputs
+from .create_input import create_emto_inputs
 from .dos import DOSParser, DOSPlotter
 
 __all__ = [

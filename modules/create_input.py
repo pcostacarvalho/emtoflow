@@ -310,8 +310,6 @@ def create_emto_inputs(config):
         print("\nProceeding to generate final input files with optimized DMAX values...")
     else:
         # Standard workflow - single DMAX for all ratios
-        if dmax is None:
-            raise ValueError("dmax must be provided when optimize_dmax=False")
         dmax_per_ratio = {ratio: dmax for ratio in ca_ratios}
 
 

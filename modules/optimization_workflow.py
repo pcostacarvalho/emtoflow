@@ -14,10 +14,11 @@ from pathlib import Path
 from typing import Dict, Any, List, Union, Optional, Tuple
 
 from modules.structure_builder import create_emto_structure, lattice_param_to_sws
-from modules.workflows import create_emto_inputs
+from modules.create_input import create_emto_inputs
 from modules.inputs.eos_emto import create_eos_input, parse_eos_output
 from utils.running_bash import run_sbatch, chmod_and_run
 from utils.config_parser import load_and_validate_config, apply_config_defaults
+from utils.aux_lists import generate_range
 
 
 class OptimizationWorkflow:
@@ -35,10 +36,7 @@ class OptimizationWorkflow:
 
     def __init__(
         self,
-        config_file: Optional[Union[str, Path]] = None,
-        config_dict: Optional[Dict[str, Any]] = None,
-        eos_executable: Optional[str] = None
-    ):
+        config):
         """
         Initialize optimization workflow.
 
@@ -57,24 +55,14 @@ class OptimizationWorkflow:
             If neither config_file nor config_dict is provided
         """
         # Load and validate configuration
-        if config_file is not None:
-            self.config = load_and_validate_config(config_file)
-        elif config_dict is not None:
-            self.config = load_and_validate_config(config_dict)
+        if config is not None:
+            self.config = load_and_validate_config(config)
         else:
             raise ValueError("Must provide either config_file or config_dict")
 
         # Apply defaults
         self.config = apply_config_defaults(self.config)
 
-        # Set EOS executable (parameter overrides config)
-        if eos_executable is not None:
-            self.config['eos_executable'] = eos_executable
-
-        # Validate EOS executable if optimization is enabled
-        if self.config.get('optimize_ca') or self.config.get('optimize_sws'):
-            if 'eos_executable' not in self.config or self.config['eos_executable'] is None:
-                raise ValueError("eos_executable is required for optimization workflow")
 
         # Create base output directory
         self.base_path = Path(self.config['output_path'])
@@ -253,14 +241,7 @@ class OptimizationWorkflow:
         RuntimeError
             If calculations fail or timeout
         """
-        if run_mode is None:
-            run_mode = self.config.get('run_mode', 'sbatch')
-
-        if poll_interval is None:
-            poll_interval = self.config.get('poll_interval', 30)
-
-        if max_wait_time is None:
-            max_wait_time = self.config.get('max_wait_time', 7200)
+ 
 
         calculation_path = Path(calculation_path)
 
@@ -306,8 +287,7 @@ class OptimizationWorkflow:
             except Exception as e:
                 raise RuntimeError(f"Local execution failed: {e}")
 
-        else:
-            raise ValueError(f"Invalid run_mode: {run_mode}. Must be 'sbatch' or 'local'")
+
 
     def _run_eos_fit(
         self,
@@ -354,8 +334,6 @@ class OptimizationWorkflow:
         RuntimeError
             If EOS executable fails or parsing fails
         """
-        if eos_type is None:
-            eos_type = self.config.get('eos_type', 'MO88')
 
         output_path = Path(output_path)
         output_path.mkdir(parents=True, exist_ok=True)
