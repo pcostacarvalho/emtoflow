@@ -205,6 +205,47 @@ def validate_config(config: Dict[str, Any]) -> None:
                 f"n_points must be an integer >= 3, got: {n}"
             )
 
+    # Validate DMAX optimization flags if present
+    if 'optimize_dmax' in config:
+        if not isinstance(config['optimize_dmax'], bool):
+            raise ConfigValidationError(
+                f"optimize_dmax must be boolean, got: {type(config['optimize_dmax'])}"
+            )
+
+    # Validate DMAX optimization parameters if present
+    if 'dmax_initial' in config:
+        dmax_init = config['dmax_initial']
+        if not isinstance(dmax_init, (int, float)) or dmax_init <= 0:
+            raise ConfigValidationError(
+                f"dmax_initial must be a positive number, got: {dmax_init}"
+            )
+
+    if 'dmax_target_vectors' in config:
+        target = config['dmax_target_vectors']
+        if not isinstance(target, int) or target <= 0:
+            raise ConfigValidationError(
+                f"dmax_target_vectors must be a positive integer, got: {target}"
+            )
+
+    if 'dmax_vector_tolerance' in config:
+        tolerance = config['dmax_vector_tolerance']
+        if not isinstance(tolerance, (int, float)) or tolerance < 0:
+            raise ConfigValidationError(
+                f"dmax_vector_tolerance must be a non-negative number, got: {tolerance}"
+            )
+
+    # Validate kstr_executable if optimize_dmax is enabled
+    if config.get('optimize_dmax'):
+        if 'kstr_executable' not in config or config['kstr_executable'] is None:
+            raise ConfigValidationError(
+                "kstr_executable is required when optimize_dmax=True"
+            )
+        # Check if it's a non-empty string
+        if not isinstance(config['kstr_executable'], str) or not config['kstr_executable'].strip():
+            raise ConfigValidationError(
+                f"kstr_executable must be a non-empty string path, got: {config['kstr_executable']}"
+            )
+
 
 def load_and_validate_config(
     config_source: Union[str, Path, Dict[str, Any]]
@@ -265,6 +306,12 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
         # Optimization flags
         'optimize_ca': True,
         'optimize_sws': True,
+
+        # DMAX optimization defaults
+        'optimize_dmax': False,
+        'dmax_initial': 2.0,
+        'dmax_target_vectors': 100,
+        'dmax_vector_tolerance': 15,
 
         # Execution defaults
         'run_mode': 'sbatch',
