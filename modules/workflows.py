@@ -14,8 +14,18 @@ from modules.structure_builder import create_emto_structure
 from modules.dmax_optimizer import _run_dmax_optimization
 from utils.config_parser import load_and_validate_config, apply_config_defaults
 
-def create_emto_inputs(
-    output_path=None,
+def create_emto_inputs(config):
+    """
+    Create complete EMTO input files for c/a and SWS sweeps.
+
+    Supports two type of inputs:
+    1. CIF: Provide cif_file
+    2. Parameter workflow: Provide lat, a, sites
+
+    The parameters should be passed through a config file: YAML/JSON file or dict
+    Format:
+
+    {output_path=None,
     job_name=None,
     cif_file=None,
     # Configuration file support
@@ -45,37 +55,28 @@ def create_emto_inputs(
     dmax_initial=2.0,
     dmax_target_vectors=100,
     dmax_vector_tolerance=15,
-    kstr_executable=None
-):
-    """
-    Create complete EMTO input files for c/a and SWS sweeps.
-
-    Supports three workflows:
-    1. Config file workflow: Provide config (YAML/JSON file or dict)
-    2. CIF workflow: Provide cif_file
-    3. Parameter workflow: Provide lat, a, sites
+    kstr_executable=None}
 
     Parameters
     ----------
-    output_path : str, optional
-        Base output directory (required if config not provided)
-    job_name : str, optional
-        Job identifier (required if config not provided)
+    output_path : str, required
+        Base output directory 
+    job_name : str, required
+        Job identifier 
     cif_file : str, optional
-        Path to CIF file (for CIF workflow)
+        Path to CIF file
     config : str, Path, or dict, optional
         Configuration file path (YAML/JSON) or configuration dictionary.
         If provided, extracts all parameters from config.
         Individual parameters can override config values.
     lat : int, optional
-        EMTO lattice type 1-14 (for parameter workflow)
+        EMTO lattice type 1-14 (see LATTICE_TYPES.md)
         1=SC, 2=FCC, 3=BCC, 4=HCP, 5=BCT, etc.
     a : float, optional
-        Lattice parameter a in Angstroms (for parameter workflow)
+        Lattice parameter a in Angstroms
     sites : list of dict, optional
-        Site specifications (for parameter workflow)
-        Format: [{'position': [x,y,z], 'elements': ['Fe','Pt'],
-                  'concentrations': [0.5, 0.5]}]
+        Site specifications 
+        Format: [{'position': [x,y,z], 'elements': ['Fe','Pt'], 'concentrations': [0.5, 0.5]}]
     b, c : float, optional
         Lattice parameters b, c in Angstroms.
         Defaults: b=a, c=a (or c=1.633*a for HCP)
@@ -97,7 +98,7 @@ def create_emto_inputs(
         'serial' or 'parallel'
     prcs : int
         Number of processors
-    time : str
+    time : str, e.g. "02:00:00" 
         Job time limit
     account : str
         SLURM account
@@ -113,8 +114,13 @@ def create_emto_inputs(
     dmax_vector_tolerance : int, optional
         Acceptable deviation from target (default: 15)
     kstr_executable : str, optional
-        Path to KSTR executable (required if optimize_dmax=True)
-
+        Path to KSTR executable (required if optimize_dmax=True or create_job_script = True)
+    shape_executable: str, optional
+        Path to SHAPE executable (required if create_job_script=True)
+    kgrn_executable: str, optional
+        Path to KGRN executable (required if create_job_script=True)
+    kfcd_executable: str, optional
+        Path to KFCD executable (required if create_job_script=True)
     Returns
     -------
     None
@@ -134,20 +140,7 @@ def create_emto_inputs(
         'sws_values': [2.60, 2.65, 2.70],
         'magnetic': 'P'
     }
-    create_emto_inputs(config=config_dict)
 
-    # CIF workflow (existing - still supported)
-    create_emto_inputs(
-        output_path="./cu_sweep",
-        job_name="cu",
-        cif_file="Cu.cif",
-        dmax=1.3,
-        ca_ratios=[1.00],
-        sws_values=[2.60, 2.65, 2.70],
-        magnetic='P'
-    )
-
-    # Parameter workflow - FCC Fe-Pt random alloy (50-50)
     config_dict = {
         'output_path': './fept_alloy',
         'job_name': 'fept',
@@ -158,76 +151,16 @@ def create_emto_inputs(
         'dmax': 1.3,
         'ca_ratios': [1.00],
         'sws_values': [2.60, 2.65, 2.70],
-        'magnetic': 'F'
-    }
-    create_emto_inputs(config=config_dict)
-
-    # OR using individual parameters (old way still works)
-    sites = [{'position': [0,0,0], 'elements': ['Fe','Pt'],
-              'concentrations': [0.5, 0.5]}]
-    create_emto_inputs(
-        output_path="./fept_alloy",
-        job_name="fept",
-        lat=2,  # FCC
-        a=3.7,
-        sites=sites,
-        dmax=1.3,
-        ca_ratios=[1.00],
-        sws_values=[2.60, 2.65, 2.70],
-        magnetic='F'
-    )
-
-    # Parameter workflow - L10 FePt ordered structure
-    config_dict = {
-        'output_path': './fept_l10',
-        'job_name': 'fept_l10',
-        'lat': 5,  # BCT
-        'a': 3.7,
-        'c': 3.7*0.96,
-        'sites': [
-            {'position': [0,0,0], 'elements': ['Fe'], 'concentrations': [1.0]},
-            {'position': [0.5,0.5,0.5], 'elements': ['Pt'], 'concentrations': [1.0]}
-        ],
-        'dmax': 1.3,
-        'ca_ratios': [0.96],
-        'sws_values': [2.60, 2.65],
-        'magnetic': 'F'
-    }
-    create_emto_inputs(config=config_dict)
-
-    # OR using individual parameters (old way still works)
-    sites = [
-        {'position': [0,0,0], 'elements': ['Fe'], 'concentrations': [1.0]},
-        {'position': [0.5,0.5,0.5], 'elements': ['Pt'], 'concentrations': [1.0]}
-    ]
-    create_emto_inputs(
-        output_path="./fept_l10",
-        job_name="fept_l10",
-        lat=5,  # BCT
-        a=3.7,
-        c=3.7*0.96,
-        sites=sites,
-        dmax=1.3,
-        ca_ratios=[0.96],
-        sws_values=[2.60, 2.65],
-        magnetic='F'
-    )
-
-    # CIF workflow with DMAX optimization
-    # Note: dmax_initial should be large enough for largest c/a (1.04)
-    # Optimization processes ratios in descending order: 1.04 → 1.00 → 0.96 → 0.92
-    create_emto_inputs(
-        output_path="./fept_optimized",
-        job_name="fept",
-        cif_file="FePt.cif",
-        ca_ratios=[0.92, 0.96, 1.00, 1.04],
-        sws_values=[2.60, 2.65, 2.70],
-        magnetic='F',
+        'magnetic': 'F',
         optimize_dmax=True,
-        dmax_initial=2.5,  # Large enough for c/a=1.04
+        dmax_initial=2.5, 
         dmax_target_vectors=100,
         kstr_executable="/path/to/kstr.exe"
-    )
+    }
+    
+    create_emto_inputs(config=config_dict)
+    create_emto_inputs(**config_dict)
+    
     """
 
     # ==================== HANDLE CONFIGURATION ====================
@@ -237,22 +170,22 @@ def create_emto_inputs(
         cfg = apply_config_defaults(cfg)
 
         # Extract parameters from config (use config as default, allow overrides)
-        output_path = output_path or cfg.get('output_path')
-        job_name = job_name or cfg.get('job_name')
-        cif_file = cif_file or cfg.get('cif_file')
-        lat = lat or cfg.get('lat')
-        a = a or cfg.get('a')
-        sites = sites or cfg.get('sites')
-        b = b or cfg.get('b')
-        c = c or cfg.get('c')
-        alpha = alpha if alpha != 90 else cfg.get('alpha', 90)
-        beta = beta if beta != 90 else cfg.get('beta', 90)
-        gamma = gamma if gamma != 90 else cfg.get('gamma', 90)
-        dmax = dmax or cfg.get('dmax')
-        ca_ratios = ca_ratios or cfg.get('ca_ratios')
-        sws_values = sws_values or cfg.get('sws_values')
-        magnetic = magnetic or cfg.get('magnetic')
-        user_magnetic_moments = user_magnetic_moments or cfg.get('user_magnetic_moments')
+        output_path = cfg.get('output_path')
+        job_name = cfg.get('job_name')
+        cif_file = cfg.get('cif_file')
+        lat = cfg.get('lat')
+        a = cfg.get('a')
+        sites = cfg.get('sites')
+        b = cfg.get('b')
+        c = cfg.get('c')
+        alpha = cfg.get('alpha', 90)
+        beta = cfg.get('beta', 90)
+        gamma = cfg.get('gamma', 90)
+        dmax = cfg.get('dmax')
+        ca_ratios = cfg.get('ca_ratios')
+        sws_values = cfg.get('sws_values')
+        magnetic = cfg.get('magnetic')
+        user_magnetic_moments = cfg.get('user_magnetic_moments')
         create_job_script = cfg.get('create_job_script', create_job_script)
         job_mode = cfg.get('job_mode', job_mode)
         prcs = cfg.get('prcs', prcs)
@@ -262,20 +195,24 @@ def create_emto_inputs(
         dmax_initial = cfg.get('dmax_initial', dmax_initial)
         dmax_target_vectors = cfg.get('dmax_target_vectors', dmax_target_vectors)
         dmax_vector_tolerance = cfg.get('dmax_vector_tolerance', dmax_vector_tolerance)
-        kstr_executable = kstr_executable or cfg.get('kstr_executable')
+        kstr_executable = cfg.get('kstr_executable')
+        shape_executable = cfg.get('shape_executable')
+        kgrn_executable = cfg.get('kgrn_executable')
+        kfcd_executable = cfg.get('kfcd_executable')
+        
 
     # Validate required parameters
     if output_path is None:
-        raise ValueError("output_path is required (provide directly or via config)")
+        raise ValueError("output_path is required")
+        
     if job_name is None:
-        raise ValueError("job_name is required (provide directly or via config)")
-    if dmax is None:
-        raise ValueError("dmax is required (provide directly or via config)")
-    if magnetic is None:
-        raise ValueError("magnetic is required (provide directly or via config)")
+        raise ValueError("job_name is required")
+        
+    if dmax is None and optimize_dmax == False:
+        raise ValueError("Either provide dmax or set optimize_dmax = True with an initial value for dmax_initial.")
 
-    if magnetic not in ['P', 'F']:
-        raise ValueError("Magnetic parameter must be 'P' (paramagnetic) or 'F' (ferromagnetic).")
+    if magnetic is None or magnetic not in ['P', 'F']:
+        raise ValueError("Provide a either 'P' (paramagnetic) or 'F' (ferromagnetic) for the magnetic parameter.")
 
     # ==================== CREATE DIRECTORY STRUCTURE ====================
     subfolders = ['smx', 'shp', 'pot', 'chd', 'fcd', 'tmp']
