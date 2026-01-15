@@ -79,13 +79,15 @@ def test_error_handling():
     print("TEST 2: Error Handling")
     print("="*70)
 
+    from utils.config_parser import ConfigValidationError
+
     # Test 1: Missing required parameters
     try:
         config = {'output_path': './test'}  # Missing many required params
         workflow = OptimizationWorkflow(config_dict=config)
         print("✗ Should have raised error for missing parameters")
         return False
-    except (ValueError, KeyError) as e:
+    except (ValueError, KeyError, ConfigValidationError) as e:
         print(f"✓ Correctly caught missing parameter error: {type(e).__name__}")
 
     # Test 2: Invalid optimization flags
