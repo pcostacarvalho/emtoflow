@@ -277,26 +277,16 @@ def create_emto_inputs(config):
 
     # ==================== DMAX OPTIMIZATION (OPTIONAL) ====================
     if optimize_dmax:
-        # DMAX optimization requires at least 2 c/a ratios
-        # If auto_generate is True, generate ranges from single values
-        if len(ca_ratios) <= 1:
-            if auto_generate:
-                print(f"Auto-generating c/a and SWS ranges for DMAX optimization...")
-                ca_ratios, sws_values = prepare_ranges(
-                    ca_ratios=ca_ratios,
-                    sws_values=sws_values,
-                    ca_step=ca_step,
-                    sws_step=sws_step,
-                    n_points=n_points
-                )
-            else:
-                raise ValueError(
-                    "At least two c/a ratios must be provided for DMAX optimization. "
-                    "Either provide multiple values or set auto_generate=True."
-                )
-
-        if kstr_executable is None:
-            raise ValueError("kstr_executable must be provided when optimize_dmax=True")
+        # Auto-generate ranges if needed (validation already done in parser)
+        if len(ca_ratios) <= 1 and auto_generate:
+            print(f"Auto-generating c/a and SWS ranges for DMAX optimization...")
+            ca_ratios, sws_values = prepare_ranges(
+                ca_ratios=ca_ratios,
+                sws_values=sws_values,
+                ca_step=ca_step,
+                sws_step=sws_step,
+                n_points=n_points
+            )
 
         print("\n" + "="*70)
         print("DMAX OPTIMIZATION WORKFLOW")

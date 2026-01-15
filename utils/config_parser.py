@@ -185,7 +185,12 @@ def validate_config(config: Dict[str, Any]) -> None:
     # Validate dmax
     if config.get('optimize_dmax'):
         # DMAX optimization requires at least 2 c/a ratios (unless auto_generate)
-        if config.get('ca_ratios') is not None and not config.get('auto_generate'):
+        if not config.get('auto_generate'):
+            if config.get('ca_ratios') is None:
+                raise ConfigValidationError(
+                    "ca_ratios must be provided when optimize_dmax=True and auto_generate=False. "
+                    "Either provide ca_ratios or set auto_generate=True."
+                )
             ca_list = config['ca_ratios'] if isinstance(config['ca_ratios'], list) else [config['ca_ratios']]
             if len(ca_list) <= 1:
                 raise ConfigValidationError(
