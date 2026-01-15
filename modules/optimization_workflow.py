@@ -491,33 +491,16 @@ class OptimizationWorkflow:
 
         # Create EMTO inputs
         try:
-            create_emto_inputs(
-                output_path=str(phase_path),
-                job_name=self.config['job_name'],
-                lat=structure['lat'],
-                a=structure['a'],
-                sites=structure.get('sites_for_input'),
-                b=structure.get('b'),
-                c=structure.get('c'),
-                alpha=structure.get('alpha', 90),
-                beta=structure.get('beta', 90),
-                gamma=structure.get('gamma', 90),
-                dmax=self.config['dmax'],
-                ca_ratios=ca_ratios,
-                sws_values=sws_list,
-                magnetic=self.config['magnetic'],
-                user_magnetic_moments=self.config.get('user_magnetic_moments'),
-                create_job_script=True,
-                job_mode=self.config.get('job_mode', 'serial'),
-                prcs=self.config.get('prcs', 8),
-                time=self.config.get('slurm_time', '02:00:00'),
-                account=self.config.get('slurm_account'),
-                optimize_dmax=self.config.get('optimize_dmax', False),
-                dmax_initial=self.config.get('dmax_initial', 2.0),
-                dmax_target_vectors=self.config.get('dmax_target_vectors', 100),
-                dmax_vector_tolerance=self.config.get('dmax_vector_tolerance', 15),
-                kstr_executable=self.config.get('kstr_executable')
-            )
+            phase_config = {
+                **self.config,  # All validated defaults from constructor
+                'output_path': str(phase_path),  # Override for this phase
+                'ca_ratios': ca_ratios,
+                'sws_values': sws_list,
+                # Only override what's different for this phase
+            }
+
+            create_emto_inputs(phase_config)
+
         except Exception as e:
             raise RuntimeError(f"Failed to create EMTO inputs: {e}")
 
