@@ -10,7 +10,7 @@ from modules.inputs import (
     write_serial_sbatch,
     write_parallel_sbatch
 )
-from modules.structure_builder import create_emto_structure
+from modules.structure_builder import create_emto_structure, lattice_param_to_sws
 from modules.dmax_optimizer import _run_dmax_optimization
 from utils.config_parser import load_and_validate_config, apply_config_defaults
 
@@ -25,37 +25,59 @@ def create_emto_inputs(config):
     The parameters should be passed through a config file: YAML/JSON file or dict
     Format:
 
-    {output_path=None,
-    job_name=None,
-    cif_file=None,
-    # Configuration file support
-    config=None,
-    # New parameter workflow parameters
-    lat=None,
-    a=None,
-    sites=None,
-    b=None,
-    c=None,
-    alpha=90,
-    beta=90,
-    gamma=90,
-    # Common parameters
-    dmax=None,
-    ca_ratios=None,
-    sws_values=None,
-    magnetic=None,
-    user_magnetic_moments=None,
-    create_job_script=True,
-    job_mode='serial',
-    prcs=1,
-    time="00:30:00",
-    account="naiss2025-1-38",
+    {
+    # Required parameters
+    output_path = ,
+    job_name = ,
+
+    # Structure
+    cif_file = False,
+    # Parameters below used if cif_file = False
+    lat = None,
+    a = None,
+    sites = None,
+    b = a,
+    c = a (can be 1.633*a for HCP or set other value),
+    alpha = 90,
+    beta = 90,
+    gamma = 90,
+    ca_ratios = (provide a list with at least one value if cif_file = False),
+    sws_values = (provide a list with at least one value if cif_file = False),
+    auto_generate = False,
+    magnetic = P,
+    user_magnetic_moments = None,
+    dmax = None,
+    
+
+    # Job script parameters
+    create_job_script = True,
+    job_mode = 'serial',
+    prcs = 1,
+    time = "00:30:00",
+    account = "naiss2025-1-38",
+
+    # Workflows
+
     # DMAX optimization parameters
-    optimize_dmax=False,
-    dmax_initial=2.0,
-    dmax_target_vectors=100,
-    dmax_vector_tolerance=15,
-    kstr_executable=None}
+    optimize_dmax = False,
+    dmax_initial = 2.0,
+    dmax_target_vectors = 100,
+    dmax_vector_tolerance = 15,
+
+    # Optimization
+    optimize_ca = False,
+    ca_step = 0.02,
+    optimize_sws = False,
+    sws_step = 0.05,
+    eos_type = 'MO88',
+    run_mode = 'local',
+
+    #Executables (required if optimize_dmax = True or create_job_script = True)
+    kstr_executable = "/home/x_pamca/postdoc_proj/emto/bin/kstr.exe",
+    shape_executable = "/home/x_pamca/postdoc_proj/emto/bin/shape.exe",
+    kgrn_executable = "/home/x_pamca/postdoc_proj/emto/bin/kgrn_mpi.x",
+    kfcd_executable = "/home/x_pamca/postdoc_proj/emto/bin/kfcd.exe"
+    }
 
     Parameters
     ----------
@@ -159,7 +181,6 @@ def create_emto_inputs(config):
     }
     
     create_emto_inputs(config=config_dict)
-    create_emto_inputs(**config_dict)
     
     """
 
@@ -167,7 +188,6 @@ def create_emto_inputs(config):
     if config is not None:
         # Load and validate configuration
         cfg = load_and_validate_config(config)
-        cfg = apply_config_defaults(cfg)
 
         # Extract parameters from config (use config as default, allow overrides)
         output_path = cfg.get('output_path')
@@ -184,6 +204,7 @@ def create_emto_inputs(config):
         dmax = cfg.get('dmax')
         ca_ratios = cfg.get('ca_ratios')
         sws_values = cfg.get('sws_values')
+        auto_generate = cfg.get('auto_generate', False)
         magnetic = cfg.get('magnetic')
         user_magnetic_moments = cfg.get('user_magnetic_moments')
         create_job_script = cfg.get('create_job_script', create_job_script)
@@ -200,19 +221,6 @@ def create_emto_inputs(config):
         kgrn_executable = cfg.get('kgrn_executable')
         kfcd_executable = cfg.get('kfcd_executable')
         
-
-    # Validate required parameters
-    if output_path is None:
-        raise ValueError("output_path is required")
-        
-    if job_name is None:
-        raise ValueError("job_name is required")
-        
-    if dmax is None and optimize_dmax == False:
-        raise ValueError("Either provide dmax or set optimize_dmax = True with an initial value for dmax_initial.")
-
-    if magnetic is None or magnetic not in ['P', 'F']:
-        raise ValueError("Provide a either 'P' (paramagnetic) or 'F' (ferromagnetic) for the magnetic parameter.")
 
     # ==================== CREATE DIRECTORY STRUCTURE ====================
     subfolders = ['smx', 'shp', 'pot', 'chd', 'fcd', 'tmp']
@@ -232,19 +240,8 @@ def create_emto_inputs(config):
             cif_file=cif_file,
             user_magnetic_moments=user_magnetic_moments
         )
-        print(f"  Detected lattice: LAT={structure['lat']} ({structure['lattice_name']})")
-        print(f"  Number of atoms: NQ3={structure['NQ3']}")
-        print(f"  Maximum NL: {structure['NL']}")
 
-        # Auto-determine ca_ratios and sws_values if not provided
-        if ca_ratios is None:
-            ca_ratios = [structure['coa']]
-
-        if sws_values is None:
-            volume = structure['a'] * structure['b'] * structure['c'] / structure['NQ3']
-            sws_values = [(3 * volume / (4 * np.pi))**(1/3)]
-
-    elif lat is not None and a is not None and sites is not None:
+    if lat is not None:
         # Parameter workflow (alloy or ordered structure)
         print(f"\nCreating structure from parameters...")
         print(f"  Lattice type: LAT={lat}")
@@ -263,31 +260,17 @@ def create_emto_inputs(config):
             user_magnetic_moments=user_magnetic_moments
         )
 
-        print(f"  Structure created: LAT={structure['lat']} ({structure['lattice_name']})")
-        print(f"  Number of atoms: NQ3={structure['NQ3']}")
-        print(f"  Maximum NL: {structure['NL']}")
+    print(f"  Structure created: LAT={structure['lat']} ({structure['lattice_name']})")
+    print(f"  Number of atoms: NQ3={structure['NQ3']}")
+    print(f"  Maximum NL: {structure['NL']}")
 
-        # Auto-determine ca_ratios if not provided
-        if ca_ratios is None:
-            # For cubic lattices, default to 1.0
-            if lat in [1, 2, 3]:  # SC, FCC, BCC
-                ca_ratios = [1.0]
-            else:
-                ca_ratios = [structure['coa']]
+    # Auto-determine ca_ratios and sws_values if not provided
+    if ca_ratios is None:
+        ca_ratios = [structure['coa']]
 
-        # For parameter workflow, sws_values must be provided
-        if sws_values is None:
-            raise ValueError(
-                "sws_values must be provided for parameter workflow. "
-                "Example: sws_values=[2.60, 2.65, 2.70]"
-            )
+    if sws_values is None:
+        sws_values = lattice_param_to_sws(structure)
 
-    else:
-        raise ValueError(
-            "Must provide either:\n"
-            "  1. cif_file='path/to/file.cif'\n"
-            "  2. lat=<1-14>, a=<value>, sites=<list>"
-        )
 
     # ==================== DMAX OPTIMIZATION (OPTIONAL) ====================
     if optimize_dmax:
