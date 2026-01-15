@@ -174,10 +174,10 @@ def create_emto_inputs(config):
         'ca_ratios': [1.00],
         'sws_values': [2.60, 2.65, 2.70],
         'magnetic': 'F',
-        optimize_dmax=True,
-        dmax_initial=2.5, 
-        dmax_target_vectors=100,
-        kstr_executable="/path/to/kstr.exe"
+        'optimize_dmax': True,
+        'dmax_initial': 2.5,
+        'dmax_target_vectors': 100,
+        'kstr_executable': "/path/to/kstr.exe"
     }
     
     create_emto_inputs(config=config_dict)
@@ -185,42 +185,41 @@ def create_emto_inputs(config):
     """
 
     # ==================== HANDLE CONFIGURATION ====================
-    if config is not None:
-        # Load and validate configuration
-        cfg = load_and_validate_config(config)
+    # Load and validate configuration (applies defaults automatically)
+    cfg = load_and_validate_config(config)
 
-        # Extract parameters from config (use config as default, allow overrides)
-        output_path = cfg.get('output_path')
-        job_name = cfg.get('job_name')
-        cif_file = cfg.get('cif_file')
-        lat = cfg.get('lat')
-        a = cfg.get('a')
-        sites = cfg.get('sites')
-        b = cfg.get('b')
-        c = cfg.get('c')
-        alpha = cfg.get('alpha', 90)
-        beta = cfg.get('beta', 90)
-        gamma = cfg.get('gamma', 90)
-        dmax = cfg.get('dmax')
-        ca_ratios = cfg.get('ca_ratios')
-        sws_values = cfg.get('sws_values')
-        auto_generate = cfg.get('auto_generate', False)
-        magnetic = cfg.get('magnetic')
-        user_magnetic_moments = cfg.get('user_magnetic_moments')
-        create_job_script = cfg.get('create_job_script', create_job_script)
-        job_mode = cfg.get('job_mode', job_mode)
-        prcs = cfg.get('prcs', prcs)
-        time = cfg.get('slurm_time', time)
-        account = cfg.get('slurm_account', account)
-        optimize_dmax = cfg.get('optimize_dmax', optimize_dmax)
-        dmax_initial = cfg.get('dmax_initial', dmax_initial)
-        dmax_target_vectors = cfg.get('dmax_target_vectors', dmax_target_vectors)
-        dmax_vector_tolerance = cfg.get('dmax_vector_tolerance', dmax_vector_tolerance)
-        kstr_executable = cfg.get('kstr_executable')
-        shape_executable = cfg.get('shape_executable')
-        kgrn_executable = cfg.get('kgrn_executable')
-        kfcd_executable = cfg.get('kfcd_executable')
-        
+    # Extract parameters from config (all defaults already applied)
+    output_path = cfg['output_path']
+    job_name = cfg['job_name']
+    cif_file = cfg['cif_file']
+    lat = cfg['lat']
+    a = cfg['a']
+    sites = cfg['sites']
+    b = cfg['b']
+    c = cfg['c']
+    alpha = cfg['alpha']
+    beta = cfg['beta']
+    gamma = cfg['gamma']
+    dmax = cfg['dmax']
+    ca_ratios = cfg['ca_ratios']
+    sws_values = cfg['sws_values']
+    auto_generate = cfg['auto_generate']
+    magnetic = cfg['magnetic']
+    user_magnetic_moments = cfg['user_magnetic_moments']
+    create_job_script = cfg['create_job_script']
+    job_mode = cfg['job_mode']
+    prcs = cfg['prcs']
+    slurm_time = cfg['slurm_time']
+    slurm_account = cfg['slurm_account']
+    optimize_dmax = cfg['optimize_dmax']
+    dmax_initial = cfg['dmax_initial']
+    dmax_target_vectors = cfg['dmax_target_vectors']
+    dmax_vector_tolerance = cfg['dmax_vector_tolerance']
+    kstr_executable = cfg['kstr_executable']
+    shape_executable = cfg['shape_executable']
+    kgrn_executable = cfg['kgrn_executable']
+    kfcd_executable = cfg['kfcd_executable']
+
 
     # ==================== CREATE DIRECTORY STRUCTURE ====================
     subfolders = ['smx', 'shp', 'pot', 'chd', 'fcd', 'tmp']
@@ -376,13 +375,17 @@ def create_emto_inputs(config):
                 volumes=sws_values,
                 job_name=script_name,
                 prcs=prcs,
-                time=time,
-                account=account,
-                id_ratio=job_name
+                time=slurm_time,
+                account=slurm_account,
+                id_ratio=job_name,
+                kstr_executable=kstr_executable,
+                shape_executable=shape_executable,
+                kgrn_executable=kgrn_executable,
+                kfcd_executable=kfcd_executable
             )
             print(f"Created serial job script: {output_path}/{script_name}.sh")
             print(f"To submit: sbatch {script_name}.sh")
-        
+
         elif job_mode == 'parallel':
             script_name = f"run_{job_name}"
             write_parallel_sbatch(
@@ -391,9 +394,13 @@ def create_emto_inputs(config):
                 volumes=sws_values,
                 job_name=script_name,
                 prcs=prcs,
-                time=time,
-                account=account,
-                id_ratio=job_name
+                time=slurm_time,
+                account=slurm_account,
+                id_ratio=job_name,
+                kstr_executable=kstr_executable,
+                shape_executable=shape_executable,
+                kgrn_executable=kgrn_executable,
+                kfcd_executable=kfcd_executable
             )
             print(f"Created parallel job scripts in: {output_path}/")
             print(f"To submit: bash {output_path}/submit_{script_name}.sh")

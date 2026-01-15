@@ -1,4 +1,5 @@
-import nump as np
+import numpy as np
+from typing import Tuple, List
 
 def prepare_ranges(ca_ratios, sws_values, ca_step, sws_step, n_points) -> Tuple[List[float], List[float]]:
         """
@@ -62,13 +63,13 @@ def prepare_ranges(ca_ratios, sws_values, ca_step, sws_step, n_points) -> Tuple[
             sws_max = sws_center + 3 * sws_step
             sws_list = list(np.linspace(sws_min, sws_max, n_points))
 
-            print(f"Auto-generated c/a values around {sws_center:.4f}: {sws_list}")
+            print(f"Auto-generated SWS values around {sws_center:.4f}: {sws_list}")
 
 
         elif len(sws_values) > 1:
             # Use as-is
             sws_list = sws_values
-            print(f"Using provided c/a values: {sws_list}")
+            print(f"Using provided SWS values: {sws_list}")
 
         else:
             raise TypeError(f"sws_values must be float, list, or None, got {type(sws_values)}")
