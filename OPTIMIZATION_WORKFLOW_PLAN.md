@@ -654,28 +654,28 @@ base_path/                    # User-specified output directory
 - [x] Add configuration validation
 - [x] Support both file and dict input
 
-### 2. Implement Smart Parameter Auto-generation
-- [ ] Implement `_prepare_ranges()` method with three modes:
+### 2. Implement Smart Parameter Auto-generation ✅ COMPLETED
+- [x] Implement `_prepare_ranges()` method with three modes:
   - Single value → auto-generate range (±3×step, n_points)
   - List → use as-is
   - None → calculate from structure, then generate range
-- [ ] Make `ca_step`, `sws_step`, `n_points` user-configurable (with defaults)
-- [ ] Use `lattice_param_to_sws()` for SWS calculation from structure
+- [x] Make `ca_step`, `sws_step`, `n_points` user-configurable (with defaults)
+- [x] Use `lattice_param_to_sws()` for SWS calculation from structure
 
-### 3. Implement Calculation Execution
-- [ ] Implement `_run_calculations()` using `utils/running_bash.py`:
+### 3. Implement Calculation Execution ✅ COMPLETED
+- [x] Implement `_run_calculations()` using `utils/running_bash.py`:
   - Support `run_mode="sbatch"` using `run_sbatch()`
   - Support `run_mode="local"` using `chmod_and_run()`
-- [ ] Implement job monitoring with polling and timeout
-- [ ] Add progress reporting during calculations
+- [x] Implement job monitoring with polling and timeout
+- [x] Add progress reporting during calculations
 
-### 4. Implement EOS Integration
-- [ ] Implement `_run_eos_fit()` method:
+### 4. Implement EOS Integration ✅ COMPLETED
+- [x] Implement `_run_eos_fit()` method:
   - Create EOS input using `create_eos_input()`
   - Run EOS executable: `subprocess.run(eos_executable + ' < eos.dat')`
   - Parse results using `parse_eos_output()`
   - Extract optimal parameter (rwseq)
-- [ ] Add error handling for EOS executable failures
+- [x] Add error handling for EOS executable failures
 
 ### 5. Implement Phase 1: c/a Optimization
 - [ ] Create EMTO inputs for c/a sweep
