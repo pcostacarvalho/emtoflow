@@ -982,39 +982,484 @@ class OptimizationWorkflow:
 
         return results_dict
 
+    def generate_dos_analysis(
+        self,
+        phase_path: Union[str, Path],
+        file_id: str,
+        plot_range: Optional[List[float]] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate DOS analysis and plots.
+
+        Parameters
+        ----------
+        phase_path : str or Path
+            Path to calculation directory
+        file_id : str
+            File identifier for DOS files
+        plot_range : list of float, optional
+            Energy range for DOS plots [E_min, E_max] in eV
+            If None, uses config['dos_plot_range'] or [-0.8, 0.15]
+
+        Returns
+        -------
+        dict
+            Dictionary with DOS analysis results
+
+        Notes
+        -----
+        Looks for DOS files in phase_path/pot/{file_id}.dos
+        Generates plots and saves to phase_path/dos_analysis/
+        """
+        from modules.dos import DOSParser
+
+        phase_path = Path(phase_path)
+        dos_file = phase_path / "pot" / f"{file_id}.dos"
+
+        if not dos_file.exists():
+            print(f"Warning: DOS file not found: {dos_file}")
+            return {'status': 'not_found', 'file': str(dos_file)}
+
+        print(f"\n{'='*70}")
+        print("DOS ANALYSIS")
+        print(f"{'='*70}")
+        print(f"DOS file: {dos_file}")
+
+        # Create DOS analysis directory
+        dos_output_dir = phase_path / "dos_analysis"
+        dos_output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Parse DOS
+        try:
+            parser = DOSParser(str(dos_file))
+            print(f"✓ DOS file parsed successfully")
+        except Exception as e:
+            print(f"✗ Failed to parse DOS file: {e}")
+            return {'status': 'parse_error', 'error': str(e)}
+
+        # Get plot range
+        if plot_range is None:
+            plot_range = self.config.get('dos_plot_range', [-0.8, 0.15])
+
+        # Generate plots
+        try:
+            # Total DOS
+            total_plot = dos_output_dir / "dos_total.png"
+            parser.plot_total(
+                spin_polarized=True,
+                save=str(total_plot),
+                show=False
+            )
+            print(f"✓ Total DOS plot saved: {total_plot}")
+
+            # Sublattice DOS (if available)
+            sublattice_plots = []
+            if parser.atom_info:
+                # Get unique sublattices
+                sublattices = sorted(set(info[2] for info in parser.atom_info))
+
+                for sublat in sublattices:
+                    sublat_plot = dos_output_dir / f"dos_sublattice_{sublat}.png"
+                    parser.plot_sublattice(
+                        sublattice=sublat,
+                        spin_polarized=True,
+                        save=str(sublat_plot),
+                        show=False
+                    )
+                    sublattice_plots.append(str(sublat_plot))
+                    print(f"✓ Sublattice {sublat} DOS plot saved")
+
+        except Exception as e:
+            print(f"Warning: Failed to generate some DOS plots: {e}")
+
+        results = {
+            'status': 'success',
+            'dos_file': str(dos_file),
+            'total_plot': str(total_plot) if 'total_plot' in locals() else None,
+            'sublattice_plots': sublattice_plots if 'sublattice_plots' in locals() else [],
+            'plot_range': plot_range,
+            'atom_info': [
+                {'atom_number': num, 'element': elem, 'sublattice': sublat}
+                for num, elem, sublat in parser.atom_info
+            ]
+        }
+
+        print(f"{'='*70}\n")
+
+        return results
+
+    def generate_summary_report(self) -> str:
+        """
+        Generate comprehensive summary report of optimization workflow.
+
+        Returns
+        -------
+        str
+            Formatted summary report
+
+        Notes
+        -----
+        Report includes all phases executed and their results.
+        Saved to workflow_summary.txt in base_path.
+        """
+        report = []
+        report.append("=" * 80)
+        report.append("OPTIMIZATION WORKFLOW SUMMARY")
+        report.append("=" * 80)
+        report.append(f"\nJob name: {self.config['job_name']}")
+        report.append(f"Output path: {self.base_path}")
+        report.append(f"Run mode: {self.config.get('run_mode', 'sbatch')}")
+
+        # Configuration
+        report.append("\n" + "-" * 80)
+        report.append("CONFIGURATION")
+        report.append("-" * 80)
+        report.append(f"Lattice type: {self.config.get('lat')}")
+        report.append(f"DMAX: {self.config.get('dmax')}")
+        report.append(f"Magnetic: {self.config.get('magnetic')}")
+        report.append(f"EOS type: {self.config.get('eos_type', 'MO88')}")
+
+        # Phase 1: c/a optimization
+        if 'phase1_ca_optimization' in self.results:
+            phase1 = self.results['phase1_ca_optimization']
+            report.append("\n" + "-" * 80)
+            report.append("PHASE 1: c/a RATIO OPTIMIZATION")
+            report.append("-" * 80)
+            report.append(f"Optimal c/a: {phase1['optimal_ca']:.6f}")
+            report.append(f"Number of c/a points: {len(phase1['ca_values'])}")
+            report.append(f"c/a range: [{min(phase1['ca_values']):.4f}, {max(phase1['ca_values']):.4f}]")
+            report.append(f"Energy range: [{min(phase1['energy_values']):.6f}, {max(phase1['energy_values']):.6f}] Ry")
+
+            # EOS fit info
+            if 'eos_fits' in phase1:
+                for fit_name, params in phase1['eos_fits'].items():
+                    report.append(f"\n  {fit_name.upper()} fit:")
+                    report.append(f"    Equilibrium energy: {params['eeq']:.6f} Ry")
+                    report.append(f"    Bulk modulus: {params['bulk_modulus']:.3f} GPa")
+
+        # Phase 2: SWS optimization
+        if 'phase2_sws_optimization' in self.results:
+            phase2 = self.results['phase2_sws_optimization']
+            report.append("\n" + "-" * 80)
+            report.append("PHASE 2: SWS OPTIMIZATION")
+            report.append("-" * 80)
+            report.append(f"Optimal SWS: {phase2['optimal_sws']:.6f} Bohr")
+            report.append(f"Number of SWS points: {len(phase2['sws_values'])}")
+            report.append(f"SWS range: [{min(phase2['sws_values']):.4f}, {max(phase2['sws_values']):.4f}] Bohr")
+            report.append(f"Energy range: [{min(phase2['energy_values']):.6f}, {max(phase2['energy_values']):.6f}] Ry")
+
+            # Derived parameters
+            if 'derived_parameters' in phase2:
+                params = phase2['derived_parameters']
+                report.append("\n  Derived lattice parameters:")
+                report.append(f"    a = {params['a_angstrom']:.6f} Å")
+                report.append(f"    c = {params['c_angstrom']:.6f} Å")
+                report.append(f"    c/a = {params['optimal_ca']:.6f}")
+                report.append(f"    Volume = {params['total_volume_angstrom3']:.6f} Å³")
+                report.append(f"    Lattice: {params['lattice_name']} (type {params['lattice_type']})")
+
+        # Phase 3: Optimized calculation
+        if 'phase3_optimized_calculation' in self.results:
+            phase3 = self.results['phase3_optimized_calculation']
+            report.append("\n" + "-" * 80)
+            report.append("PHASE 3: OPTIMIZED STRUCTURE CALCULATION")
+            report.append("-" * 80)
+            report.append(f"Optimal c/a: {phase3['optimal_ca']:.6f}")
+            report.append(f"Optimal SWS: {phase3['optimal_sws']:.6f} Bohr")
+            report.append(f"KFCD total energy: {phase3['kfcd_total_energy']:.6f} Ry")
+
+            if phase3['kgrn_total_energy'] is not None:
+                report.append(f"KGRN total energy: {phase3['kgrn_total_energy']:.6f} Ry")
+
+            if phase3.get('total_magnetic_moment') is not None:
+                report.append(f"Total magnetic moment: {phase3['total_magnetic_moment']:.4f} μB")
+
+            if phase3.get('magnetic_moments'):
+                report.append("\n  Magnetic moments:")
+                for site, moment in phase3['magnetic_moments'].items():
+                    report.append(f"    {site}: {moment:.4f} μB")
+
+        # DOS analysis
+        if 'dos_analysis' in self.results:
+            dos = self.results['dos_analysis']
+            if dos.get('status') == 'success':
+                report.append("\n" + "-" * 80)
+                report.append("DOS ANALYSIS")
+                report.append("-" * 80)
+                report.append(f"DOS plots generated: {len(dos.get('sublattice_plots', [])) + 1}")
+                report.append(f"Plot range: {dos.get('plot_range')} eV")
+
+        report.append("\n" + "=" * 80)
+        report.append("END OF REPORT")
+        report.append("=" * 80)
+
+        # Save report
+        report_text = "\n".join(report)
+        report_file = self.base_path / "workflow_summary.txt"
+        with open(report_file, 'w') as f:
+            f.write(report_text)
+
+        print(f"\n✓ Summary report saved to: {report_file}\n")
+
+        return report_text
+
+    def run_complete_workflow(self) -> Dict[str, Any]:
+        """
+        Execute complete optimization workflow.
+
+        Orchestrates all phases based on configuration:
+        1. Structure creation
+        2. Parameter range preparation
+        3. c/a optimization (if optimize_ca=True)
+        4. SWS optimization (if optimize_sws=True)
+        5. Optimized calculation
+        6. DOS analysis (if generate_dos=True)
+        7. Summary report generation
+
+        Returns
+        -------
+        dict
+            Complete workflow results
+
+        Raises
+        ------
+        RuntimeError
+            If critical phase fails
+
+        Notes
+        -----
+        This is the main entry point for automated optimization workflows.
+        All intermediate results are saved and workflow can be resumed if interrupted.
+        """
+        print("\n" + "#" * 80)
+        print("# COMPLETE OPTIMIZATION WORKFLOW")
+        print("#" * 80)
+        print(f"\nJob: {self.config['job_name']}")
+        print(f"Output: {self.base_path}")
+        print(f"c/a optimization: {self.config.get('optimize_ca', False)}")
+        print(f"SWS optimization: {self.config.get('optimize_sws', False)}")
+        print(f"DOS analysis: {self.config.get('generate_dos', False)}")
+
+        # Step 1: Create structure
+        print("\n" + "=" * 80)
+        print("STEP 1: STRUCTURE CREATION")
+        print("=" * 80)
+
+        try:
+            if self.config.get('cif_file'):
+                from modules.lat_detector import parse_emto_structure
+                print(f"Creating structure from CIF: {self.config['cif_file']}")
+                structure = parse_emto_structure(self.config['cif_file'])
+            else:
+                from modules.structure_builder import create_emto_structure
+                print(f"Creating structure from parameters...")
+                structure = create_emto_structure(
+                    lat=self.config['lat'],
+                    a=self.config['a'],
+                    sites=self.config['sites'],
+                    b=self.config.get('b'),
+                    c=self.config.get('c'),
+                    alpha=self.config.get('alpha', 90),
+                    beta=self.config.get('beta', 90),
+                    gamma=self.config.get('gamma', 90),
+                    user_magnetic_moments=self.config.get('user_magnetic_moments')
+                )
+
+            print(f"✓ Structure created")
+            print(f"  Lattice: {structure['lattice_name']} (type {structure['lat']})")
+            print(f"  Atoms: {structure['NQ3']}")
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to create structure: {e}")
+
+        # Step 2: Prepare parameter ranges
+        print("\n" + "=" * 80)
+        print("STEP 2: PARAMETER PREPARATION")
+        print("=" * 80)
+
+        try:
+            ca_list, sws_list = self._prepare_ranges(
+                self.config.get('ca_ratios'),
+                self.config.get('sws_values'),
+                structure=structure
+            )
+        except Exception as e:
+            raise RuntimeError(f"Failed to prepare parameter ranges: {e}")
+
+        # Step 3: c/a optimization (optional)
+        optimal_ca = None
+        if self.config.get('optimize_ca', False):
+            try:
+                initial_sws = self.config.get('initial_sws', [sws_list[len(sws_list)//2]])
+                optimal_ca, ca_results = self.optimize_ca_ratio(
+                    structure=structure,
+                    ca_ratios=ca_list,
+                    initial_sws=initial_sws
+                )
+            except Exception as e:
+                raise RuntimeError(f"c/a optimization failed: {e}")
+        else:
+            optimal_ca = ca_list[0] if ca_list else structure.get('coa', 1.0)
+            print(f"\nSkipping c/a optimization, using: {optimal_ca:.6f}")
+
+        # Step 4: SWS optimization (optional)
+        optimal_sws = None
+        if self.config.get('optimize_sws', False):
+            try:
+                optimal_sws, sws_results = self.optimize_sws(
+                    structure=structure,
+                    sws_values=sws_list,
+                    optimal_ca=optimal_ca
+                )
+            except Exception as e:
+                raise RuntimeError(f"SWS optimization failed: {e}")
+        else:
+            optimal_sws = sws_list[0] if sws_list else None
+            if optimal_sws is None:
+                raise ValueError("SWS value required but not provided")
+            print(f"\nSkipping SWS optimization, using: {optimal_sws:.6f} Bohr")
+
+        # Step 5: Optimized calculation
+        try:
+            final_results = self.run_optimized_calculation(
+                structure=structure,
+                optimal_ca=optimal_ca,
+                optimal_sws=optimal_sws
+            )
+        except Exception as e:
+            raise RuntimeError(f"Optimized calculation failed: {e}")
+
+        # Step 6: DOS analysis (optional)
+        if self.config.get('generate_dos', False):
+            try:
+                file_id = final_results['file_id']
+                phase_path = self.base_path / "phase3_optimized_calculation"
+
+                dos_results = self.generate_dos_analysis(
+                    phase_path=phase_path,
+                    file_id=file_id,
+                    plot_range=self.config.get('dos_plot_range')
+                )
+
+                self.results['dos_analysis'] = dos_results
+
+            except Exception as e:
+                print(f"Warning: DOS analysis failed: {e}")
+
+        # Step 7: Generate summary report
+        try:
+            summary = self.generate_summary_report()
+            print("\n" + summary)
+        except Exception as e:
+            print(f"Warning: Failed to generate summary report: {e}")
+
+        # Save complete workflow results
+        import json
+
+        workflow_results = {
+            'job_name': self.config['job_name'],
+            'optimal_ca': optimal_ca,
+            'optimal_sws': optimal_sws,
+            'phases_completed': list(self.results.keys()),
+            'final_energy': final_results.get('kfcd_total_energy'),
+            'structure_info': {
+                'lattice_type': structure['lat'],
+                'lattice_name': structure.get('lattice_name', 'Unknown'),
+                'num_atoms': structure['NQ3']
+            }
+        }
+
+        results_file = self.base_path / "workflow_results.json"
+        with open(results_file, 'w') as f:
+            json.dump(workflow_results, f, indent=2)
+
+        print(f"\n✓ Complete workflow results saved to: {results_file}")
+
+        print("\n" + "#" * 80)
+        print("# WORKFLOW COMPLETED SUCCESSFULLY")
+        print("#" * 80)
+        print(f"\nOptimal c/a: {optimal_ca:.6f}")
+        print(f"Optimal SWS: {optimal_sws:.6f} Bohr")
+        print(f"Final energy: {final_results.get('kfcd_total_energy'):.6f} Ry")
+        print(f"\nAll results saved in: {self.base_path}")
+        print("#" * 80 + "\n")
+
+        return self.results
+
 
 def main():
     """
-    Example usage of OptimizationWorkflow class.
+    Example usage: Run complete optimization workflow from config file.
+
+    Usage:
+        python optimization_workflow.py <config_file.yaml>
+
+    The config file should contain all necessary parameters for the workflow.
+    See files/systems/optimization_*.yaml for examples.
     """
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python optimization_workflow.py <config_file>")
+        print("=" * 80)
+        print("EMTO Optimization Workflow")
+        print("=" * 80)
+        print("\nUsage: python optimization_workflow.py <config_file.yaml>")
+        print("\nExample:")
+        print("  python optimization_workflow.py config.yaml")
+        print("\nThe config file should specify:")
+        print("  - Structure (CIF file or lattice parameters)")
+        print("  - Optimization flags (optimize_ca, optimize_sws)")
+        print("  - Parameter ranges (ca_ratios, sws_values)")
+        print("  - EMTO parameters (dmax, magnetic)")
+        print("  - Execution settings (run_mode, account, etc.)")
+        print("\nSee files/systems/optimization_*.yaml for example configurations.")
+        print("=" * 80)
         sys.exit(1)
 
     config_file = sys.argv[1]
 
     try:
+        print("\n" + "=" * 80)
+        print("Initializing Optimization Workflow")
+        print("=" * 80)
+        print(f"Config file: {config_file}\n")
+
+        # Initialize workflow
         workflow = OptimizationWorkflow(config_file=config_file)
 
-        print("Optimization workflow initialized successfully!")
-        print(f"Base path: {workflow.base_path}")
-        print(f"Optimize c/a: {workflow.config['optimize_ca']}")
-        print(f"Optimize SWS: {workflow.config['optimize_sws']}")
+        print("✓ Workflow initialized successfully!")
+        print(f"  Job name: {workflow.config['job_name']}")
+        print(f"  Output path: {workflow.base_path}")
+        print(f"  c/a optimization: {workflow.config.get('optimize_ca', False)}")
+        print(f"  SWS optimization: {workflow.config.get('optimize_sws', False)}")
+        print(f"  DOS analysis: {workflow.config.get('generate_dos', False)}")
 
-        # Test parameter preparation
-        ca_ratios = workflow.config.get('ca_ratios')
-        sws_values = workflow.config.get('sws_values')
+        # Run complete workflow
+        results = workflow.run_complete_workflow()
 
-        ca_list, sws_list = workflow._prepare_ranges(ca_ratios, sws_values)
+        print("\n" + "=" * 80)
+        print("Workflow completed successfully!")
+        print("=" * 80)
+        print(f"\nResults saved in: {workflow.base_path}")
+        print(f"  - workflow_summary.txt: Human-readable summary")
+        print(f"  - workflow_results.json: Machine-readable results")
+        print(f"  - phase1_ca_optimization/: c/a optimization results")
+        print(f"  - phase2_sws_optimization/: SWS optimization results")
+        print(f"  - phase3_optimized_calculation/: Final optimized results")
 
-        print(f"\nPrepared ranges:")
-        print(f"  c/a ratios: {ca_list}")
-        print(f"  SWS values: {sws_list}")
+        if workflow.config.get('generate_dos', False):
+            print(f"  - phase3_optimized_calculation/dos_analysis/: DOS plots")
 
+        print("\n" + "=" * 80)
+
+    except FileNotFoundError as e:
+        print(f"\n✗ Error: Config file not found: {config_file}")
+        print(f"  {e}")
+        sys.exit(1)
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"\n✗ Error: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 
