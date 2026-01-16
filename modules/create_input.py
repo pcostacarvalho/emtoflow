@@ -1,4 +1,5 @@
 import os
+import json
 import numpy as np
 from typing import Union, Dict, Any
 from pathlib import Path
@@ -14,6 +15,54 @@ from modules.structure_builder import create_emto_structure, lattice_param_to_sw
 from modules.dmax_optimizer import _run_dmax_optimization
 from utils.config_parser import load_and_validate_config
 from utils.aux_lists import prepare_ranges
+
+
+def _save_structure_to_json(structure_pmg, structure_dict, filename):
+    """
+    Save structure information to JSON file for inspection.
+
+    Parameters
+    ----------
+    structure_pmg : pymatgen.core.Structure
+        Pymatgen Structure object
+    structure_dict : dict
+        EMTO structure dictionary
+    filename : str
+        Output JSON file path
+    """
+    # Create a serializable version of the structure
+    structure_info = {
+        'pymatgen_info': {
+            'num_sites': len(structure_pmg.sites),
+            'volume': float(structure_pmg.lattice.volume),
+            'lattice_matrix': structure_pmg.lattice.matrix.tolist(),
+            'sites': [
+                {
+                    'frac_coords': site.frac_coords.tolist(),
+                    'cart_coords': site.coords.tolist(),
+                    'species': str(site.species),
+                    'occupancy': {str(k): float(v) for k, v in site.species.items()}
+                }
+                for site in structure_pmg.sites
+            ]
+        },
+        'emto_structure': {}
+    }
+
+    # Convert structure_dict to JSON-serializable format
+    for key, value in structure_dict.items():
+        if isinstance(value, np.ndarray):
+            structure_info['emto_structure'][key] = value.tolist()
+        elif isinstance(value, (np.integer, np.floating)):
+            structure_info['emto_structure'][key] = float(value)
+        else:
+            structure_info['emto_structure'][key] = value
+
+    # Write to file
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    with open(filename, 'w') as f:
+        json.dump(structure_info, f, indent=2)
+
 
 def create_emto_inputs(config):
     """
@@ -266,6 +315,11 @@ def create_emto_inputs(config):
     print(f"  Structure created: LAT={structure_dict['lat']} ({structure_dict['lattice_name']})")
     print(f"  Number of atoms: NQ3={structure_dict['NQ3']}")
     print(f"  Maximum NL: {structure_dict['NL']}")
+
+    # Save structure to JSON file for inspection
+    structure_file = os.path.join(output_path, f"{job_name}_structure.json")
+    _save_structure_to_json(structure_pmg, structure_dict, structure_file)
+    print(f"  Structure saved to: {structure_file}")
 
     # Auto-determine ca_ratios and sws_values if not provided
     if ca_ratios is None:
