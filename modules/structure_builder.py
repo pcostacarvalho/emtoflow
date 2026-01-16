@@ -205,17 +205,11 @@ def create_structure_from_params(lat, a, sites, b=None, c=None,
 
     # Calculate and store SWS and LAT in properties
     sws = lattice_param_to_sws(structure)
-    # IMPORTANT: Store original parameters and site specifications
+    # IMPORTANT: Store original site specifications to preserve zero-concentration elements
     # Pymatgen removes zero-concentration species, but EMTO needs them in KGRN input
     structure.properties = {
         'sws': sws,
         'user_lat': lat,
-        'user_a': a,
-        'user_b': b,
-        'user_c': c,
-        'user_alpha': alpha,
-        'user_beta': beta,
-        'user_gamma': gamma,
         'original_sites': sites  # Preserve original site specs with all elements
     }
 
@@ -253,26 +247,17 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
         # User explicitly provided LAT and structure - respect their choice
         # Do NOT convert to conventional cell
         work_structure = structure_pmg
-
-        # Use original user-provided lattice parameters, not pymatgen's calculated ones
-        # (pymatgen may convert to different representations, e.g., FCC primitive → rhombohedral)
-        a = structure_pmg.properties.get('user_a', work_structure.lattice.a)
-        b = structure_pmg.properties.get('user_b', work_structure.lattice.b)
-        c = structure_pmg.properties.get('user_c', work_structure.lattice.c)
-        alpha = structure_pmg.properties.get('user_alpha', work_structure.lattice.alpha)
-        beta = structure_pmg.properties.get('user_beta', work_structure.lattice.beta)
-        gamma = structure_pmg.properties.get('user_gamma', work_structure.lattice.gamma)
     else:
         # CIF workflow - standardize to conventional cell for consistency
         work_structure = sga.get_conventional_standard_structure()
 
-        # Extract lattice parameters from pymatgen
-        a = work_structure.lattice.a
-        b = work_structure.lattice.b
-        c = work_structure.lattice.c
-        alpha = work_structure.lattice.alpha
-        beta = work_structure.lattice.beta
-        gamma = work_structure.lattice.gamma
+    # Extract lattice parameters
+    a = work_structure.lattice.a
+    b = work_structure.lattice.b
+    c = work_structure.lattice.c
+    alpha = work_structure.lattice.alpha
+    beta = work_structure.lattice.beta
+    gamma = work_structure.lattice.gamma
 
     # Get matrix and coordinates
     matrix = work_structure.lattice.matrix
