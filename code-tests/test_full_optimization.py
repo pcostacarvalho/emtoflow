@@ -70,7 +70,7 @@ def test_structure_creation(config):
     print("="*70)
 
     try:
-        structure = create_emto_structure(
+        structure_pmg, structure = create_emto_structure(
             lat=config['lat'],
             a=config['a'],
             sites=config['sites']
@@ -186,7 +186,7 @@ from modules.structure_builder import create_emto_structure
 workflow = OptimizationWorkflow(config_file="optimization_config.yaml")
 
 # 2. Create structure
-structure = create_emto_structure(
+structure_pmg, structure = create_emto_structure(
     lat=workflow.config['lat'],
     a=workflow.config['a'],
     sites=workflow.config['sites']

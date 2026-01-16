@@ -239,7 +239,7 @@ def create_emto_inputs(config):
     if cif_file is not None:
         # CIF workflow
         print(f"\nParsing CIF file: {cif_file}")
-        structure = create_emto_structure(
+        structure_pmg, structure_dict = create_emto_structure(
             cif_file=cif_file,
             user_magnetic_moments=user_magnetic_moments
         )
@@ -251,7 +251,7 @@ def create_emto_inputs(config):
         print(f"  Lattice parameter a: {a} Å")
         print(f"  Number of sites: {len(sites)}")
 
-        structure = create_emto_structure(
+        structure_pmg, structure_dict = create_emto_structure(
             lat=lat,
             a=a,
             sites=sites,
@@ -263,16 +263,16 @@ def create_emto_inputs(config):
             user_magnetic_moments=user_magnetic_moments
         )
 
-    print(f"  Structure created: LAT={structure['lat']} ({structure['lattice_name']})")
-    print(f"  Number of atoms: NQ3={structure['NQ3']}")
-    print(f"  Maximum NL: {structure['NL']}")
+    print(f"  Structure created: LAT={structure_dict['lat']} ({structure_dict['lattice_name']})")
+    print(f"  Number of atoms: NQ3={structure_dict['NQ3']}")
+    print(f"  Maximum NL: {structure_dict['NL']}")
 
     # Auto-determine ca_ratios and sws_values if not provided
     if ca_ratios is None:
-        ca_ratios = [structure['coa']]
+        ca_ratios = [structure_dict['coa']]
 
     if sws_values is None:
-        sws_values = lattice_param_to_sws(structure)
+        sws_values = [lattice_param_to_sws(structure_pmg)]
 
 
     # ==================== DMAX OPTIMIZATION (OPTIONAL) ====================
@@ -295,7 +295,7 @@ def create_emto_inputs(config):
         dmax_per_ratio = _run_dmax_optimization(
             output_path=output_path,
             job_name=job_name,
-            structure=structure,
+            structure=structure_dict,
             ca_ratios=ca_ratios,
             dmax_initial=dmax_initial,
             target_vectors=dmax_target_vectors,
@@ -328,7 +328,7 @@ def create_emto_inputs(config):
 
         # ==================== CREATE KSTR INPUT ====================
         create_kstr_input(
-            structure=structure,
+            structure=structure_dict,
             output_path=output_path,
             id_ratio=file_id_ratio,
             dmax=ratio_dmax,
@@ -339,7 +339,7 @@ def create_emto_inputs(config):
         # ==================== CREATE SHAPE INPUT ====================
 
         create_shape_input(
-            structure=structure,
+            structure=structure_dict,
             path=output_path,
             id_ratio=file_id_ratio
         )
@@ -352,7 +352,7 @@ def create_emto_inputs(config):
             # Create KGRN input
 
             create_kgrn_input(
-                structure=structure,
+                structure=structure_dict,
                 path=output_path,
                 id_full=file_id_full,
                 id_ratio=file_id_ratio,
@@ -363,7 +363,7 @@ def create_emto_inputs(config):
             # Create KFCD input
 
             create_kfcd_input(
-                structure=structure,
+                structure=structure_dict,
                 path=output_path,
                 id_ratio=file_id_ratio,
                 id_full=file_id_full

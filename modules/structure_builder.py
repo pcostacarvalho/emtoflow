@@ -435,7 +435,9 @@ def create_emto_structure(cif_file=None, lat=None, a=None, sites=None,
 
     Returns
     -------
-    dict
+    structure_pmg : pymatgen.core.Structure
+        Pymatgen Structure object
+    structure_dict : dict
         EMTO structure dictionary containing:
         - Lattice information (lat, a, b, c, BSX, BSY, BSZ, etc.)
         - Atomic information (NQ3, NL, atom_info, etc.)
@@ -449,16 +451,16 @@ def create_emto_structure(cif_file=None, lat=None, a=None, sites=None,
     Examples
     --------
     >>> # From CIF file
-    >>> structure = create_emto_structure(cif_file='FePt.cif')
+    >>> structure_pmg, structure_dict = create_emto_structure(cif_file='FePt.cif')
 
     >>> # From parameters (FCC Fe-Pt alloy)
     >>> sites = [{'position': [0, 0, 0], 'elements': ['Fe', 'Pt'],
     ...          'concentrations': [0.5, 0.5]}]
-    >>> structure = create_emto_structure(lat=2, a=3.7, sites=sites)
+    >>> structure_pmg, structure_dict = create_emto_structure(lat=2, a=3.7, sites=sites)
 
     >>> # From parameters (HCP Co with defaults)
     >>> sites = [{'position': [0, 0, 0], 'elements': ['Co'], 'concentrations': [1.0]}]
-    >>> structure = create_emto_structure(lat=4, a=2.51, sites=sites)
+    >>> structure_pmg, structure_dict = create_emto_structure(lat=4, a=2.51, sites=sites)
     """
     # Determine which workflow to use
     if cif_file is not None:
@@ -477,4 +479,4 @@ def create_emto_structure(cif_file=None, lat=None, a=None, sites=None,
         )
 
     # Common: convert pymatgen Structure → EMTO dict
-    return _structure_to_emto_dict(structure_pmg, user_magnetic_moments)
+    return structure_pmg, _structure_to_emto_dict(structure_pmg, user_magnetic_moments)
