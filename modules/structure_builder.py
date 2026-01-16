@@ -239,6 +239,9 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     # Check if user provided explicit LAT (from parameter workflow)
     user_lat = structure_pmg.properties.get('user_lat', None) if structure_pmg.properties else None
 
+    # Create SpacegroupAnalyzer (needed for symmetry analysis)
+    sga = SpacegroupAnalyzer(structure_pmg)
+
     # Decide whether to use as-is or convert to conventional
     if user_lat is not None:
         # User explicitly provided LAT and structure - respect their choice
@@ -246,7 +249,6 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
         work_structure = structure_pmg
     else:
         # CIF workflow - standardize to conventional cell for consistency
-        sga = SpacegroupAnalyzer(structure_pmg)
         work_structure = sga.get_conventional_standard_structure()
 
     # Extract lattice parameters
