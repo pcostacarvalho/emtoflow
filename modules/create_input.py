@@ -61,13 +61,22 @@ def _save_structure_to_json(structure_pmg, structure_dict, filename):
     # Add user-provided parameters if available (from parameter workflow)
     if structure_pmg.properties:
         if 'user_a' in structure_pmg.properties:
-            structure_info['user_input'] = {
+            user_input = {
                 'lat': structure_pmg.properties['user_lat'],
                 'a': structure_pmg.properties['user_a'],
                 'b': structure_pmg.properties['user_b'],
                 'c': structure_pmg.properties['user_c'],
-                'note': 'Conventional cell scale factors (angles omitted - geometry defined by BSX/BSY/BSZ)'
             }
+
+            # Include gamma if not default (needed for LAT 12-14: monoclinic/triclinic)
+            user_gamma = structure_pmg.properties.get('user_gamma', 90)
+            if user_gamma != 90:
+                user_input['gamma'] = user_gamma
+                user_input['note'] = 'Includes gamma angle for monoclinic/triclinic lattice'
+            else:
+                user_input['note'] = 'Conventional cell scale factors (geometry defined by BSX/BSY/BSZ)'
+
+            structure_info['user_input'] = user_input
 
     # Convert structure_dict to JSON-serializable format
     for key, value in structure_dict.items():
