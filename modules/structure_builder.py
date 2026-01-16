@@ -205,12 +205,20 @@ def create_structure_from_params(lat, a, sites, b=None, c=None,
 
     # Calculate and store SWS and LAT in properties
     sws = lattice_param_to_sws(structure)
-    # IMPORTANT: Store original site specifications to preserve zero-concentration elements
-    # Pymatgen removes zero-concentration species, but EMTO needs them in KGRN input
+    # IMPORTANT: Store original parameters and site specifications
+    # - Original lattice params (a, b, c, angles) for reference (conventional cell scale)
+    # - Pymatgen may convert to different representation (e.g., FCC → rhombohedral)
+    # - Store original sites to preserve zero-concentration elements EMTO needs
     structure.properties = {
         'sws': sws,
         'user_lat': lat,
-        'original_sites': sites  # Preserve original site specs with all elements
+        'user_a': a,
+        'user_b': b,
+        'user_c': c,
+        'user_alpha': alpha,
+        'user_beta': beta,
+        'user_gamma': gamma,
+        'original_sites': sites
     }
 
     return structure

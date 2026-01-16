@@ -36,6 +36,14 @@ def _save_structure_to_json(structure_pmg, structure_dict, filename):
             'num_sites': len(structure_pmg.sites),
             'volume': float(structure_pmg.lattice.volume),
             'lattice_matrix': structure_pmg.lattice.matrix.tolist(),
+            'lattice_params': {
+                'a': float(structure_pmg.lattice.a),
+                'b': float(structure_pmg.lattice.b),
+                'c': float(structure_pmg.lattice.c),
+                'alpha': float(structure_pmg.lattice.alpha),
+                'beta': float(structure_pmg.lattice.beta),
+                'gamma': float(structure_pmg.lattice.gamma)
+            },
             'sites': [
                 {
                     'frac_coords': site.frac_coords.tolist(),
@@ -46,8 +54,22 @@ def _save_structure_to_json(structure_pmg, structure_dict, filename):
                 for site in structure_pmg.sites
             ]
         },
+        'user_input': {},
         'emto_structure': {}
     }
+
+    # Add user-provided parameters if available (from parameter workflow)
+    if structure_pmg.properties:
+        if 'user_a' in structure_pmg.properties:
+            structure_info['user_input'] = {
+                'a': structure_pmg.properties['user_a'],
+                'b': structure_pmg.properties['user_b'],
+                'c': structure_pmg.properties['user_c'],
+                'alpha': structure_pmg.properties['user_alpha'],
+                'beta': structure_pmg.properties['user_beta'],
+                'gamma': structure_pmg.properties['user_gamma'],
+                'note': 'Original conventional cell parameters provided by user'
+            }
 
     # Convert structure_dict to JSON-serializable format
     for key, value in structure_dict.items():
