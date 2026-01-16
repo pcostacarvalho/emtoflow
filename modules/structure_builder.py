@@ -169,11 +169,12 @@ def create_structure_from_params(lat, a, sites, b=None, c=None,
     )
 
     # Convert to Cartesian coordinates (Angstroms)
-    # BSX, BSY, BSZ are in fractional coordinates relative to [a, b, c]
+    # IMPORTANT: BSX, BSY, BSZ are ALL in units of 'a' (not [a,b,c])
+    # The ratios boa=b/a and coa=c/a are already encoded in the vectors
     lattice_matrix = np.array([
-        [BSX[0] * a, BSX[1] * b, BSX[2] * c],
-        [BSY[0] * a, BSY[1] * b, BSY[2] * c],
-        [BSZ[0] * a, BSZ[1] * b, BSZ[2] * c]
+        [BSX[0] * a, BSX[1] * a, BSX[2] * a],
+        [BSY[0] * a, BSY[1] * a, BSY[2] * a],
+        [BSZ[0] * a, BSZ[1] * a, BSZ[2] * a]
     ])
 
     # Create Lattice object from actual primitive vectors
