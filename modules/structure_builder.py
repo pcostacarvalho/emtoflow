@@ -239,22 +239,28 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     # Check if user provided explicit LAT (from parameter workflow)
     user_lat = structure_pmg.properties.get('user_lat', None) if structure_pmg.properties else None
 
-    # Get conventional cell (EMTO requires conventional, not primitive)
-    sga = SpacegroupAnalyzer(structure_pmg)
-    conv_structure = sga.get_conventional_standard_structure()
+    # Decide whether to use as-is or convert to conventional
+    if user_lat is not None:
+        # User explicitly provided LAT and structure - respect their choice
+        # Do NOT convert to conventional cell
+        work_structure = structure_pmg
+    else:
+        # CIF workflow - standardize to conventional cell for consistency
+        sga = SpacegroupAnalyzer(structure_pmg)
+        work_structure = sga.get_conventional_standard_structure()
 
     # Extract lattice parameters
-    a = conv_structure.lattice.a
-    b = conv_structure.lattice.b
-    c = conv_structure.lattice.c
-    alpha = conv_structure.lattice.alpha
-    beta = conv_structure.lattice.beta
-    gamma = conv_structure.lattice.gamma
+    a = work_structure.lattice.a
+    b = work_structure.lattice.b
+    c = work_structure.lattice.c
+    alpha = work_structure.lattice.alpha
+    beta = work_structure.lattice.beta
+    gamma = work_structure.lattice.gamma
 
     # Get matrix and coordinates
-    matrix = conv_structure.lattice.matrix
-    coords = conv_structure.cart_coords
-    sites_frac = conv_structure.frac_coords
+    matrix = work_structure.lattice.matrix
+    coords = work_structure.cart_coords
+    sites_frac = work_structure.frac_coords
 
     # Determine LAT number
     if user_lat is not None:
@@ -295,7 +301,7 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
 
     # ==================== ATOM INFORMATION ====================
     # Get inequivalent atoms (IT) from symmetry analysis
-    site_to_it = get_inequivalent_atoms(conv_structure)
+    site_to_it = get_inequivalent_atoms(work_structure)
 
     # Extract all unique elements across all sites (for NL calculation)
     # Include zero-concentration elements if original_sites are available
@@ -309,13 +315,13 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
                 all_elements.add(elem)
     else:
         # Fall back to pymatgen composition
-        for site in conv_structure.sites:
+        for site in work_structure.sites:
             # site.species is a Composition object containing all elements at that site
             for elem in site.species.elements:
                 all_elements.add(str(elem))
 
     unique_elements = sorted(all_elements)
-    NQ3 = len(conv_structure.sites)
+    NQ3 = len(work_structure.sites)
 
     # Determine NL from electronic structure
     from pymatgen.core import Element
@@ -342,7 +348,7 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     # original_sites already retrieved above for all_elements calculation
     # Reuse it here to preserve zero-concentration elements
 
-    for iq, site in enumerate(conv_structure.sites):
+    for iq, site in enumerate(work_structure.sites):
         it = site_to_it[iq]
 
         # If original sites are available, use them to get ALL elements (including 0% concentration)
@@ -414,7 +420,7 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
 
         # Raw data
         'matrix': matrix,
-        'structure': conv_structure,
+        'structure': work_structure,
     }
 
 
