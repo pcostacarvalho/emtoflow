@@ -10,7 +10,9 @@ lat: 2                               # EMTO lattice type (1-14)
 a: 3.61                              # Lattice parameter a (Angstroms)
 b: null                              # Lattice parameter b (default: same as a)
 c: null                              # Lattice parameter c (default: same as a)
-gamma: 90                            # Lattice angle gamma (degrees, only for LAT 12-14 monoclinic/triclinic)
+alpha: null                          # Lattice angle alpha (degrees, REQUIRED for LAT 14 triclinic)
+beta: null                           # Lattice angle beta (degrees, REQUIRED for LAT 14 triclinic)
+gamma: null                          # Lattice angle gamma (degrees, REQUIRED for LAT 12-14 monoclinic/triclinic)
 sites: [{'position': [0, 0, 0], 'elements': ['Cu', 'Mg'], 'concentrations': [1, 0]}]  # Atomic sites
 
 # Parameter Ranges (choose ONE option for each parameter)

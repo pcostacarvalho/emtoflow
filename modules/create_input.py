@@ -68,11 +68,21 @@ def _save_structure_to_json(structure_pmg, structure_dict, filename):
                 'c': structure_pmg.properties['user_c'],
             }
 
-            # Include gamma if not default (needed for LAT 12-14: monoclinic/triclinic)
+            # Include angles if not default 90° (needed for LAT 12-14: monoclinic/triclinic)
+            user_alpha = structure_pmg.properties.get('user_alpha', 90)
+            user_beta = structure_pmg.properties.get('user_beta', 90)
             user_gamma = structure_pmg.properties.get('user_gamma', 90)
-            if user_gamma != 90:
-                user_input['gamma'] = user_gamma
-                user_input['note'] = 'Includes gamma angle for monoclinic/triclinic lattice'
+
+            has_non_default_angles = (user_alpha != 90 or user_beta != 90 or user_gamma != 90)
+
+            if has_non_default_angles:
+                if user_alpha != 90:
+                    user_input['alpha'] = user_alpha
+                if user_beta != 90:
+                    user_input['beta'] = user_beta
+                if user_gamma != 90:
+                    user_input['gamma'] = user_gamma
+                user_input['note'] = 'Includes non-90° angles for monoclinic/triclinic lattice'
             else:
                 user_input['note'] = 'Conventional cell scale factors (geometry defined by BSX/BSY/BSZ)'
 

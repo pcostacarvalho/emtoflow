@@ -118,6 +118,41 @@ def validate_config(config: Dict[str, Any]) -> None:
     has_cif = config.get('cif_file') not in (False, None)
     has_lattice = all(config.get(k) is not None for k in ['lat', 'a', 'sites'])
 
+    # Validate and set angle defaults based on LAT type
+    if has_lattice:
+        lat = config.get('lat')
+        alpha = config.get('alpha')
+        beta = config.get('beta')
+        gamma = config.get('gamma')
+
+        # LAT 14 (Triclinic): requires alpha, beta, gamma
+        if lat == 14:
+            if alpha is None or beta is None or gamma is None:
+                raise ConfigValidationError(
+                    "LAT 14 (triclinic) requires alpha, beta, and gamma angles to be specified"
+                )
+
+        # LAT 12, 13 (Monoclinic): requires gamma
+        elif lat in [12, 13]:
+            if gamma is None:
+                raise ConfigValidationError(
+                    f"LAT {lat} (monoclinic) requires gamma angle to be specified"
+                )
+            # Default alpha, beta to 90° for monoclinic
+            if alpha is None:
+                config['alpha'] = 90
+            if beta is None:
+                config['beta'] = 90
+
+        # LAT 1-11: default all angles to 90°
+        else:
+            if alpha is None:
+                config['alpha'] = 90
+            if beta is None:
+                config['beta'] = 90
+            if gamma is None:
+                config['gamma'] = 90
+
     if not has_cif and not has_lattice:
         raise ConfigValidationError(
             "Must provide either 'cif_file' OR lattice parameters (lat, a, sites)"
@@ -377,9 +412,9 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
         'a': None,
         'b': None,
         'c': None,
-        'alpha': 90,
-        'beta': 90,
-        'gamma': 90,
+        'alpha': None,  # Set based on LAT in validation
+        'beta': None,   # Set based on LAT in validation
+        'gamma': None,  # Set based on LAT in validation
         'sites': None,
 
         # Parameter ranges
