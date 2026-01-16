@@ -163,8 +163,21 @@ def create_structure_from_params(lat, a, sites, b=None, c=None,
     if lat == 4 and gamma == 90:
         gamma = 120
 
-    # Create Lattice object from parameters
-    lattice = Lattice.from_parameters(a, b, c, alpha, beta, gamma)
+    # Get EMTO primitive vectors (in units of a, b, c)
+    BSX, BSY, BSZ, boa, coa = generate_emto_primitive_vectors(
+        lat, a, b, c, alpha, beta, gamma
+    )
+
+    # Convert to Cartesian coordinates (Angstroms)
+    # BSX, BSY, BSZ are in fractional coordinates relative to [a, b, c]
+    lattice_matrix = np.array([
+        [BSX[0] * a, BSX[1] * b, BSX[2] * c],
+        [BSY[0] * a, BSY[1] * b, BSY[2] * c],
+        [BSZ[0] * a, BSZ[1] * b, BSZ[2] * c]
+    ])
+
+    # Create Lattice object from actual primitive vectors
+    lattice = Lattice(lattice_matrix)
 
     # Build species and coordinates lists
     species_list = []
