@@ -62,13 +62,11 @@ def _save_structure_to_json(structure_pmg, structure_dict, filename):
     if structure_pmg.properties:
         if 'user_a' in structure_pmg.properties:
             structure_info['user_input'] = {
+                'lat': structure_pmg.properties['user_lat'],
                 'a': structure_pmg.properties['user_a'],
                 'b': structure_pmg.properties['user_b'],
                 'c': structure_pmg.properties['user_c'],
-                'alpha': structure_pmg.properties['user_alpha'],
-                'beta': structure_pmg.properties['user_beta'],
-                'gamma': structure_pmg.properties['user_gamma'],
-                'note': 'Original conventional cell parameters provided by user'
+                'note': 'Conventional cell scale factors (angles omitted - geometry defined by BSX/BSY/BSZ)'
             }
 
     # Convert structure_dict to JSON-serializable format
@@ -116,9 +114,6 @@ def create_emto_inputs(config):
     sites = None,
     b = a,
     c = a (can be 1.633*a for HCP or set other value),
-    alpha = 90,
-    beta = 90,
-    gamma = 90,
     ca_ratios = (provide a list with at least one value if cif_file = False),
     sws_values = (provide a list with at least one value if cif_file = False),
     auto_generate = False,
@@ -180,8 +175,6 @@ def create_emto_inputs(config):
     b, c : float, optional
         Lattice parameters b, c in Angstroms.
         Defaults: b=a, c=a (or c=1.633*a for HCP)
-    alpha, beta, gamma : float, optional
-        Lattice angles in degrees. Default: 90° (120° for HCP)
     dmax : float
         Maximum distance parameter for KSTR
     ca_ratios : list of float, optional

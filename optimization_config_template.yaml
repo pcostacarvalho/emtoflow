@@ -6,13 +6,10 @@ job_name: "CuMg_fcc"                 # Job identifier (used in file names)
 
 # Structure Input (REQUIRED - choose ONE approach)
 cif_file: null                       # Path to CIF file (set to null if using lattice params)
-lat: 2
+lat: 2                               # EMTO lattice type (1-14)
 a: 3.61                              # Lattice parameter a (Angstroms)
 b: null                              # Lattice parameter b (default: same as a)
 c: null                              # Lattice parameter c (default: same as a)
-alpha: 90                            # Lattice angle alpha (degrees, default: 90)
-beta: 90                             # Lattice angle beta (degrees, default: 90)
-gamma: 90                            # Lattice angle gamma (degrees, default: 90)
 sites: [{'position': [0, 0, 0], 'elements': ['Cu', 'Mg'], 'concentrations': [1, 0]}]  # Atomic sites
 
 # Parameter Ranges (choose ONE option for each parameter)
