@@ -406,9 +406,7 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
         'a': a,
         'b': b,
         'c': c,
-        'alpha': alpha,
-        'beta': beta,
-        'gamma': gamma,
+        # Note: alpha, beta, gamma omitted - redundant with BSX, BSY, BSZ
         'boa': boa,
         'coa': coa,
         'BSX': BSX,
