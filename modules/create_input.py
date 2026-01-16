@@ -51,12 +51,18 @@ def _save_structure_to_json(structure_pmg, structure_dict, filename):
 
     # Convert structure_dict to JSON-serializable format
     for key, value in structure_dict.items():
-        if isinstance(value, np.ndarray):
+        if key == 'structure':
+            # Skip the raw Structure object (already captured in pymatgen_info)
+            continue
+        elif isinstance(value, np.ndarray):
             structure_info['emto_structure'][key] = value.tolist()
         elif isinstance(value, (np.integer, np.floating)):
             structure_info['emto_structure'][key] = float(value)
-        else:
+        elif isinstance(value, (list, dict, str, int, float, bool, type(None))):
             structure_info['emto_structure'][key] = value
+        else:
+            # Skip non-serializable objects
+            structure_info['emto_structure'][key] = f"<{type(value).__name__}>"
 
     # Write to file
     os.makedirs(os.path.dirname(filename), exist_ok=True)
