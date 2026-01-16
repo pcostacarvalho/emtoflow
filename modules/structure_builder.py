@@ -163,8 +163,22 @@ def create_structure_from_params(lat, a, sites, b=None, c=None,
     if lat == 4 and gamma == 90:
         gamma = 120
 
-    # Create Lattice object from parameters
-    lattice = Lattice.from_parameters(a, b, c, alpha, beta, gamma)
+    # Get EMTO primitive vectors (in units of a, b, c)
+    BSX, BSY, BSZ, boa, coa = generate_emto_primitive_vectors(
+        lat, a, b, c, alpha, beta, gamma
+    )
+
+    # Convert to Cartesian coordinates (Angstroms)
+    # IMPORTANT: BSX, BSY, BSZ are ALL in units of 'a' (not [a,b,c])
+    # The ratios boa=b/a and coa=c/a are already encoded in the vectors
+    lattice_matrix = np.array([
+        [BSX[0] * a, BSX[1] * a, BSX[2] * a],
+        [BSY[0] * a, BSY[1] * a, BSY[2] * a],
+        [BSZ[0] * a, BSZ[1] * a, BSZ[2] * a]
+    ])
+
+    # Create Lattice object from actual primitive vectors
+    lattice = Lattice(lattice_matrix)
 
     # Build species and coordinates lists
     species_list = []
@@ -192,12 +206,20 @@ def create_structure_from_params(lat, a, sites, b=None, c=None,
 
     # Calculate and store SWS and LAT in properties
     sws = lattice_param_to_sws(structure)
-    # IMPORTANT: Store original site specifications to preserve zero-concentration elements
-    # Pymatgen removes zero-concentration species, but EMTO needs them in KGRN input
+    # IMPORTANT: Store original parameters and site specifications
+    # - Original lattice params (a, b, c, angles) for reference (conventional cell scale)
+    # - Pymatgen may convert to different representation (e.g., FCC → rhombohedral)
+    # - Store original sites to preserve zero-concentration elements EMTO needs
     structure.properties = {
         'sws': sws,
         'user_lat': lat,
-        'original_sites': sites  # Preserve original site specs with all elements
+        'user_a': a,
+        'user_b': b,
+        'user_c': c,
+        'user_alpha': alpha,
+        'user_beta': beta,
+        'user_gamma': gamma,
+        'original_sites': sites
     }
 
     return structure
@@ -226,22 +248,30 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     # Check if user provided explicit LAT (from parameter workflow)
     user_lat = structure_pmg.properties.get('user_lat', None) if structure_pmg.properties else None
 
-    # Get conventional cell (EMTO requires conventional, not primitive)
+    # Create SpacegroupAnalyzer (needed for symmetry analysis)
     sga = SpacegroupAnalyzer(structure_pmg)
-    conv_structure = sga.get_conventional_standard_structure()
+
+    # Decide whether to use as-is or convert to conventional
+    if user_lat is not None:
+        # User explicitly provided LAT and structure - respect their choice
+        # Do NOT convert to conventional cell
+        work_structure = structure_pmg
+    else:
+        # CIF workflow - standardize to conventional cell for consistency
+        work_structure = sga.get_conventional_standard_structure()
 
     # Extract lattice parameters
-    a = conv_structure.lattice.a
-    b = conv_structure.lattice.b
-    c = conv_structure.lattice.c
-    alpha = conv_structure.lattice.alpha
-    beta = conv_structure.lattice.beta
-    gamma = conv_structure.lattice.gamma
+    a = work_structure.lattice.a
+    b = work_structure.lattice.b
+    c = work_structure.lattice.c
+    alpha = work_structure.lattice.alpha
+    beta = work_structure.lattice.beta
+    gamma = work_structure.lattice.gamma
 
     # Get matrix and coordinates
-    matrix = conv_structure.lattice.matrix
-    coords = conv_structure.cart_coords
-    sites_frac = conv_structure.frac_coords
+    matrix = work_structure.lattice.matrix
+    coords = work_structure.cart_coords
+    sites_frac = work_structure.frac_coords
 
     # Determine LAT number
     if user_lat is not None:
@@ -282,7 +312,7 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
 
     # ==================== ATOM INFORMATION ====================
     # Get inequivalent atoms (IT) from symmetry analysis
-    site_to_it = get_inequivalent_atoms(conv_structure)
+    site_to_it = get_inequivalent_atoms(work_structure)
 
     # Extract all unique elements across all sites (for NL calculation)
     # Include zero-concentration elements if original_sites are available
@@ -296,13 +326,13 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
                 all_elements.add(elem)
     else:
         # Fall back to pymatgen composition
-        for site in conv_structure.sites:
+        for site in work_structure.sites:
             # site.species is a Composition object containing all elements at that site
             for elem in site.species.elements:
                 all_elements.add(str(elem))
 
     unique_elements = sorted(all_elements)
-    NQ3 = len(conv_structure.sites)
+    NQ3 = len(work_structure.sites)
 
     # Determine NL from electronic structure
     from pymatgen.core import Element
@@ -329,7 +359,7 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     # original_sites already retrieved above for all_elements calculation
     # Reuse it here to preserve zero-concentration elements
 
-    for iq, site in enumerate(conv_structure.sites):
+    for iq, site in enumerate(work_structure.sites):
         it = site_to_it[iq]
 
         # If original sites are available, use them to get ALL elements (including 0% concentration)
@@ -377,9 +407,7 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
         'a': a,
         'b': b,
         'c': c,
-        'alpha': alpha,
-        'beta': beta,
-        'gamma': gamma,
+        # Note: alpha, beta, gamma omitted - redundant with BSX, BSY, BSZ
         'boa': boa,
         'coa': coa,
         'BSX': BSX,
@@ -401,7 +429,7 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
 
         # Raw data
         'matrix': matrix,
-        'structure': conv_structure,
+        'structure': work_structure,
     }
 
 
@@ -435,7 +463,9 @@ def create_emto_structure(cif_file=None, lat=None, a=None, sites=None,
 
     Returns
     -------
-    dict
+    structure_pmg : pymatgen.core.Structure
+        Pymatgen Structure object
+    structure_dict : dict
         EMTO structure dictionary containing:
         - Lattice information (lat, a, b, c, BSX, BSY, BSZ, etc.)
         - Atomic information (NQ3, NL, atom_info, etc.)
@@ -449,16 +479,16 @@ def create_emto_structure(cif_file=None, lat=None, a=None, sites=None,
     Examples
     --------
     >>> # From CIF file
-    >>> structure = create_emto_structure(cif_file='FePt.cif')
+    >>> structure_pmg, structure_dict = create_emto_structure(cif_file='FePt.cif')
 
     >>> # From parameters (FCC Fe-Pt alloy)
     >>> sites = [{'position': [0, 0, 0], 'elements': ['Fe', 'Pt'],
     ...          'concentrations': [0.5, 0.5]}]
-    >>> structure = create_emto_structure(lat=2, a=3.7, sites=sites)
+    >>> structure_pmg, structure_dict = create_emto_structure(lat=2, a=3.7, sites=sites)
 
     >>> # From parameters (HCP Co with defaults)
     >>> sites = [{'position': [0, 0, 0], 'elements': ['Co'], 'concentrations': [1.0]}]
-    >>> structure = create_emto_structure(lat=4, a=2.51, sites=sites)
+    >>> structure_pmg, structure_dict = create_emto_structure(lat=4, a=2.51, sites=sites)
     """
     # Determine which workflow to use
     if cif_file is not None:
@@ -477,4 +507,4 @@ def create_emto_structure(cif_file=None, lat=None, a=None, sites=None,
         )
 
     # Common: convert pymatgen Structure → EMTO dict
-    return _structure_to_emto_dict(structure_pmg, user_magnetic_moments)
+    return structure_pmg, _structure_to_emto_dict(structure_pmg, user_magnetic_moments)

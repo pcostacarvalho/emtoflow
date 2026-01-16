@@ -1,4 +1,5 @@
 import os
+import json
 import numpy as np
 from typing import Union, Dict, Any
 from pathlib import Path
@@ -14,6 +15,99 @@ from modules.structure_builder import create_emto_structure, lattice_param_to_sw
 from modules.dmax_optimizer import _run_dmax_optimization
 from utils.config_parser import load_and_validate_config
 from utils.aux_lists import prepare_ranges
+
+
+def _save_structure_to_json(structure_pmg, structure_dict, filename):
+    """
+    Save structure information to JSON file for inspection.
+
+    Parameters
+    ----------
+    structure_pmg : pymatgen.core.Structure
+        Pymatgen Structure object
+    structure_dict : dict
+        EMTO structure dictionary
+    filename : str
+        Output JSON file path
+    """
+    # Create a serializable version of the structure
+    structure_info = {
+        'pymatgen_info': {
+            'num_sites': len(structure_pmg.sites),
+            'volume': float(structure_pmg.lattice.volume),
+            'lattice_matrix': structure_pmg.lattice.matrix.tolist(),
+            'lattice_params': {
+                'a': float(structure_pmg.lattice.a),
+                'b': float(structure_pmg.lattice.b),
+                'c': float(structure_pmg.lattice.c),
+                'alpha': float(structure_pmg.lattice.alpha),
+                'beta': float(structure_pmg.lattice.beta),
+                'gamma': float(structure_pmg.lattice.gamma)
+            },
+            'sites': [
+                {
+                    'frac_coords': site.frac_coords.tolist(),
+                    'cart_coords': site.coords.tolist(),
+                    'species': str(site.species),
+                    'occupancy': {str(k): float(v) for k, v in site.species.items()}
+                }
+                for site in structure_pmg.sites
+            ]
+        },
+        'user_input': {},
+        'emto_structure': {}
+    }
+
+    # Add user-provided parameters if available (from parameter workflow)
+    if structure_pmg.properties:
+        if 'user_a' in structure_pmg.properties:
+            user_input = {
+                'lat': structure_pmg.properties['user_lat'],
+                'a': structure_pmg.properties['user_a'],
+                'b': structure_pmg.properties['user_b'],
+                'c': structure_pmg.properties['user_c'],
+            }
+
+            # Include angles if not default 90° (needed for LAT 12-14: monoclinic/triclinic)
+            user_alpha = structure_pmg.properties.get('user_alpha', 90)
+            user_beta = structure_pmg.properties.get('user_beta', 90)
+            user_gamma = structure_pmg.properties.get('user_gamma', 90)
+
+            has_non_default_angles = (user_alpha != 90 or user_beta != 90 or user_gamma != 90)
+
+            if has_non_default_angles:
+                if user_alpha != 90:
+                    user_input['alpha'] = user_alpha
+                if user_beta != 90:
+                    user_input['beta'] = user_beta
+                if user_gamma != 90:
+                    user_input['gamma'] = user_gamma
+                user_input['note'] = 'Includes non-90° angles for monoclinic/triclinic lattice'
+            else:
+                user_input['note'] = 'Conventional cell scale factors (geometry defined by BSX/BSY/BSZ)'
+
+            structure_info['user_input'] = user_input
+
+    # Convert structure_dict to JSON-serializable format
+    for key, value in structure_dict.items():
+        if key == 'structure':
+            # Skip the raw Structure object (already captured in pymatgen_info)
+            continue
+        elif isinstance(value, np.ndarray):
+            structure_info['emto_structure'][key] = value.tolist()
+        elif isinstance(value, (np.integer, np.floating)):
+            structure_info['emto_structure'][key] = float(value)
+        elif isinstance(value, (list, dict, str, int, float, bool, type(None))):
+            structure_info['emto_structure'][key] = value
+        else:
+            # Skip non-serializable objects
+            structure_info['emto_structure'][key] = f"<{type(value).__name__}>"
+
+    # Write to file
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    with open(filename, 'w') as f:
+        json.dump(structure_info, f, indent=2)
+
 
 def create_emto_inputs(config):
     """
@@ -39,9 +133,6 @@ def create_emto_inputs(config):
     sites = None,
     b = a,
     c = a (can be 1.633*a for HCP or set other value),
-    alpha = 90,
-    beta = 90,
-    gamma = 90,
     ca_ratios = (provide a list with at least one value if cif_file = False),
     sws_values = (provide a list with at least one value if cif_file = False),
     auto_generate = False,
@@ -103,8 +194,6 @@ def create_emto_inputs(config):
     b, c : float, optional
         Lattice parameters b, c in Angstroms.
         Defaults: b=a, c=a (or c=1.633*a for HCP)
-    alpha, beta, gamma : float, optional
-        Lattice angles in degrees. Default: 90° (120° for HCP)
     dmax : float
         Maximum distance parameter for KSTR
     ca_ratios : list of float, optional
@@ -239,7 +328,7 @@ def create_emto_inputs(config):
     if cif_file is not None:
         # CIF workflow
         print(f"\nParsing CIF file: {cif_file}")
-        structure = create_emto_structure(
+        structure_pmg, structure_dict = create_emto_structure(
             cif_file=cif_file,
             user_magnetic_moments=user_magnetic_moments
         )
@@ -251,7 +340,7 @@ def create_emto_inputs(config):
         print(f"  Lattice parameter a: {a} Å")
         print(f"  Number of sites: {len(sites)}")
 
-        structure = create_emto_structure(
+        structure_pmg, structure_dict = create_emto_structure(
             lat=lat,
             a=a,
             sites=sites,
@@ -263,16 +352,21 @@ def create_emto_inputs(config):
             user_magnetic_moments=user_magnetic_moments
         )
 
-    print(f"  Structure created: LAT={structure['lat']} ({structure['lattice_name']})")
-    print(f"  Number of atoms: NQ3={structure['NQ3']}")
-    print(f"  Maximum NL: {structure['NL']}")
+    print(f"  Structure created: LAT={structure_dict['lat']} ({structure_dict['lattice_name']})")
+    print(f"  Number of atoms: NQ3={structure_dict['NQ3']}")
+    print(f"  Maximum NL: {structure_dict['NL']}")
+
+    # Save structure to JSON file for inspection
+    structure_file = os.path.join(output_path, f"{job_name}_structure.json")
+    _save_structure_to_json(structure_pmg, structure_dict, structure_file)
+    print(f"  Structure saved to: {structure_file}")
 
     # Auto-determine ca_ratios and sws_values if not provided
     if ca_ratios is None:
-        ca_ratios = [structure['coa']]
+        ca_ratios = [structure_dict['coa']]
 
     if sws_values is None:
-        sws_values = lattice_param_to_sws(structure)
+        sws_values = [lattice_param_to_sws(structure_pmg)]
 
 
     # ==================== DMAX OPTIMIZATION (OPTIONAL) ====================
@@ -295,7 +389,7 @@ def create_emto_inputs(config):
         dmax_per_ratio = _run_dmax_optimization(
             output_path=output_path,
             job_name=job_name,
-            structure=structure,
+            structure=structure_dict,
             ca_ratios=ca_ratios,
             dmax_initial=dmax_initial,
             target_vectors=dmax_target_vectors,
@@ -328,7 +422,7 @@ def create_emto_inputs(config):
 
         # ==================== CREATE KSTR INPUT ====================
         create_kstr_input(
-            structure=structure,
+            structure=structure_dict,
             output_path=output_path,
             id_ratio=file_id_ratio,
             dmax=ratio_dmax,
@@ -339,7 +433,7 @@ def create_emto_inputs(config):
         # ==================== CREATE SHAPE INPUT ====================
 
         create_shape_input(
-            structure=structure,
+            structure=structure_dict,
             path=output_path,
             id_ratio=file_id_ratio
         )
@@ -352,7 +446,7 @@ def create_emto_inputs(config):
             # Create KGRN input
 
             create_kgrn_input(
-                structure=structure,
+                structure=structure_dict,
                 path=output_path,
                 id_full=file_id_full,
                 id_ratio=file_id_ratio,
@@ -363,7 +457,7 @@ def create_emto_inputs(config):
             # Create KFCD input
 
             create_kfcd_input(
-                structure=structure,
+                structure=structure_dict,
                 path=output_path,
                 id_ratio=file_id_ratio,
                 id_full=file_id_full

@@ -313,10 +313,11 @@ def parse_emto_structure(structure_input, user_magnetic_moments=None):
     # Determine if it's a CIF file or Structure object
     if isinstance(structure_input, str):
         # CIF file path
-        return create_emto_structure(
+        structure_pmg, structure_dict = create_emto_structure(
             cif_file=structure_input,
             user_magnetic_moments=user_magnetic_moments
         )
+        return structure_dict
     elif isinstance(structure_input, Structure):
         # Pymatgen Structure - convert through new interface
         # We need to pass it through structure_to_emto_dict

@@ -164,7 +164,7 @@ class OptimizationWorkflow:
                     structure_pmg = temp_struct['structure_pmg']
                 else:
                     # Create from parameters
-                    temp_struct = create_emto_structure(
+                    structure_pmg, temp_struct = create_emto_structure(
                         lat=self.config['lat'],
                         a=self.config['a'],
                         sites=self.config['sites'],
@@ -174,7 +174,6 @@ class OptimizationWorkflow:
                         beta=self.config.get('beta', 90),
                         gamma=self.config.get('gamma', 90)
                     )
-                    structure_pmg = temp_struct['structure_pmg']
 
             # Calculate SWS
             sws_center = lattice_param_to_sws(structure_pmg)
@@ -1299,7 +1298,7 @@ class OptimizationWorkflow:
             else:
                 from modules.structure_builder import create_emto_structure
                 print(f"Creating structure from parameters...")
-                structure = create_emto_structure(
+                structure_pmg, structure = create_emto_structure(
                     lat=self.config['lat'],
                     a=self.config['a'],
                     sites=self.config['sites'],

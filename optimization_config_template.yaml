@@ -1,19 +1,21 @@
 
 
 # ------------------------------------------------------------------------------
-output_path: "CuMg_optimization"           # Output directory for all results
-job_name: "CuMg_fcc"                 # Job identifier (used in file names)
+output_path: "0.8Cu0.2Mg_hcp"           # Output directory for all results
+job_name: "CuMg"                 # Job identifier (used in file names)
 
 # Structure Input (REQUIRED - choose ONE approach)
 cif_file: null                       # Path to CIF file (set to null if using lattice params)
-lat: 2
-a: 3.61                              # Lattice parameter a (Angstroms)
+lat: 4                               # EMTO lattice type (1-14)
+a: 3.17                              # Lattice parameter a (Angstroms)
 b: null                              # Lattice parameter b (default: same as a)
-c: null                              # Lattice parameter c (default: same as a)
-alpha: 90                            # Lattice angle alpha (degrees, default: 90)
-beta: 90                             # Lattice angle beta (degrees, default: 90)
-gamma: 90                            # Lattice angle gamma (degrees, default: 90)
-sites: [{'position': [0, 0, 0], 'elements': ['Cu', 'Mg'], 'concentrations': [1, 0]}]  # Atomic sites
+c: 5.14                              # Lattice parameter c (default: same as a)
+alpha: null                          # Lattice angle alpha (degrees, REQUIRED for LAT 14 triclinic)
+beta: null                           # Lattice angle beta (degrees, REQUIRED for LAT 14 triclinic)
+gamma: null                          # Lattice angle gamma (degrees, REQUIRED for LAT 12-14 monoclinic/triclinic)
+# sites: [{'position': [0, 0, 0], 'elements': ['Cu', 'Mg'], 'concentrations': [0, 1]}]  # Atomic sites
+sites: [{'position': [0, 0, 0], 'elements': ['Cu', 'Mg'], 'concentrations': [0.8,0.2]}, 
+        {'position': [0.3333, 0.6667, 0.5], 'elements': ['Cu', 'Mg'], 'concentrations': [0.8,0.2]}]  # Atomic sites
 
 # Parameter Ranges (choose ONE option for each parameter)
 ca_ratios: null                      # Calculate from structure's c/a ratio
