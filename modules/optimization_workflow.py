@@ -587,6 +587,13 @@ class OptimizationWorkflow:
         except Exception as e:
             raise RuntimeError(f"Failed to create EMTO inputs: {e}")
 
+        # Check if prepare_only mode (skip execution)
+        if self.config.get('prepare_only', False):
+            print("\n✓ prepare_only=True: Input files created successfully")
+            print("✓ Skipping calculation execution and validation")
+            print(f"✓ Files created in: {phase_path}")
+            return None, {}  # Return early without running
+
         # Run calculations
         script_name = f"run_{self.config['job_name']}.sh"
         self._run_calculations(
@@ -731,6 +738,13 @@ class OptimizationWorkflow:
             create_emto_inputs(phase_config)
         except Exception as e:
             raise RuntimeError(f"Failed to create EMTO inputs: {e}")
+
+        # Check if prepare_only mode (skip execution)
+        if self.config.get('prepare_only', False):
+            print("\n✓ prepare_only=True: Input files created successfully")
+            print("✓ Skipping calculation execution and validation")
+            print(f"✓ Files created in: {phase_path}")
+            return None, {}  # Return early without running
 
         # Run calculations
         script_name = f"run_{self.config['job_name']}.sh"
@@ -932,6 +946,13 @@ class OptimizationWorkflow:
             create_emto_inputs(phase_config)
         except Exception as e:
             raise RuntimeError(f"Failed to create EMTO inputs: {e}")
+
+        # Check if prepare_only mode (skip execution)
+        if self.config.get('prepare_only', False):
+            print("\n✓ prepare_only=True: Input files created successfully")
+            print("✓ Skipping calculation execution and validation")
+            print(f"✓ Files created in: {phase_path}")
+            return {}  # Return empty dict without running
 
         # Run calculation
         script_name = f"run_{self.config['job_name']}.sh"
@@ -1322,6 +1343,17 @@ class OptimizationWorkflow:
             )
         except Exception as e:
             raise RuntimeError(f"Failed to prepare parameter ranges: {e}")
+
+        # Check if prepare_only mode - exit after creating input files
+        if self.config.get('prepare_only', False):
+            print("\n" + "="*80)
+            print("PREPARE_ONLY MODE: Input files created successfully")
+            print("="*80)
+            print("✓ Input files have been created for all requested phases")
+            print("✓ No calculations were executed (prepare_only=True)")
+            print(f"✓ Files location: {self.base_path}")
+            print("="*80 + "\n")
+            return self.results  # Return early with whatever was created
 
         # Step 3: c/a optimization (optional)
         optimal_ca = None
