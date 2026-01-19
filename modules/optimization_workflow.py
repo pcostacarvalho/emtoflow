@@ -620,6 +620,11 @@ class OptimizationWorkflow:
             job_name=self.config['job_name']
         )
 
+        # Return early if prepare_only (no results to parse)
+        if self.config.get('prepare_only', False):
+            print("\n✓ prepare_only=True: Returning without parsing results")
+            return None, {}  # Return None for optimal_ca, empty dict for results
+
         # Parse energies from KFCD outputs
         print("\nParsing energies from KFCD outputs...")
         ca_values = []
@@ -764,6 +769,11 @@ class OptimizationWorkflow:
             sws_values=sws_values,
             job_name=self.config['job_name']
         )
+
+        # Return early if prepare_only (no results to parse)
+        if self.config.get('prepare_only', False):
+            print("\n✓ prepare_only=True: Returning without parsing results")
+            return None, {}  # Return None for optimal_sws, empty dict for results
 
         # Parse energies from KFCD outputs
         print("\nParsing energies from KFCD outputs...")
@@ -965,6 +975,11 @@ class OptimizationWorkflow:
             sws_values=[optimal_sws],
             job_name=self.config['job_name']
         )
+
+        # Return early if prepare_only (no results to parse)
+        if self.config.get('prepare_only', False):
+            print("\n✓ prepare_only=True: Returning without parsing results")
+            return {}  # Return empty dict, no results to parse
 
         # Parse results from KFCD and KGRN outputs
         print("\nParsing optimized calculation results...")
