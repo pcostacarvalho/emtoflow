@@ -154,26 +154,7 @@ class OptimizationWorkflow:
                 raise ValueError("structure is required when sws_values is None")
 
             # Get pymatgen structure to calculate SWS
-            if 'structure_pmg' in structure:
-                structure_pmg = structure['structure_pmg']
-            else:
-                # Need to recreate structure
-                if 'cif_file' in self.config:
-                    from modules.lat_detector import parse_emto_structure
-                    temp_struct = parse_emto_structure(self.config['cif_file'])
-                    structure_pmg = temp_struct['structure_pmg']
-                else:
-                    # Create from parameters
-                    structure_pmg, temp_struct = create_emto_structure(
-                        lat=self.config['lat'],
-                        a=self.config['a'],
-                        sites=self.config['sites'],
-                        b=self.config.get('b'),
-                        c=self.config.get('c'),
-                        alpha=self.config.get('alpha', 90),
-                        beta=self.config.get('beta', 90),
-                        gamma=self.config.get('gamma', 90)
-                    )
+            structure_pmg = structure['structure_pmg']
 
             # Calculate SWS
             sws_center = lattice_param_to_sws(structure_pmg)
@@ -1291,12 +1272,15 @@ class OptimizationWorkflow:
         print("=" * 80)
 
         try:
+            from modules.structure_builder import create_emto_structure
+
             if self.config.get('cif_file'):
-                from modules.lat_detector import parse_emto_structure
                 print(f"Creating structure from CIF: {self.config['cif_file']}")
-                structure = parse_emto_structure(self.config['cif_file'])
+                structure_pmg, structure = create_emto_structure(
+                    cif_file=self.config['cif_file'],
+                    user_magnetic_moments=self.config.get('user_magnetic_moments')
+                )
             else:
-                from modules.structure_builder import create_emto_structure
                 print(f"Creating structure from parameters...")
                 structure_pmg, structure = create_emto_structure(
                     lat=self.config['lat'],
@@ -1309,6 +1293,9 @@ class OptimizationWorkflow:
                     gamma=self.config.get('gamma', 90),
                     user_magnetic_moments=self.config.get('user_magnetic_moments')
                 )
+
+            # Store structure_pmg in structure dict for later use
+            structure['structure_pmg'] = structure_pmg
 
             print(f"✓ Structure created")
             print(f"  Lattice: {structure['lattice_name']} (type {structure['lat']})")
