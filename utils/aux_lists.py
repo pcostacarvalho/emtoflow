@@ -1,7 +1,10 @@
 import numpy as np
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 
-def prepare_ranges(ca_ratios, sws_values, ca_step, sws_step, n_points) -> Tuple[List[float], List[float]]:
+# Cubic lattice types (c/a must be 1.0)
+CUBIC_LATTICES = [1, 2, 3]  # SC, FCC, BCC
+
+def prepare_ranges(ca_ratios, sws_values, ca_step, sws_step, n_points, lat=None) -> Tuple[List[float], List[float]]:
         """
         Auto-generate c/a and SWS ranges if needed.
 
@@ -10,15 +13,22 @@ def prepare_ranges(ca_ratios, sws_values, ca_step, sws_step, n_points) -> Tuple[
         2. Single value → create range around it (±3*step, n_points)
         3. None → calculate from structure, then create range
 
+        For cubic lattices (lat=1,2,3), c/a is always 1.0 and no range is generated.
+
         Parameters
         ----------
         ca_ratios : float, list of float, or None
             c/a ratio value(s)
         sws_values : float, list of float, or None
             SWS value(s)
-        structure : dict, optional
-            Structure dictionary from create_emto_structure()
-            Required if ca_ratios or sws_values is None
+        ca_step : float
+            Step size for c/a range
+        sws_step : float
+            Step size for SWS range
+        n_points : int
+            Number of points in range
+        lat : int, optional
+            Lattice type (1-14). If cubic (1,2,3), c/a is fixed at 1.0
 
         Returns
         -------
@@ -34,7 +44,11 @@ def prepare_ranges(ca_ratios, sws_values, ca_step, sws_step, n_points) -> Tuple[
         """
 
         # Process c/a ratios
-        if len(ca_ratios) == 1:
+        # For cubic lattices, c/a must be 1.0 (no range generation)
+        if lat is not None and lat in CUBIC_LATTICES:
+            ca_list = [1.0]
+            print(f"Cubic lattice (lat={lat}): Using c/a = 1.0 (fixed)")
+        elif len(ca_ratios) == 1:
 
             ca_center = float(ca_ratios[0])
             # Generate range

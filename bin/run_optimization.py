@@ -32,6 +32,26 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from modules.optimization_workflow import OptimizationWorkflow
+from modules.alloy_loop import run_with_percentage_loop
+from utils.config_parser import load_and_validate_config
+
+
+def run_single_workflow(config):
+    """
+    Run workflow for a single configuration.
+
+    Parameters
+    ----------
+    config : dict or str
+        Configuration dictionary or path to config file
+
+    Returns
+    -------
+    dict
+        Workflow results
+    """
+    workflow = OptimizationWorkflow(config=config)
+    return workflow.run()
 
 
 def main():
@@ -48,42 +68,59 @@ def main():
         sys.exit(1)
 
     try:
-        # Initialize and run workflow
-        workflow = OptimizationWorkflow(config_file=config_file)
-        results = workflow.run()
+        # Load and validate config
+        config = load_and_validate_config(config_file)
 
-        # Print final summary
-        print("\n" + "="*80)
-        print("WORKFLOW COMPLETED SUCCESSFULLY")
-        print("="*80)
+        # Check if loop mode is enabled
+        if config['loop_perc'] is not None and config['loop_perc'].get('enabled') is True:
+            # Run with percentage loop
+            results = run_with_percentage_loop(config, run_single_workflow)
 
-        if 'phase1_ca_optimization' in results:
-            print(f"\n✓ Phase 1 (c/a optimization):")
-            print(f"  Optimal c/a = {results['phase1_ca_optimization']['optimal_ca']:.6f}")
+            # Print summary
+            print("\n" + "="*80)
+            print("ALLOY LOOP COMPLETED SUCCESSFULLY")
+            print("="*80)
+            print(f"\nProcessed {len(results)} compositions")
+            print(f"Results saved in: {config['output_path']}_alloy_loop")
+            print("="*80 + "\n")
 
-        if 'phase2_sws_optimization' in results:
-            print(f"\n✓ Phase 2 (SWS optimization):")
-            sws_results = results['phase2_sws_optimization']
-            print(f"  Optimal SWS = {sws_results['optimal_sws']:.6f} Bohr")
+        else:
+            # Run single workflow
+            workflow = OptimizationWorkflow(config=config)
+            results = workflow.run()
 
-            if 'derived_parameters' in sws_results:
-                params = sws_results['derived_parameters']
-                print(f"  Lattice parameters:")
-                print(f"    a = {params['a_angstrom']:.6f} Å")
-                print(f"    c = {params['c_angstrom']:.6f} Å")
-                print(f"    V = {params['total_volume_angstrom3']:.6f} Å³")
+            # Print final summary for single workflow
+            print("\n" + "="*80)
+            print("WORKFLOW COMPLETED SUCCESSFULLY")
+            print("="*80)
 
-        if 'phase3_optimized_calculation' in results:
-            print(f"\n✓ Phase 3 (optimized calculation):")
-            final = results['phase3_optimized_calculation']
-            print(f"  Total energy = {final['kfcd_total_energy']:.6f} Ry")
+            if 'phase1_ca_optimization' in results:
+                print(f"\n✓ Phase 1 (c/a optimization):")
+                print(f"  Optimal c/a = {results['phase1_ca_optimization']['optimal_ca']:.6f}")
 
-            if final.get('total_magnetic_moment'):
-                print(f"  Total magnetic moment = {final['total_magnetic_moment']:.4f} μB")
+            if 'phase2_sws_optimization' in results:
+                print(f"\n✓ Phase 2 (SWS optimization):")
+                sws_results = results['phase2_sws_optimization']
+                print(f"  Optimal SWS = {sws_results['optimal_sws']:.6f} Bohr")
 
-        print(f"\n✓ All results saved in: {workflow.base_path}")
-        print(f"✓ Summary report: {workflow.base_path}/workflow_summary.txt")
-        print("="*80 + "\n")
+                if 'derived_parameters' in sws_results:
+                    params = sws_results['derived_parameters']
+                    print(f"  Lattice parameters:")
+                    print(f"    a = {params['a_angstrom']:.6f} Å")
+                    print(f"    c = {params['c_angstrom']:.6f} Å")
+                    print(f"    V = {params['total_volume_angstrom3']:.6f} Å³")
+
+            if 'phase3_optimized_calculation' in results:
+                print(f"\n✓ Phase 3 (optimized calculation):")
+                final = results['phase3_optimized_calculation']
+                print(f"  Total energy = {final['kfcd_total_energy']:.6f} Ry")
+
+                if final.get('total_magnetic_moment'):
+                    print(f"  Total magnetic moment = {final['total_magnetic_moment']:.4f} μB")
+
+            print(f"\n✓ All results saved in: {workflow.base_path}")
+            print(f"✓ Summary report: {workflow.base_path}/workflow_summary.txt")
+            print("="*80 + "\n")
 
         sys.exit(0)
 

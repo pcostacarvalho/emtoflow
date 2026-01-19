@@ -379,7 +379,8 @@ def create_emto_inputs(config):
                 sws_values=sws_values,
                 ca_step=ca_step,
                 sws_step=sws_step,
-                n_points=n_points
+                n_points=n_points,
+                lat=config.get('lat')
             )
 
         print("\n" + "="*70)

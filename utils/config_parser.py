@@ -16,6 +16,10 @@ class ConfigValidationError(Exception):
     pass
 
 
+# Cubic lattice types (c/a must be 1.0)
+CUBIC_LATTICES = [1, 2, 3]  # SC, FCC, BCC
+
+
 def load_config(config_source: Union[str, Path, Dict[str, Any]]) -> Dict[str, Any]:
     """
     Load configuration from YAML file, JSON file, or dictionary.
@@ -192,6 +196,27 @@ def validate_config(config: Dict[str, Any]) -> None:
             f"optimize_sws must be boolean, got: {type(config['optimize_sws'])}"
         )
 
+    if not isinstance(config['prepare_only'], bool):
+        raise ConfigValidationError(
+            f"prepare_only must be boolean, got: {type(config['prepare_only'])}"
+        )
+
+    # Check for cubic lattices - c/a must be 1.0 (cannot optimize)
+    if config.get('lat') in CUBIC_LATTICES:
+        if config['optimize_ca']:
+            raise ConfigValidationError(
+                f"optimize_ca cannot be True for cubic lattices (lat={config['lat']}). "
+                "Cubic lattices (SC=1, FCC=2, BCC=3) have c/a = 1.0 by definition."
+            )
+        # Warn if c/a is provided and not 1.0 for cubic
+        if config.get('ca_ratios') is not None:
+            ca_list = config['ca_ratios'] if isinstance(config['ca_ratios'], list) else [config['ca_ratios']]
+            if any(abs(ca - 1.0) > 0.001 for ca in ca_list):
+                raise ConfigValidationError(
+                    f"ca_ratios must be 1.0 for cubic lattices (lat={config['lat']}), "
+                    f"got: {ca_list}"
+                )
+
     # Validate ca_ratios for c/a optimization
     if config['optimize_ca'] and not config['auto_generate']:
         if config.get('ca_ratios') is not None:
@@ -354,6 +379,146 @@ def validate_config(config: Dict[str, Any]) -> None:
                     f"{name} must be a non-empty string path, got: {config[key]}"
                 )
 
+    # Validate loop_perc configuration
+    if config['loop_perc'] is not None and config['loop_perc'].get('enabled') is True:
+        validate_loop_perc_config(config)
+
+
+def validate_loop_perc_config(config: Dict[str, Any]) -> None:
+    """
+    Validate loop_perc configuration section.
+
+    Parameters
+    ----------
+    config : dict
+        Configuration dictionary containing loop_perc section
+
+    Raises
+    ------
+    ConfigValidationError
+        If loop_perc validation fails
+    """
+    loop_config = config['loop_perc']
+
+    # Get number of elements from sites
+    has_cif = config.get('cif_file') not in (False, None)
+    if has_cif:
+        raise ConfigValidationError(
+            "loop_perc is not supported with CIF files. "
+            "Use parameter-based structure definition (lat, a, sites)."
+        )
+
+    site_idx = loop_config['site_index']
+    if config.get('sites') is None:
+        raise ConfigValidationError(
+            "sites must be defined when using loop_perc"
+        )
+
+    if site_idx < 0 or site_idx >= len(config['sites']):
+        raise ConfigValidationError(
+            f"site_index {site_idx} is out of range. "
+            f"Must be between 0 and {len(config['sites']) - 1}"
+        )
+
+    site = config['sites'][site_idx]
+    n_elements = len(site['elements'])
+
+    # Validate step
+    if loop_config['step'] is not None:
+        step = loop_config['step']
+        if not isinstance(step, (int, float)):
+            raise ConfigValidationError(
+                f"step must be a number, got: {type(step)}"
+            )
+        if step <= 0 or step > 100:
+            raise ConfigValidationError(
+                f"step must be between 0 and 100, got: {step}"
+            )
+
+    # Validate start/end
+    if loop_config['start'] is not None:
+        start = loop_config['start']
+        if not isinstance(start, (int, float)):
+            raise ConfigValidationError(
+                f"start must be a number, got: {type(start)}"
+            )
+        if start < 0 or start > 100:
+            raise ConfigValidationError(
+                f"start must be between 0 and 100, got: {start}"
+            )
+
+    if loop_config['end'] is not None:
+        end = loop_config['end']
+        if not isinstance(end, (int, float)):
+            raise ConfigValidationError(
+                f"end must be a number, got: {type(end)}"
+            )
+        if end < 0 or end > 100:
+            raise ConfigValidationError(
+                f"end must be between 0 and 100, got: {end}"
+            )
+
+    if (loop_config['start'] is not None and loop_config['end'] is not None
+        and loop_config['start'] > loop_config['end']):
+        raise ConfigValidationError(
+            f"start ({loop_config['start']}) must be <= end ({loop_config['end']})"
+        )
+
+    # Validate element_index
+    if loop_config['element_index'] is not None:
+        elem_idx = loop_config['element_index']
+        if not isinstance(elem_idx, int):
+            raise ConfigValidationError(
+                f"element_index must be an integer, got: {type(elem_idx)}"
+            )
+        if elem_idx < 0 or elem_idx >= n_elements:
+            raise ConfigValidationError(
+                f"element_index {elem_idx} is out of range. "
+                f"Must be between 0 and {n_elements - 1}"
+            )
+
+    # Validate percentages list (explicit mode)
+    if loop_config['percentages'] is not None:
+        percentages = loop_config['percentages']
+        if not isinstance(percentages, list):
+            raise ConfigValidationError(
+                f"percentages must be a list, got: {type(percentages)}"
+            )
+        if len(percentages) == 0:
+            raise ConfigValidationError(
+                "percentages list cannot be empty"
+            )
+
+        for i, comp in enumerate(percentages):
+            if not isinstance(comp, list):
+                raise ConfigValidationError(
+                    f"percentages[{i}] must be a list, got: {type(comp)}"
+                )
+            if len(comp) != n_elements:
+                raise ConfigValidationError(
+                    f"percentages[{i}] has {len(comp)} elements, "
+                    f"expected {n_elements} (matching number of elements at site)"
+                )
+
+            # Check all are numbers
+            if not all(isinstance(p, (int, float)) for p in comp):
+                raise ConfigValidationError(
+                    f"percentages[{i}] must contain only numbers"
+                )
+
+            # Check all non-negative
+            if any(p < 0 for p in comp):
+                raise ConfigValidationError(
+                    f"percentages[{i}] contains negative values"
+                )
+
+            # Check sum is 100
+            total = sum(comp)
+            if abs(total - 100.0) > 0.01:
+                raise ConfigValidationError(
+                    f"percentages[{i}] must sum to 100%, got: {total}%"
+                )
+
 
 def load_and_validate_config(
     config_source: Union[str, Path, Dict[str, Any]]
@@ -488,12 +653,34 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
         'save_intermediate': True,
         'cleanup_temp': False,
         'log_level': 'INFO',
+
+        # Alloy percentage loop defaults
+        'loop_perc': None,
+
+        # Input file preparation mode (create files only, don't run calculations)
+        'prepare_only': False,
     }
 
     # Apply defaults for missing keys
     for key, default_value in defaults.items():
         if key not in config:
             config[key] = default_value
+
+    # Apply loop_perc sub-defaults if loop_perc is enabled
+    if config['loop_perc'] is not None and config['loop_perc'].get('enabled') is True:
+        loop_defaults = {
+            'enabled': True,
+            'step': 10,
+            'start': 0,
+            'end': 100,
+            'site_index': 0,
+            'element_index': 0,
+            'phase_diagram': False,
+            'percentages': None,
+        }
+        for key, default_value in loop_defaults.items():
+            if key not in config['loop_perc']:
+                config['loop_perc'][key] = default_value
 
     return config
 
