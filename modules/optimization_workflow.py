@@ -17,7 +17,7 @@ from modules.structure_builder import create_emto_structure, lattice_param_to_sw
 from modules.create_input import create_emto_inputs
 from modules.inputs.eos_emto import create_eos_input, parse_eos_output
 from utils.running_bash import run_sbatch, chmod_and_run
-from utils.config_parser import load_and_validate_config, apply_config_defaults
+from utils.config_parser import load_and_validate_config, apply_config_defaults, CUBIC_LATTICES
 from utils.aux_lists import prepare_ranges
 
 
@@ -110,9 +110,14 @@ class OptimizationWorkflow:
         ca_step = self.config.get('ca_step', 0.02)
         sws_step = self.config.get('sws_step', 0.05)
         n_points = self.config.get('n_points', 7)
+        lat = self.config.get('lat')
 
         # Process c/a ratios
-        if ca_ratios is None:
+        # For cubic lattices, c/a must be 1.0 (no range generation)
+        if lat is not None and lat in CUBIC_LATTICES:
+            ca_list = [1.0]
+            print(f"Cubic lattice (lat={lat}): Using c/a = 1.0 (fixed)")
+        elif ca_ratios is None:
             # Calculate from structure
             if structure is None:
                 raise ValueError("structure is required when ca_ratios is None")

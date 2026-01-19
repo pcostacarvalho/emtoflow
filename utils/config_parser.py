@@ -16,6 +16,10 @@ class ConfigValidationError(Exception):
     pass
 
 
+# Cubic lattice types (c/a must be 1.0)
+CUBIC_LATTICES = [1, 2, 3]  # SC, FCC, BCC
+
+
 def load_config(config_source: Union[str, Path, Dict[str, Any]]) -> Dict[str, Any]:
     """
     Load configuration from YAML file, JSON file, or dictionary.
@@ -191,6 +195,22 @@ def validate_config(config: Dict[str, Any]) -> None:
         raise ConfigValidationError(
             f"optimize_sws must be boolean, got: {type(config['optimize_sws'])}"
         )
+
+    # Check for cubic lattices - c/a must be 1.0 (cannot optimize)
+    if config.get('lat') in CUBIC_LATTICES:
+        if config['optimize_ca']:
+            raise ConfigValidationError(
+                f"optimize_ca cannot be True for cubic lattices (lat={config['lat']}). "
+                "Cubic lattices (SC=1, FCC=2, BCC=3) have c/a = 1.0 by definition."
+            )
+        # Warn if c/a is provided and not 1.0 for cubic
+        if config.get('ca_ratios') is not None:
+            ca_list = config['ca_ratios'] if isinstance(config['ca_ratios'], list) else [config['ca_ratios']]
+            if any(abs(ca - 1.0) > 0.001 for ca in ca_list):
+                raise ConfigValidationError(
+                    f"ca_ratios must be 1.0 for cubic lattices (lat={config['lat']}), "
+                    f"got: {ca_list}"
+                )
 
     # Validate ca_ratios for c/a optimization
     if config['optimize_ca'] and not config['auto_generate']:
