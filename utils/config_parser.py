@@ -196,6 +196,11 @@ def validate_config(config: Dict[str, Any]) -> None:
             f"optimize_sws must be boolean, got: {type(config['optimize_sws'])}"
         )
 
+    if not isinstance(config['prepare_only'], bool):
+        raise ConfigValidationError(
+            f"prepare_only must be boolean, got: {type(config['prepare_only'])}"
+        )
+
     # Check for cubic lattices - c/a must be 1.0 (cannot optimize)
     if config.get('lat') in CUBIC_LATTICES:
         if config['optimize_ca']:
