@@ -992,6 +992,7 @@ except TimeoutError:
 
 **What's New (January 2026):**
 - ✅ **Complete optimization workflow** - Automated c/a + SWS optimization with EOS fitting
+- ✅ **Refactored structure creation** - Centralized structure creation in workflow initialization, removed 20+ lines of duplicated conditional logic from parameter preparation methods
 - ✅ Complete alloy implementation with pymatgen-based structure builder
 - ✅ Zero-concentration element support in KGRN inputs
 - ✅ 453 lines of obsolete code removed (simplified architecture)
