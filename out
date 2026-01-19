@@ -1,0 +1,501 @@
+Mode: Explicit composition list (5 compositions)
+
+======================================================================
+Composition 1/5
+Composition: Cu0_Mg100
+  Cu: 0%
+  Mg: 100%
+======================================================================
+
+
+################################################################################
+# COMPLETE OPTIMIZATION WORKFLOW
+################################################################################
+
+Job: CuMg
+Output: CuMg_fcc_test_alloy_loop/Cu0_Mg100
+c/a optimization: False
+SWS optimization: False
+DOS analysis: False
+
+================================================================================
+STEP 1: STRUCTURE CREATION
+================================================================================
+Creating structure from parameters...
+✓ Structure created
+  Lattice: Face-centered cubic (type 2)
+  Atoms: 1
+
+================================================================================
+STEP 2: PARAMETER PREPARATION
+================================================================================
+Cubic lattice (lat=2): Using c/a = 1.0 (fixed)
+Auto-generated SWS values around 2.6660: [np.float64(2.515978903926613), np.float64(2.565978903926613), np.float64(2.6159789039266133), np.float64(2.665978903926613), np.float64(2.715978903926613), np.float64(2.765978903926613), np.float64(2.815978903926613)]
+
+Skipping c/a optimization, using: 1.000000
+
+Skipping SWS optimization, using: 2.515979 Bohr
+
+######################################################################
+# PHASE 3: OPTIMIZED STRUCTURE CALCULATION
+######################################################################
+
+Creating EMTO inputs with optimized parameters...
+  Optimal c/a: 1.000000
+  Optimal SWS: 2.515979 Bohr
+  Output path: CuMg_fcc_test_alloy_loop/Cu0_Mg100/phase3_optimized_calculation
+
+Created directory structure in: CuMg_fcc_test_alloy_loop/Cu0_Mg100/phase3_optimized_calculation
+
+Creating structure from parameters...
+  Lattice type: LAT=2
+  Lattice parameter a: 3.61 Å
+  Number of sites: 1
+  Structure created: LAT=2 (Face-centered cubic)
+  Number of atoms: NQ3=1
+  Maximum NL: 3
+  Structure saved to: CuMg_fcc_test_alloy_loop/Cu0_Mg100/phase3_optimized_calculation/CuMg_structure.json
+
+Creating input files for 1 c/a ratios and 1 SWS values...
+
+  c/a = 1.00
+KSTR input file 'CuMg_fcc_test_alloy_loop/Cu0_Mg100/phase3_optimized_calculation/smx/CuMg_1.00.dat' created successfully.
+SHAPE input file 'CuMg_fcc_test_alloy_loop/Cu0_Mg100/phase3_optimized_calculation/shp/CuMg_1.00.dat' created successfully.
+KGRN input file 'CuMg_fcc_test_alloy_loop/Cu0_Mg100/phase3_optimized_calculation/CuMg_1.00_2.52.dat' created successfully.
+KFCD input file 'CuMg_fcc_test_alloy_loop/Cu0_Mg100/phase3_optimized_calculation/fcd/CuMg_1.00_2.52.dat' created successfully.
+
+Creating serial job script...
+Created serial job script: CuMg_fcc_test_alloy_loop/Cu0_Mg100/phase3_optimized_calculation/run_CuMg.sh
+To submit: sbatch run_CuMg.sh
+
+======================================================================
+WORKFLOW COMPLETE
+======================================================================
+Files created:
+  KSTR:  1 files in CuMg_fcc_test_alloy_loop/Cu0_Mg100/phase3_optimized_calculation/smx/
+  SHAPE: 1 files in CuMg_fcc_test_alloy_loop/Cu0_Mg100/phase3_optimized_calculation/shp/
+  KGRN:  1 files in CuMg_fcc_test_alloy_loop/Cu0_Mg100/phase3_optimized_calculation/
+  KFCD:  1 files in CuMg_fcc_test_alloy_loop/Cu0_Mg100/phase3_optimized_calculation/fcd/
+======================================================================
+
+======================================================================
+PREPARE_ONLY MODE: Skipping calculation execution
+======================================================================
+✓ Input files created in: CuMg_fcc_test_alloy_loop/Cu0_Mg100/phase3_optimized_calculation
+✓ Job script: run_CuMg.sh
+✓ No calculations executed (prepare_only=True)
+======================================================================
+
+
+======================================================================
+SKIPPING VALIDATION (prepare_only=True)
+======================================================================
+
+✓ prepare_only=True: Returning without parsing results
+
+======================================================================
+PREPARE_ONLY MODE: Skipping DOS analysis and Summary report
+======================================================================
+
+======================================================================
+Composition 2/5
+Composition: Cu25_Mg75
+  Cu: 25%
+  Mg: 75%
+======================================================================
+
+
+################################################################################
+# COMPLETE OPTIMIZATION WORKFLOW
+################################################################################
+
+Job: CuMg
+Output: CuMg_fcc_test_alloy_loop/Cu25_Mg75
+c/a optimization: False
+SWS optimization: False
+DOS analysis: False
+
+================================================================================
+STEP 1: STRUCTURE CREATION
+================================================================================
+Creating structure from parameters...
+✓ Structure created
+  Lattice: Face-centered cubic (type 2)
+  Atoms: 1
+
+================================================================================
+STEP 2: PARAMETER PREPARATION
+================================================================================
+Cubic lattice (lat=2): Using c/a = 1.0 (fixed)
+Auto-generated SWS values around 2.6660: [np.float64(2.515978903926613), np.float64(2.565978903926613), np.float64(2.6159789039266133), np.float64(2.665978903926613), np.float64(2.715978903926613), np.float64(2.765978903926613), np.float64(2.815978903926613)]
+
+Skipping c/a optimization, using: 1.000000
+
+Skipping SWS optimization, using: 2.515979 Bohr
+
+######################################################################
+# PHASE 3: OPTIMIZED STRUCTURE CALCULATION
+######################################################################
+
+Creating EMTO inputs with optimized parameters...
+  Optimal c/a: 1.000000
+  Optimal SWS: 2.515979 Bohr
+  Output path: CuMg_fcc_test_alloy_loop/Cu25_Mg75/phase3_optimized_calculation
+
+Created directory structure in: CuMg_fcc_test_alloy_loop/Cu25_Mg75/phase3_optimized_calculation
+
+Creating structure from parameters...
+  Lattice type: LAT=2
+  Lattice parameter a: 3.61 Å
+  Number of sites: 1
+  Structure created: LAT=2 (Face-centered cubic)
+  Number of atoms: NQ3=1
+  Maximum NL: 3
+  Structure saved to: CuMg_fcc_test_alloy_loop/Cu25_Mg75/phase3_optimized_calculation/CuMg_structure.json
+
+Creating input files for 1 c/a ratios and 1 SWS values...
+
+  c/a = 1.00
+KSTR input file 'CuMg_fcc_test_alloy_loop/Cu25_Mg75/phase3_optimized_calculation/smx/CuMg_1.00.dat' created successfully.
+SHAPE input file 'CuMg_fcc_test_alloy_loop/Cu25_Mg75/phase3_optimized_calculation/shp/CuMg_1.00.dat' created successfully.
+KGRN input file 'CuMg_fcc_test_alloy_loop/Cu25_Mg75/phase3_optimized_calculation/CuMg_1.00_2.52.dat' created successfully.
+KFCD input file 'CuMg_fcc_test_alloy_loop/Cu25_Mg75/phase3_optimized_calculation/fcd/CuMg_1.00_2.52.dat' created successfully.
+
+Creating serial job script...
+Created serial job script: CuMg_fcc_test_alloy_loop/Cu25_Mg75/phase3_optimized_calculation/run_CuMg.sh
+To submit: sbatch run_CuMg.sh
+
+======================================================================
+WORKFLOW COMPLETE
+======================================================================
+Files created:
+  KSTR:  1 files in CuMg_fcc_test_alloy_loop/Cu25_Mg75/phase3_optimized_calculation/smx/
+  SHAPE: 1 files in CuMg_fcc_test_alloy_loop/Cu25_Mg75/phase3_optimized_calculation/shp/
+  KGRN:  1 files in CuMg_fcc_test_alloy_loop/Cu25_Mg75/phase3_optimized_calculation/
+  KFCD:  1 files in CuMg_fcc_test_alloy_loop/Cu25_Mg75/phase3_optimized_calculation/fcd/
+======================================================================
+
+======================================================================
+PREPARE_ONLY MODE: Skipping calculation execution
+======================================================================
+✓ Input files created in: CuMg_fcc_test_alloy_loop/Cu25_Mg75/phase3_optimized_calculation
+✓ Job script: run_CuMg.sh
+✓ No calculations executed (prepare_only=True)
+======================================================================
+
+
+======================================================================
+SKIPPING VALIDATION (prepare_only=True)
+======================================================================
+
+✓ prepare_only=True: Returning without parsing results
+
+======================================================================
+PREPARE_ONLY MODE: Skipping DOS analysis and Summary report
+======================================================================
+
+======================================================================
+Composition 3/5
+Composition: Cu50_Mg50
+  Cu: 50%
+  Mg: 50%
+======================================================================
+
+
+################################################################################
+# COMPLETE OPTIMIZATION WORKFLOW
+################################################################################
+
+Job: CuMg
+Output: CuMg_fcc_test_alloy_loop/Cu50_Mg50
+c/a optimization: False
+SWS optimization: False
+DOS analysis: False
+
+================================================================================
+STEP 1: STRUCTURE CREATION
+================================================================================
+Creating structure from parameters...
+✓ Structure created
+  Lattice: Face-centered cubic (type 2)
+  Atoms: 1
+
+================================================================================
+STEP 2: PARAMETER PREPARATION
+================================================================================
+Cubic lattice (lat=2): Using c/a = 1.0 (fixed)
+Auto-generated SWS values around 2.6660: [np.float64(2.515978903926613), np.float64(2.565978903926613), np.float64(2.6159789039266133), np.float64(2.665978903926613), np.float64(2.715978903926613), np.float64(2.765978903926613), np.float64(2.815978903926613)]
+
+Skipping c/a optimization, using: 1.000000
+
+Skipping SWS optimization, using: 2.515979 Bohr
+
+######################################################################
+# PHASE 3: OPTIMIZED STRUCTURE CALCULATION
+######################################################################
+
+Creating EMTO inputs with optimized parameters...
+  Optimal c/a: 1.000000
+  Optimal SWS: 2.515979 Bohr
+  Output path: CuMg_fcc_test_alloy_loop/Cu50_Mg50/phase3_optimized_calculation
+
+Created directory structure in: CuMg_fcc_test_alloy_loop/Cu50_Mg50/phase3_optimized_calculation
+
+Creating structure from parameters...
+  Lattice type: LAT=2
+  Lattice parameter a: 3.61 Å
+  Number of sites: 1
+  Structure created: LAT=2 (Face-centered cubic)
+  Number of atoms: NQ3=1
+  Maximum NL: 3
+  Structure saved to: CuMg_fcc_test_alloy_loop/Cu50_Mg50/phase3_optimized_calculation/CuMg_structure.json
+
+Creating input files for 1 c/a ratios and 1 SWS values...
+
+  c/a = 1.00
+KSTR input file 'CuMg_fcc_test_alloy_loop/Cu50_Mg50/phase3_optimized_calculation/smx/CuMg_1.00.dat' created successfully.
+SHAPE input file 'CuMg_fcc_test_alloy_loop/Cu50_Mg50/phase3_optimized_calculation/shp/CuMg_1.00.dat' created successfully.
+KGRN input file 'CuMg_fcc_test_alloy_loop/Cu50_Mg50/phase3_optimized_calculation/CuMg_1.00_2.52.dat' created successfully.
+KFCD input file 'CuMg_fcc_test_alloy_loop/Cu50_Mg50/phase3_optimized_calculation/fcd/CuMg_1.00_2.52.dat' created successfully.
+
+Creating serial job script...
+Created serial job script: CuMg_fcc_test_alloy_loop/Cu50_Mg50/phase3_optimized_calculation/run_CuMg.sh
+To submit: sbatch run_CuMg.sh
+
+======================================================================
+WORKFLOW COMPLETE
+======================================================================
+Files created:
+  KSTR:  1 files in CuMg_fcc_test_alloy_loop/Cu50_Mg50/phase3_optimized_calculation/smx/
+  SHAPE: 1 files in CuMg_fcc_test_alloy_loop/Cu50_Mg50/phase3_optimized_calculation/shp/
+  KGRN:  1 files in CuMg_fcc_test_alloy_loop/Cu50_Mg50/phase3_optimized_calculation/
+  KFCD:  1 files in CuMg_fcc_test_alloy_loop/Cu50_Mg50/phase3_optimized_calculation/fcd/
+======================================================================
+
+======================================================================
+PREPARE_ONLY MODE: Skipping calculation execution
+======================================================================
+✓ Input files created in: CuMg_fcc_test_alloy_loop/Cu50_Mg50/phase3_optimized_calculation
+✓ Job script: run_CuMg.sh
+✓ No calculations executed (prepare_only=True)
+======================================================================
+
+
+======================================================================
+SKIPPING VALIDATION (prepare_only=True)
+======================================================================
+
+✓ prepare_only=True: Returning without parsing results
+
+======================================================================
+PREPARE_ONLY MODE: Skipping DOS analysis and Summary report
+======================================================================
+
+======================================================================
+Composition 4/5
+Composition: Cu75_Mg25
+  Cu: 75%
+  Mg: 25%
+======================================================================
+
+
+################################################################################
+# COMPLETE OPTIMIZATION WORKFLOW
+################################################################################
+
+Job: CuMg
+Output: CuMg_fcc_test_alloy_loop/Cu75_Mg25
+c/a optimization: False
+SWS optimization: False
+DOS analysis: False
+
+================================================================================
+STEP 1: STRUCTURE CREATION
+================================================================================
+Creating structure from parameters...
+✓ Structure created
+  Lattice: Face-centered cubic (type 2)
+  Atoms: 1
+
+================================================================================
+STEP 2: PARAMETER PREPARATION
+================================================================================
+Cubic lattice (lat=2): Using c/a = 1.0 (fixed)
+Auto-generated SWS values around 2.6660: [np.float64(2.515978903926613), np.float64(2.565978903926613), np.float64(2.6159789039266133), np.float64(2.665978903926613), np.float64(2.715978903926613), np.float64(2.765978903926613), np.float64(2.815978903926613)]
+
+Skipping c/a optimization, using: 1.000000
+
+Skipping SWS optimization, using: 2.515979 Bohr
+
+######################################################################
+# PHASE 3: OPTIMIZED STRUCTURE CALCULATION
+######################################################################
+
+Creating EMTO inputs with optimized parameters...
+  Optimal c/a: 1.000000
+  Optimal SWS: 2.515979 Bohr
+  Output path: CuMg_fcc_test_alloy_loop/Cu75_Mg25/phase3_optimized_calculation
+
+Created directory structure in: CuMg_fcc_test_alloy_loop/Cu75_Mg25/phase3_optimized_calculation
+
+Creating structure from parameters...
+  Lattice type: LAT=2
+  Lattice parameter a: 3.61 Å
+  Number of sites: 1
+  Structure created: LAT=2 (Face-centered cubic)
+  Number of atoms: NQ3=1
+  Maximum NL: 3
+  Structure saved to: CuMg_fcc_test_alloy_loop/Cu75_Mg25/phase3_optimized_calculation/CuMg_structure.json
+
+Creating input files for 1 c/a ratios and 1 SWS values...
+
+  c/a = 1.00
+KSTR input file 'CuMg_fcc_test_alloy_loop/Cu75_Mg25/phase3_optimized_calculation/smx/CuMg_1.00.dat' created successfully.
+SHAPE input file 'CuMg_fcc_test_alloy_loop/Cu75_Mg25/phase3_optimized_calculation/shp/CuMg_1.00.dat' created successfully.
+KGRN input file 'CuMg_fcc_test_alloy_loop/Cu75_Mg25/phase3_optimized_calculation/CuMg_1.00_2.52.dat' created successfully.
+KFCD input file 'CuMg_fcc_test_alloy_loop/Cu75_Mg25/phase3_optimized_calculation/fcd/CuMg_1.00_2.52.dat' created successfully.
+
+Creating serial job script...
+Created serial job script: CuMg_fcc_test_alloy_loop/Cu75_Mg25/phase3_optimized_calculation/run_CuMg.sh
+To submit: sbatch run_CuMg.sh
+
+======================================================================
+WORKFLOW COMPLETE
+======================================================================
+Files created:
+  KSTR:  1 files in CuMg_fcc_test_alloy_loop/Cu75_Mg25/phase3_optimized_calculation/smx/
+  SHAPE: 1 files in CuMg_fcc_test_alloy_loop/Cu75_Mg25/phase3_optimized_calculation/shp/
+  KGRN:  1 files in CuMg_fcc_test_alloy_loop/Cu75_Mg25/phase3_optimized_calculation/
+  KFCD:  1 files in CuMg_fcc_test_alloy_loop/Cu75_Mg25/phase3_optimized_calculation/fcd/
+======================================================================
+
+======================================================================
+PREPARE_ONLY MODE: Skipping calculation execution
+======================================================================
+✓ Input files created in: CuMg_fcc_test_alloy_loop/Cu75_Mg25/phase3_optimized_calculation
+✓ Job script: run_CuMg.sh
+✓ No calculations executed (prepare_only=True)
+======================================================================
+
+
+======================================================================
+SKIPPING VALIDATION (prepare_only=True)
+======================================================================
+
+✓ prepare_only=True: Returning without parsing results
+
+======================================================================
+PREPARE_ONLY MODE: Skipping DOS analysis and Summary report
+======================================================================
+
+======================================================================
+Composition 5/5
+Composition: Cu100_Mg0
+  Cu: 100%
+  Mg: 0%
+======================================================================
+
+
+################################################################################
+# COMPLETE OPTIMIZATION WORKFLOW
+################################################################################
+
+Job: CuMg
+Output: CuMg_fcc_test_alloy_loop/Cu100_Mg0
+c/a optimization: False
+SWS optimization: False
+DOS analysis: False
+
+================================================================================
+STEP 1: STRUCTURE CREATION
+================================================================================
+Creating structure from parameters...
+✓ Structure created
+  Lattice: Face-centered cubic (type 2)
+  Atoms: 1
+
+================================================================================
+STEP 2: PARAMETER PREPARATION
+================================================================================
+Cubic lattice (lat=2): Using c/a = 1.0 (fixed)
+Auto-generated SWS values around 2.6660: [np.float64(2.515978903926613), np.float64(2.565978903926613), np.float64(2.6159789039266133), np.float64(2.665978903926613), np.float64(2.715978903926613), np.float64(2.765978903926613), np.float64(2.815978903926613)]
+
+Skipping c/a optimization, using: 1.000000
+
+Skipping SWS optimization, using: 2.515979 Bohr
+
+######################################################################
+# PHASE 3: OPTIMIZED STRUCTURE CALCULATION
+######################################################################
+
+Creating EMTO inputs with optimized parameters...
+  Optimal c/a: 1.000000
+  Optimal SWS: 2.515979 Bohr
+  Output path: CuMg_fcc_test_alloy_loop/Cu100_Mg0/phase3_optimized_calculation
+
+Created directory structure in: CuMg_fcc_test_alloy_loop/Cu100_Mg0/phase3_optimized_calculation
+
+Creating structure from parameters...
+  Lattice type: LAT=2
+  Lattice parameter a: 3.61 Å
+  Number of sites: 1
+  Structure created: LAT=2 (Face-centered cubic)
+  Number of atoms: NQ3=1
+  Maximum NL: 3
+  Structure saved to: CuMg_fcc_test_alloy_loop/Cu100_Mg0/phase3_optimized_calculation/CuMg_structure.json
+
+Creating input files for 1 c/a ratios and 1 SWS values...
+
+  c/a = 1.00
+KSTR input file 'CuMg_fcc_test_alloy_loop/Cu100_Mg0/phase3_optimized_calculation/smx/CuMg_1.00.dat' created successfully.
+SHAPE input file 'CuMg_fcc_test_alloy_loop/Cu100_Mg0/phase3_optimized_calculation/shp/CuMg_1.00.dat' created successfully.
+KGRN input file 'CuMg_fcc_test_alloy_loop/Cu100_Mg0/phase3_optimized_calculation/CuMg_1.00_2.52.dat' created successfully.
+KFCD input file 'CuMg_fcc_test_alloy_loop/Cu100_Mg0/phase3_optimized_calculation/fcd/CuMg_1.00_2.52.dat' created successfully.
+
+Creating serial job script...
+Created serial job script: CuMg_fcc_test_alloy_loop/Cu100_Mg0/phase3_optimized_calculation/run_CuMg.sh
+To submit: sbatch run_CuMg.sh
+
+======================================================================
+WORKFLOW COMPLETE
+======================================================================
+Files created:
+  KSTR:  1 files in CuMg_fcc_test_alloy_loop/Cu100_Mg0/phase3_optimized_calculation/smx/
+  SHAPE: 1 files in CuMg_fcc_test_alloy_loop/Cu100_Mg0/phase3_optimized_calculation/shp/
+  KGRN:  1 files in CuMg_fcc_test_alloy_loop/Cu100_Mg0/phase3_optimized_calculation/
+  KFCD:  1 files in CuMg_fcc_test_alloy_loop/Cu100_Mg0/phase3_optimized_calculation/fcd/
+======================================================================
+
+======================================================================
+PREPARE_ONLY MODE: Skipping calculation execution
+======================================================================
+✓ Input files created in: CuMg_fcc_test_alloy_loop/Cu100_Mg0/phase3_optimized_calculation
+✓ Job script: run_CuMg.sh
+✓ No calculations executed (prepare_only=True)
+======================================================================
+
+
+======================================================================
+SKIPPING VALIDATION (prepare_only=True)
+======================================================================
+
+✓ prepare_only=True: Returning without parsing results
+
+======================================================================
+PREPARE_ONLY MODE: Skipping DOS analysis and Summary report
+======================================================================
+
+======================================================================
+All 5 compositions completed!
+Results in: CuMg_fcc_test_alloy_loop
+======================================================================
+
+
+================================================================================
+ALLOY LOOP COMPLETED SUCCESSFULLY
+================================================================================
+
+Processed 5 compositions
+Results saved in: CuMg_fcc_test_alloy_loop
+================================================================================
+
