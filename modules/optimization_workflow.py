@@ -384,11 +384,7 @@ class OptimizationWorkflow:
         """
         Run EMTO EOS executable and parse results.
 
-        Steps:
-        1. Create EOS input file using create_eos_input()
-        2. Run EOS executable: subprocess.run(eos_executable + ' < eos.dat')
-        3. Parse output using parse_eos_output()
-        4. Extract optimal parameter (rwseq)
+        Delegates to the analysis module for implementation.
 
         Parameters
         ----------
@@ -411,106 +407,21 @@ class OptimizationWorkflow:
         tuple of (float, dict)
             optimal_value : Optimal parameter (rwseq) from primary fit
             results : Dictionary of all EOS fit results
-
-        Raises
-        ------
-        RuntimeError
-            If EOS executable fails or parsing fails
         """
+        from modules.optimization.analysis import run_eos_fit
 
-        output_path = Path(output_path)
-        output_path.mkdir(parents=True, exist_ok=True)
+        if eos_type is None:
+            eos_type = self.config.get('eos_type', 'MO88')
 
-        eos_input_file = output_path / "eos.dat"
-        eos_output_file = output_path / "eos.out"
-
-        print(f"\n{'='*70}")
-        print(f"RUNNING EOS FIT")
-        print(f"{'='*70}")
-        print(f"Type: {eos_type}")
-        print(f"Data points: {len(r_or_v_data)}")
-        print(f"Output: {output_path}")
-        print(f"{'='*70}\n")
-
-        # Step 1: Create EOS input file
-        try:
-            create_eos_input(
-                filename=str(eos_input_file),
-                job_name=job_name,
-                comment=comment,
-                R_or_V_data=r_or_v_data,
-                Energy_data=energy_data,
-                fit_type=eos_type
-            )
-        except Exception as e:
-            raise RuntimeError(f"Failed to create EOS input: {e}")
-
-        # Step 2: Run EOS executable
-        eos_executable = self.config['eos_executable']
-
-        try:
-            print(f"Running EOS executable: {eos_executable}")
-
-            with open(eos_input_file, 'r') as f_in:
-                with open(eos_output_file, 'w') as f_out:
-                    result = subprocess.run(
-                        [eos_executable],
-                        stdin=f_in,
-                        stdout=f_out,
-                        stderr=subprocess.PIPE,
-                        cwd=str(output_path),
-                        text=True,
-                        timeout=300  # 5 minute timeout
-                    )
-
-            if result.returncode != 0:
-                raise RuntimeError(
-                    f"EOS executable failed with return code {result.returncode}\n"
-                    f"stderr: {result.stderr}"
-                )
-
-            print(f"✓ EOS executable completed successfully")
-
-        except subprocess.TimeoutExpired:
-            raise RuntimeError("EOS executable timed out after 5 minutes")
-        except Exception as e:
-            raise RuntimeError(f"Failed to run EOS executable: {e}")
-
-        # Step 3: Parse EOS output
-        try:
-            results = parse_eos_output(str(eos_output_file))
-
-            if not results:
-                raise RuntimeError("No results found in EOS output")
-
-            print(f"\nParsed {len(results)} EOS fit(s):")
-            for fit_name, params in results.items():
-                print(f"  {fit_name}: rwseq = {params.rwseq:.6f}, eeq = {params.eeq:.6f} Ry")
-
-        except Exception as e:
-            raise RuntimeError(f"Failed to parse EOS output: {e}")
-
-        # Step 4: Extract optimal parameter from primary fit
-        # Priority: morse > birch_murnaghan > murnaghan > polynomial > spline
-        if 'morse' in results:
-            primary_fit = 'morse'
-        elif 'birch_murnaghan' in results:
-            primary_fit = 'birch_murnaghan'
-        elif 'murnaghan' in results:
-            primary_fit = 'murnaghan'
-        elif 'polynomial' in results:
-            primary_fit = 'polynomial'
-        elif 'spline' in results:
-            primary_fit = 'spline'
-        else:
-            raise RuntimeError("No valid EOS fit found in results")
-
-        optimal_value = results[primary_fit].rwseq
-
-        print(f"\n✓ Using {primary_fit} fit: optimal value = {optimal_value:.6f}")
-        print(f"{'='*70}\n")
-
-        return optimal_value, results
+        return run_eos_fit(
+            r_or_v_data=r_or_v_data,
+            energy_data=energy_data,
+            output_path=output_path,
+            job_name=job_name,
+            comment=comment,
+            eos_executable=self.config['eos_executable'],
+            eos_type=eos_type
+        )
 
     def optimize_ca_ratio(
         self,
@@ -521,8 +432,7 @@ class OptimizationWorkflow:
         """
         Phase 1: c/a ratio optimization.
 
-        Creates EMTO inputs, runs calculations, parses energies, fits EOS,
-        and extracts optimal c/a ratio.
+        Delegates to the phase_execution module for implementation.
 
         Parameters
         ----------
@@ -532,146 +442,26 @@ class OptimizationWorkflow:
             List of c/a ratios to test
         initial_sws : float or list of float
             Initial SWS value(s) for c/a optimization
-            If float, uses same value for all c/a ratios
-            If list, must have same length as ca_ratios
 
         Returns
         -------
         tuple of (float, dict)
             optimal_ca : Optimal c/a ratio from EOS fit
             results : Dictionary with EOS results and energy data
-
-        Raises
-        ------
-        RuntimeError
-            If calculations fail or output files not found
         """
-        print(f"\n{'#'*70}")
-        print("# PHASE 1: c/a RATIO OPTIMIZATION")
-        print(f"{'#'*70}\n")
+        from modules.optimization.phase_execution import optimize_ca_ratio
 
-        # Validate initial_sws
-        if isinstance(initial_sws, (int, float)):
-            sws_list = [float(initial_sws)] * len(ca_ratios)
-        elif isinstance(initial_sws, list):
-            if len(initial_sws) != len(ca_ratios):
-                raise ValueError(
-                    f"initial_sws list length ({len(initial_sws)}) must match "
-                    f"ca_ratios length ({len(ca_ratios)})"
-                )
-            sws_list = initial_sws
-        else:
-            raise TypeError("initial_sws must be float or list of float")
-
-        # Create phase subdirectory
-        phase_path = self.base_path / "phase1_ca_optimization"
-        phase_path.mkdir(parents=True, exist_ok=True)
-
-        print(f"Creating EMTO inputs for {len(ca_ratios)} c/a ratios...")
-        print(f"  c/a ratios: {ca_ratios}")
-        print(f"  SWS values: {sws_list}")
-        print(f"  Output path: {phase_path}\n")
-
-        # Create EMTO inputs
-        try:
-            phase_config = {
-                **self.config,  # All validated defaults from constructor
-                'output_path': str(phase_path),  # Override for this phase
-                'ca_ratios': ca_ratios,
-                'sws_values': sws_list,
-                # Only override what's different for this phase
-            }
-
-            create_emto_inputs(phase_config)
-
-        except Exception as e:
-            raise RuntimeError(f"Failed to create EMTO inputs: {e}")
-
-        # Run calculations
-        script_name = f"run_{self.config['job_name']}.sh"
-        self._run_calculations(
-            calculation_path=phase_path,
-            script_name=script_name
-        )
-
-        # Validate calculations completed successfully
-        self._validate_calculations(
-            phase_path=phase_path,
+        return optimize_ca_ratio(
+            structure=structure,
             ca_ratios=ca_ratios,
-            sws_values=sws_list,
-            job_name=self.config['job_name']
+            initial_sws=initial_sws,
+            config=self.config,
+            base_path=self.base_path,
+            run_calculations_func=self._run_calculations,
+            validate_calculations_func=self._validate_calculations,
+            run_eos_fit_func=self._run_eos_fit,
+            results_dict=self.results
         )
-
-        # Parse energies from KFCD outputs
-        print("\nParsing energies from KFCD outputs...")
-        ca_values = []
-        energy_values = []
-
-        from modules.extract_results import parse_kfcd
-
-        for i, (ca, sws) in enumerate(zip(ca_ratios, sws_list)):
-            file_id = f"{self.config['job_name']}_{ca:.2f}_{sws:.2f}"
-            kfcd_file = phase_path / "fcd" / f"{file_id}.prn"
-
-            if not kfcd_file.exists():
-                raise RuntimeError(
-                    f"KFCD output not found: {kfcd_file}\n"
-                    f"Calculation may have failed. Check log files in {phase_path}"
-                )
-
-            try:
-                results = parse_kfcd(str(kfcd_file))
-                if results.total_energy is None:
-                    raise RuntimeError(f"No total energy found in {kfcd_file}")
-
-                ca_values.append(ca)
-                energy_values.append(results.total_energy)
-
-                print(f"  c/a = {ca:.4f}: E = {results.total_energy:.6f} Ry")
-
-            except Exception as e:
-                raise RuntimeError(f"Failed to parse {kfcd_file}: {e}")
-
-        # Run EOS fit
-        optimal_ca, eos_results = self._run_eos_fit(
-            r_or_v_data=ca_values,
-            energy_data=energy_values,
-            output_path=phase_path,
-            job_name=f"{self.config['job_name']}_ca",
-            comment=f"c/a optimization for {self.config['job_name']}",
-            eos_type=self.config.get('eos_type', 'MO88')
-        )
-
-        # Save results
-        import json
-
-        results_dict = {
-            'optimal_ca': optimal_ca,
-            'ca_values': ca_values,
-            'energy_values': energy_values,
-            'eos_type': self.config.get('eos_type', 'MO88'),
-            'eos_fits': {
-                name: {
-                    'rwseq': params.rwseq,
-                    'v_eq': params.v_eq,
-                    'eeq': params.eeq,
-                    'bulk_modulus': params.bulk_modulus
-                }
-                for name, params in eos_results.items()
-            }
-        }
-
-        results_file = phase_path / "ca_optimization_results.json"
-        with open(results_file, 'w') as f:
-            json.dump(results_dict, f, indent=2)
-
-        print(f"\n✓ c/a optimization results saved to: {results_file}")
-        print(f"✓ Optimal c/a ratio: {optimal_ca:.6f}")
-
-        # Store in workflow results
-        self.results['phase1_ca_optimization'] = results_dict
-
-        return optimal_ca, results_dict
 
     def optimize_sws(
         self,
@@ -682,8 +472,7 @@ class OptimizationWorkflow:
         """
         Phase 2: SWS optimization at optimal c/a ratio.
 
-        Creates EMTO inputs, runs calculations, parses energies, fits EOS,
-        extracts optimal SWS, and calculates derived parameters.
+        Delegates to the phase_execution module for implementation.
 
         Parameters
         ----------
@@ -699,181 +488,20 @@ class OptimizationWorkflow:
         tuple of (float, dict)
             optimal_sws : Optimal SWS value from EOS fit
             results : Dictionary with EOS results, energy data, and derived parameters
-
-        Raises
-        ------
-        RuntimeError
-            If calculations fail or output files not found
         """
-        print(f"\n{'#'*70}")
-        print("# PHASE 2: SWS OPTIMIZATION")
-        print(f"{'#'*70}\n")
+        from modules.optimization.phase_execution import optimize_sws
 
-        # Create phase subdirectory
-        phase_path = self.base_path / "phase2_sws_optimization"
-        phase_path.mkdir(parents=True, exist_ok=True)
-
-        print(f"Creating EMTO inputs for {len(sws_values)} SWS values...")
-        print(f"  Optimal c/a: {optimal_ca:.6f}")
-        print(f"  SWS values: {sws_values}")
-        print(f"  Output path: {phase_path}\n")
-
-        # Create EMTO inputs with optimal c/a
-        try:
-            phase_config = {
-                **self.config,  # All validated defaults from constructor
-                'output_path': str(phase_path),  # Override for this phase
-                'ca_ratios': [optimal_ca],
-                'sws_values': sws_values,
-                # Only override what's different for this phase
-            }
-
-            create_emto_inputs(phase_config)
-        except Exception as e:
-            raise RuntimeError(f"Failed to create EMTO inputs: {e}")
-
-        # Run calculations
-        script_name = f"run_{self.config['job_name']}.sh"
-        self._run_calculations(
-            calculation_path=phase_path,
-            script_name=script_name
-        )
-
-        # Validate calculations completed successfully
-        self._validate_calculations(
-            phase_path=phase_path,
-            ca_ratios=[optimal_ca],
+        return optimize_sws(
+            structure=structure,
             sws_values=sws_values,
-            job_name=self.config['job_name']
+            optimal_ca=optimal_ca,
+            config=self.config,
+            base_path=self.base_path,
+            run_calculations_func=self._run_calculations,
+            validate_calculations_func=self._validate_calculations,
+            run_eos_fit_func=self._run_eos_fit,
+            results_dict=self.results
         )
-
-        # Parse energies from KFCD outputs
-        print("\nParsing energies from KFCD outputs...")
-        sws_parsed = []
-        energy_values = []
-
-        from modules.extract_results import parse_kfcd
-
-        for sws in sws_values:
-            file_id = f"{self.config['job_name']}_{optimal_ca:.2f}_{sws:.2f}"
-            kfcd_file = phase_path / "fcd" / f"{file_id}.prn"
-
-            if not kfcd_file.exists():
-                raise RuntimeError(
-                    f"KFCD output not found: {kfcd_file}\n"
-                    f"Calculation may have failed. Check log files in {phase_path}"
-                )
-
-            try:
-                results = parse_kfcd(str(kfcd_file))
-                if results.total_energy is None:
-                    raise RuntimeError(f"No total energy found in {kfcd_file}")
-
-                sws_parsed.append(sws)
-                energy_values.append(results.total_energy)
-
-                print(f"  SWS = {sws:.4f}: E = {results.total_energy:.6f} Ry")
-
-            except Exception as e:
-                raise RuntimeError(f"Failed to parse {kfcd_file}: {e}")
-
-        # Run EOS fit
-        optimal_sws, eos_results = self._run_eos_fit(
-            r_or_v_data=sws_parsed,
-            energy_data=energy_values,
-            output_path=phase_path,
-            job_name=f"{self.config['job_name']}_sws",
-            comment=f"SWS optimization for {self.config['job_name']} at c/a={optimal_ca:.4f}",
-            eos_type=self.config.get('eos_type', 'MO88')
-        )
-
-        # Calculate derived parameters
-        # SWS is in atomic units (Bohr), convert to lattice parameters in Angstroms
-        bohr_to_angstrom = 0.529177210903
-
-        # Volume per atom in Bohr^3
-        volume_per_atom = (4/3) * np.pi * optimal_sws**3
-
-        # Total unit cell volume in Bohr^3
-        total_volume_bohr = volume_per_atom * structure['NQ3']
-
-        # Convert to Angstrom^3
-        total_volume_angstrom = total_volume_bohr * (bohr_to_angstrom**3)
-
-        # Calculate lattice parameters based on lattice type
-        lat_type = structure['lat']
-
-        if lat_type in [1, 2, 3]:  # SC, FCC, BCC (cubic)
-            # For cubic: V = a^3
-            a_optimal = total_volume_angstrom ** (1/3)
-            c_optimal = a_optimal
-        elif lat_type == 4:  # HCP
-            # For HCP: V = a^2 * c * sqrt(3)/2
-            # With c/a ratio: c = a * c/a
-            # V = a^3 * c/a * sqrt(3)/2
-            # a = (V * 2 / (c/a * sqrt(3)))^(1/3)
-            a_optimal = (total_volume_angstrom * 2 / (optimal_ca * np.sqrt(3))) ** (1/3)
-            c_optimal = a_optimal * optimal_ca
-        elif lat_type == 5:  # BCT
-            # For BCT: V = a^2 * c
-            # With c/a ratio: c = a * c/a
-            # V = a^3 * c/a
-            # a = (V / c/a)^(1/3)
-            a_optimal = (total_volume_angstrom / optimal_ca) ** (1/3)
-            c_optimal = a_optimal * optimal_ca
-        else:
-            # Generic tetragonal approximation
-            a_optimal = (total_volume_angstrom / optimal_ca) ** (1/3)
-            c_optimal = a_optimal * optimal_ca
-
-        derived_params = {
-            'optimal_sws_bohr': optimal_sws,
-            'optimal_ca': optimal_ca,
-            'volume_per_atom_bohr3': volume_per_atom,
-            'total_volume_angstrom3': total_volume_angstrom,
-            'a_angstrom': a_optimal,
-            'c_angstrom': c_optimal,
-            'lattice_type': lat_type,
-            'lattice_name': structure.get('lattice_name', 'Unknown')
-        }
-
-        # Save results
-        import json
-
-        results_dict = {
-            'optimal_sws': optimal_sws,
-            'optimal_ca': optimal_ca,
-            'sws_values': sws_parsed,
-            'energy_values': energy_values,
-            'eos_type': self.config.get('eos_type', 'MO88'),
-            'eos_fits': {
-                name: {
-                    'rwseq': params.rwseq,
-                    'v_eq': params.v_eq,
-                    'eeq': params.eeq,
-                    'bulk_modulus': params.bulk_modulus
-                }
-                for name, params in eos_results.items()
-            },
-            'derived_parameters': derived_params
-        }
-
-        results_file = phase_path / "sws_optimization_results.json"
-        with open(results_file, 'w') as f:
-            json.dump(results_dict, f, indent=2)
-
-        print(f"\n✓ SWS optimization results saved to: {results_file}")
-        print(f"✓ Optimal SWS: {optimal_sws:.6f} Bohr")
-        print(f"\nDerived lattice parameters:")
-        print(f"  a = {a_optimal:.6f} Å")
-        print(f"  c = {c_optimal:.6f} Å")
-        print(f"  c/a = {optimal_ca:.6f}")
-        print(f"  Volume = {total_volume_angstrom:.6f} Å³")
-
-        # Store in workflow results
-        self.results['phase2_sws_optimization'] = results_dict
-
-        return optimal_sws, results_dict
 
     def run_optimized_calculation(
         self,
@@ -884,8 +512,7 @@ class OptimizationWorkflow:
         """
         Phase 3: Run final calculation with optimized parameters.
 
-        Creates EMTO inputs with optimal c/a and SWS, runs calculation,
-        and parses results.
+        Delegates to the phase_execution module for implementation.
 
         Parameters
         ----------
@@ -900,119 +527,19 @@ class OptimizationWorkflow:
         -------
         dict
             Dictionary with final calculation results
-
-        Raises
-        ------
-        RuntimeError
-            If calculation fails or output files not found
         """
-        print(f"\n{'#'*70}")
-        print("# PHASE 3: OPTIMIZED STRUCTURE CALCULATION")
-        print(f"{'#'*70}\n")
+        from modules.optimization.phase_execution import run_optimized_calculation
 
-        # Create phase subdirectory
-        phase_path = self.base_path / "phase3_optimized_calculation"
-        phase_path.mkdir(parents=True, exist_ok=True)
-
-        print(f"Creating EMTO inputs with optimized parameters...")
-        print(f"  Optimal c/a: {optimal_ca:.6f}")
-        print(f"  Optimal SWS: {optimal_sws:.6f} Bohr")
-        print(f"  Output path: {phase_path}\n")
-
-        # Create EMTO inputs with optimal parameters
-        try:
-            phase_config = {
-                **self.config,  # All validated defaults from constructor
-                'output_path': str(phase_path),  # Override for this phase
-                'ca_ratios': [optimal_ca],
-                'sws_values': [optimal_sws],
-                # Only override what's different for this phase
-            }
-
-            create_emto_inputs(phase_config)
-        except Exception as e:
-            raise RuntimeError(f"Failed to create EMTO inputs: {e}")
-
-        # Run calculation
-        script_name = f"run_{self.config['job_name']}.sh"
-        self._run_calculations(
-            calculation_path=phase_path,
-            script_name=script_name
+        return run_optimized_calculation(
+            structure=structure,
+            optimal_ca=optimal_ca,
+            optimal_sws=optimal_sws,
+            config=self.config,
+            base_path=self.base_path,
+            run_calculations_func=self._run_calculations,
+            validate_calculations_func=self._validate_calculations,
+            results_dict=self.results
         )
-
-        # Validate calculations completed successfully
-        self._validate_calculations(
-            phase_path=phase_path,
-            ca_ratios=[optimal_ca],
-            sws_values=[optimal_sws],
-            job_name=self.config['job_name']
-        )
-
-        # Parse results from KFCD and KGRN outputs
-        print("\nParsing optimized calculation results...")
-
-        from modules.extract_results import parse_kfcd, parse_kgrn
-
-        file_id = f"{self.config['job_name']}_{optimal_ca:.2f}_{optimal_sws:.2f}"
-        kfcd_file = phase_path / "fcd" / f"{file_id}.prn"
-        kgrn_file = phase_path / "pot" / f"{file_id}.prn"
-
-        if not kfcd_file.exists():
-            raise RuntimeError(
-                f"KFCD output not found: {kfcd_file}\n"
-                f"Calculation may have failed. Check log files in {phase_path}"
-            )
-
-        # Parse KFCD
-        try:
-            kfcd_results = parse_kfcd(str(kfcd_file))
-            print(f"\n✓ KFCD results parsed")
-            print(f"  Total energy: {kfcd_results.total_energy:.6f} Ry")
-        except Exception as e:
-            raise RuntimeError(f"Failed to parse {kfcd_file}: {e}")
-
-        # Parse KGRN if available
-        kgrn_results = None
-        if kgrn_file.exists():
-            try:
-                kgrn_results = parse_kgrn(
-                    str(kgrn_file),
-                    kfcd_results.concentrations,
-                    kfcd_results.iq_to_element,
-                    kfcd_results.atoms
-                )
-                print(f"✓ KGRN results parsed")
-                if kgrn_results.total_energy:
-                    print(f"  Total energy: {kgrn_results.total_energy:.6f} Ry")
-            except Exception as e:
-                print(f"Warning: Failed to parse KGRN output: {e}")
-
-        # Save results
-        import json
-
-        results_dict = {
-            'optimal_ca': optimal_ca,
-            'optimal_sws': optimal_sws,
-            'kfcd_total_energy': kfcd_results.total_energy,
-            'kgrn_total_energy': kgrn_results.total_energy if kgrn_results else None,
-            'magnetic_moments': {
-                f"IQ{iq}_ITA{ita}_{atom}": moment
-                for (iq, ita, atom), moment in kfcd_results.magnetic_moments.items()
-            } if kfcd_results.magnetic_moments else {},
-            'total_magnetic_moment': kfcd_results.total_magnetic_moment,
-            'file_id': file_id
-        }
-
-        results_file = phase_path / "optimized_results.json"
-        with open(results_file, 'w') as f:
-            json.dump(results_dict, f, indent=2)
-
-        print(f"\n✓ Optimized calculation results saved to: {results_file}")
-
-        # Store in workflow results
-        self.results['phase3_optimized_calculation'] = results_dict
-
-        return results_dict
 
     def generate_dos_analysis(
         self,
@@ -1023,6 +550,8 @@ class OptimizationWorkflow:
         """
         Generate DOS analysis and plots.
 
+        Delegates to the analysis module for implementation.
+
         Parameters
         ----------
         phase_path : str or Path
@@ -1031,384 +560,61 @@ class OptimizationWorkflow:
             File identifier for DOS files
         plot_range : list of float, optional
             Energy range for DOS plots [E_min, E_max] in eV
-            If None, uses config['dos_plot_range'] or [-0.8, 0.15]
+            If None, uses config['dos_plot_range']
 
         Returns
         -------
         dict
             Dictionary with DOS analysis results
-
-        Notes
-        -----
-        Looks for DOS files in phase_path/pot/{file_id}.dos
-        Generates plots and saves to phase_path/dos_analysis/
         """
-        from modules.dos import DOSParser
+        from modules.optimization.analysis import generate_dos_analysis
 
-        phase_path = Path(phase_path)
-        dos_file = phase_path / "pot" / f"{file_id}.dos"
-
-        if not dos_file.exists():
-            print(f"Warning: DOS file not found: {dos_file}")
-            return {'status': 'not_found', 'file': str(dos_file)}
-
-        print(f"\n{'='*70}")
-        print("DOS ANALYSIS")
-        print(f"{'='*70}")
-        print(f"DOS file: {dos_file}")
-
-        # Create DOS analysis directory
-        dos_output_dir = phase_path / "dos_analysis"
-        dos_output_dir.mkdir(parents=True, exist_ok=True)
-
-        # Parse DOS
-        try:
-            parser = DOSParser(str(dos_file))
-            print(f"✓ DOS file parsed successfully")
-        except Exception as e:
-            print(f"✗ Failed to parse DOS file: {e}")
-            return {'status': 'parse_error', 'error': str(e)}
-
-        # Get plot range
         if plot_range is None:
-            plot_range = self.config['dos_plot_range']
-        # Generate plots
-        try:
-            # Total DOS
-            total_plot = dos_output_dir / "dos_total.png"
-            parser.plot_total(
-                spin_polarized=True,
-                save=str(total_plot),
-                show=False
-            )
-            print(f"✓ Total DOS plot saved: {total_plot}")
+            plot_range = self.config.get('dos_plot_range')
 
-            # Sublattice DOS (if available)
-            sublattice_plots = []
-            if parser.atom_info:
-                # Get unique sublattices
-                sublattices = sorted(set(info[2] for info in parser.atom_info))
-
-                for sublat in sublattices:
-                    sublat_plot = dos_output_dir / f"dos_sublattice_{sublat}.png"
-                    parser.plot_sublattice(
-                        sublattice=sublat,
-                        spin_polarized=True,
-                        save=str(sublat_plot),
-                        show=False
-                    )
-                    sublattice_plots.append(str(sublat_plot))
-                    print(f"✓ Sublattice {sublat} DOS plot saved")
-
-        except Exception as e:
-            print(f"Warning: Failed to generate some DOS plots: {e}")
-
-        results = {
-            'status': 'success',
-            'dos_file': str(dos_file),
-            'total_plot': str(total_plot) if 'total_plot' in locals() else None,
-            'sublattice_plots': sublattice_plots if 'sublattice_plots' in locals() else [],
-            'plot_range': plot_range,
-            'atom_info': [
-                {'atom_number': num, 'element': elem, 'sublattice': sublat}
-                for num, elem, sublat in parser.atom_info
-            ]
-        }
-
-        print(f"{'='*70}\n")
-
-        return results
+        return generate_dos_analysis(
+            phase_path=phase_path,
+            file_id=file_id,
+            dos_plot_range=plot_range
+        )
 
     def generate_summary_report(self) -> str:
         """
         Generate comprehensive summary report of optimization workflow.
 
+        Delegates to the analysis module for implementation.
+
         Returns
         -------
         str
             Formatted summary report
-
-        Notes
-        -----
-        Report includes all phases executed and their results.
-        Saved to workflow_summary.txt in base_path.
         """
-        report = []
-        report.append("=" * 80)
-        report.append("OPTIMIZATION WORKFLOW SUMMARY")
-        report.append("=" * 80)
-        report.append(f"\nJob name: {self.config['job_name']}")
-        report.append(f"Output path: {self.base_path}")
-        report.append(f"Run mode: {self.config.get('run_mode', 'sbatch')}")
+        from modules.optimization.analysis import generate_summary_report
 
-        # Configuration
-        report.append("\n" + "-" * 80)
-        report.append("CONFIGURATION")
-        report.append("-" * 80)
-        report.append(f"Lattice type: {self.config.get('lat')}")
-        report.append(f"DMAX: {self.config.get('dmax')}")
-        report.append(f"Magnetic: {self.config.get('magnetic')}")
-        report.append(f"EOS type: {self.config.get('eos_type', 'MO88')}")
-
-        # Phase 1: c/a optimization
-        if 'phase1_ca_optimization' in self.results:
-            phase1 = self.results['phase1_ca_optimization']
-            report.append("\n" + "-" * 80)
-            report.append("PHASE 1: c/a RATIO OPTIMIZATION")
-            report.append("-" * 80)
-            report.append(f"Optimal c/a: {phase1['optimal_ca']:.6f}")
-            report.append(f"Number of c/a points: {len(phase1['ca_values'])}")
-            report.append(f"c/a range: [{min(phase1['ca_values']):.4f}, {max(phase1['ca_values']):.4f}]")
-            report.append(f"Energy range: [{min(phase1['energy_values']):.6f}, {max(phase1['energy_values']):.6f}] Ry")
-
-            # EOS fit info
-            if 'eos_fits' in phase1:
-                for fit_name, params in phase1['eos_fits'].items():
-                    report.append(f"\n  {fit_name.upper()} fit:")
-                    report.append(f"    Equilibrium energy: {params['eeq']:.6f} Ry")
-                    report.append(f"    Bulk modulus: {params['bulk_modulus']:.3f} GPa")
-
-        # Phase 2: SWS optimization
-        if 'phase2_sws_optimization' in self.results:
-            phase2 = self.results['phase2_sws_optimization']
-            report.append("\n" + "-" * 80)
-            report.append("PHASE 2: SWS OPTIMIZATION")
-            report.append("-" * 80)
-            report.append(f"Optimal SWS: {phase2['optimal_sws']:.6f} Bohr")
-            report.append(f"Number of SWS points: {len(phase2['sws_values'])}")
-            report.append(f"SWS range: [{min(phase2['sws_values']):.4f}, {max(phase2['sws_values']):.4f}] Bohr")
-            report.append(f"Energy range: [{min(phase2['energy_values']):.6f}, {max(phase2['energy_values']):.6f}] Ry")
-
-            # Derived parameters
-            if 'derived_parameters' in phase2:
-                params = phase2['derived_parameters']
-                report.append("\n  Derived lattice parameters:")
-                report.append(f"    a = {params['a_angstrom']:.6f} Å")
-                report.append(f"    c = {params['c_angstrom']:.6f} Å")
-                report.append(f"    c/a = {params['optimal_ca']:.6f}")
-                report.append(f"    Volume = {params['total_volume_angstrom3']:.6f} Å³")
-                report.append(f"    Lattice: {params['lattice_name']} (type {params['lattice_type']})")
-
-        # Phase 3: Optimized calculation
-        if 'phase3_optimized_calculation' in self.results:
-            phase3 = self.results['phase3_optimized_calculation']
-            report.append("\n" + "-" * 80)
-            report.append("PHASE 3: OPTIMIZED STRUCTURE CALCULATION")
-            report.append("-" * 80)
-            report.append(f"Optimal c/a: {phase3['optimal_ca']:.6f}")
-            report.append(f"Optimal SWS: {phase3['optimal_sws']:.6f} Bohr")
-            report.append(f"KFCD total energy: {phase3['kfcd_total_energy']:.6f} Ry")
-
-            if phase3['kgrn_total_energy'] is not None:
-                report.append(f"KGRN total energy: {phase3['kgrn_total_energy']:.6f} Ry")
-
-            if phase3.get('total_magnetic_moment') is not None:
-                report.append(f"Total magnetic moment: {phase3['total_magnetic_moment']:.4f} μB")
-
-            if phase3.get('magnetic_moments'):
-                report.append("\n  Magnetic moments:")
-                for site, moment in phase3['magnetic_moments'].items():
-                    report.append(f"    {site}: {moment:.4f} μB")
-
-        # DOS analysis
-        if 'dos_analysis' in self.results:
-            dos = self.results['dos_analysis']
-            if dos.get('status') == 'success':
-                report.append("\n" + "-" * 80)
-                report.append("DOS ANALYSIS")
-                report.append("-" * 80)
-                report.append(f"DOS plots generated: {len(dos.get('sublattice_plots', [])) + 1}")
-                report.append(f"Plot range: {dos.get('plot_range')} eV")
-
-        report.append("\n" + "=" * 80)
-        report.append("END OF REPORT")
-        report.append("=" * 80)
-
-        # Save report
-        report_text = "\n".join(report)
-        report_file = self.base_path / "workflow_summary.txt"
-        with open(report_file, 'w') as f:
-            f.write(report_text)
-
-        print(f"\n✓ Summary report saved to: {report_file}\n")
-
-        return report_text
+        return generate_summary_report(
+            config=self.config,
+            base_path=self.base_path,
+            results=self.results
+        )
 
     def _run_prepare_only_mode(self) -> Dict[str, Any]:
         """
         Prepare-only mode: Create input files for Phase 1 & 2, skip Phase 3.
 
-        Creates EMTO input files for exploratory calculations (c/a and SWS sweeps)
-        without running any calculations. Phase 3 (final optimized calculation) is
-        skipped entirely - no inputs created.
+        Delegates to the prepare_only module for implementation.
 
         Returns
         -------
         dict
             Empty results dictionary with prepare_only flag set
-
-        Notes
-        -----
-        This mode is useful for:
-        - Validating configurations before expensive calculations
-        - Generating inputs to run manually or on different systems
-        - Debugging input file generation
         """
-        print("\n" + "#" * 80)
-        print("# PREPARE-ONLY MODE: Creating Input Files")
-        print("#" * 80)
-        print(f"\nJob: {self.config['job_name']}")
-        print(f"Output: {self.base_path}")
-        print(f"Mode: Input file generation only (no calculations)")
-        print("#" * 80)
+        from modules.optimization.prepare_only import run_prepare_only_mode
 
-        # Step 1: Create structure
-        print("\n" + "=" * 80)
-        print("STEP 1: STRUCTURE CREATION")
-        print("=" * 80)
-
-        try:
-            from modules.structure_builder import create_emto_structure
-
-            if self.config.get('cif_file'):
-                print(f"Creating structure from CIF: {self.config['cif_file']}")
-                structure_pmg, structure = create_emto_structure(
-                    cif_file=self.config['cif_file'],
-                    user_magnetic_moments=self.config.get('user_magnetic_moments')
-                )
-            else:
-                print(f"Creating structure from parameters...")
-                structure_pmg, structure = create_emto_structure(
-                    lat=self.config['lat'],
-                    a=self.config['a'],
-                    sites=self.config['sites'],
-                    b=self.config.get('b'),
-                    c=self.config.get('c'),
-                    alpha=self.config.get('alpha', 90),
-                    beta=self.config.get('beta', 90),
-                    gamma=self.config.get('gamma', 90),
-                    user_magnetic_moments=self.config.get('user_magnetic_moments')
-                )
-
-            structure['structure_pmg'] = structure_pmg
-
-            print(f"✓ Structure created")
-            print(f"  Lattice: {structure['lattice_name']} (type {structure['lat']})")
-            print(f"  Atoms: {structure['NQ3']}")
-
-        except Exception as e:
-            raise RuntimeError(f"Failed to create structure: {e}")
-
-        # Step 2: Prepare parameter ranges
-        print("\n" + "=" * 80)
-        print("STEP 2: PARAMETER PREPARATION")
-        print("=" * 80)
-
-        try:
-            ca_list, sws_list = self._prepare_ranges(
-                self.config.get('ca_ratios'),
-                self.config.get('sws_values'),
-                structure=structure
-            )
-        except Exception as e:
-            raise RuntimeError(f"Failed to prepare parameter ranges: {e}")
-
-        # Phase 1: Create c/a optimization inputs (if enabled)
-        if self.config.get('optimize_ca', False):
-            print("\n" + "=" * 80)
-            print("PHASE 1: Creating c/a optimization inputs")
-            print("=" * 80)
-
-            try:
-                initial_sws = self.config.get('initial_sws', [sws_list[len(sws_list)//2]])
-
-                # Create Phase 1 directory
-                phase_path = self.base_path / "phase1_ca_optimization"
-                phase_path.mkdir(parents=True, exist_ok=True)
-
-                print(f"Creating inputs for {len(ca_list)} c/a values...")
-                print(f"  c/a values: {ca_list}")
-                print(f"  initial SWS: {initial_sws}")
-                print(f"  Output path: {phase_path}\n")
-
-                # Create inputs
-                from modules.create_input import create_emto_inputs
-
-                phase_config = {
-                    **self.config,
-                    'output_path': str(phase_path),
-                    'ca_ratios': ca_list,
-                    'sws_values': initial_sws,
-                }
-
-                create_emto_inputs(phase_config)
-
-                print(f"\n✓ Phase 1 input files created in: {phase_path}")
-
-            except Exception as e:
-                raise RuntimeError(f"Failed to create Phase 1 inputs: {e}")
-        else:
-            print("\n✓ Phase 1 (c/a optimization) skipped (optimize_ca=False)")
-
-        # Phase 2: Create SWS optimization inputs (if enabled)
-        if self.config.get('optimize_sws', False):
-            print("\n" + "=" * 80)
-            print("PHASE 2: Creating SWS optimization inputs")
-            print("=" * 80)
-
-            try:
-                # Use first c/a value for SWS sweep
-                optimal_ca = ca_list[0] if ca_list else structure.get('coa', 1.0)
-
-                # Create Phase 2 directory
-                phase_path = self.base_path / "phase2_sws_optimization"
-                phase_path.mkdir(parents=True, exist_ok=True)
-
-                print(f"Creating inputs for {len(sws_list)} SWS values...")
-                print(f"  c/a: {optimal_ca:.6f}")
-                print(f"  SWS values: {sws_list}")
-                print(f"  Output path: {phase_path}\n")
-
-                # Create inputs
-                from modules.create_input import create_emto_inputs
-
-                phase_config = {
-                    **self.config,
-                    'output_path': str(phase_path),
-                    'ca_ratios': [optimal_ca],
-                    'sws_values': sws_list,
-                }
-
-                create_emto_inputs(phase_config)
-
-                print(f"\n✓ Phase 2 input files created in: {phase_path}")
-
-            except Exception as e:
-                raise RuntimeError(f"Failed to create Phase 2 inputs: {e}")
-        else:
-            print("\n✓ Phase 2 (SWS optimization) skipped (optimize_sws=False)")
-
-        # Phase 3: Explicitly skip
-        print("\n" + "=" * 80)
-        print("PHASE 3: Skipping final optimized calculation (prepare_only mode)")
-        print("=" * 80)
-        print("✓ Phase 3 inputs NOT created (by design in prepare_only mode)")
-
-        # Summary
-        print("\n" + "#" * 80)
-        print("# PREPARE-ONLY MODE COMPLETED")
-        print("#" * 80)
-        print(f"\n✓ Input files created for:")
-        if self.config.get('optimize_ca'):
-            print(f"  - Phase 1 (c/a optimization): {len(ca_list)} calculations")
-        if self.config.get('optimize_sws'):
-            print(f"  - Phase 2 (SWS optimization): {len(sws_list)} calculations")
-        print(f"\n✓ Phase 3 (final calculation) intentionally skipped")
-        print(f"\n✓ All files saved in: {self.base_path}")
-        print(f"\n✓ No calculations were executed (prepare_only=True)")
-        print("#" * 80 + "\n")
-
-        return {'prepare_only': True}
+        return run_prepare_only_mode(
+            config=self.config,
+            base_path=self.base_path,
+            prepare_ranges_func=self._prepare_ranges
+        )
 
     def run(self) -> Dict[str, Any]:
         """
