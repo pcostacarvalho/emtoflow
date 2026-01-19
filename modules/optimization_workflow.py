@@ -230,17 +230,6 @@ class OptimizationWorkflow:
 
         calculation_path = Path(calculation_path)
 
-        # Check if prepare_only mode - skip all execution
-        if self.config.get('prepare_only', False):
-            print(f"\n{'='*70}")
-            print(f"PREPARE_ONLY MODE: Skipping calculation execution")
-            print(f"{'='*70}")
-            print(f"✓ Input files created in: {calculation_path}")
-            print(f"✓ Job script: {script_name}")
-            print(f"✓ No calculations executed (prepare_only=True)")
-            print(f"{'='*70}\n")
-            return True  # Return success without running
-
         print(f"\n{'='*70}")
         print(f"RUNNING CALCULATIONS")
         print(f"{'='*70}")
@@ -317,13 +306,6 @@ class OptimizationWorkflow:
             If any calculation failed or output files are missing/incomplete
         """
         phase_path = Path(phase_path)
-
-        # Skip validation if prepare_only mode
-        if self.config.get('prepare_only', False):
-            print(f"\n{'='*70}")
-            print(f"SKIPPING VALIDATION (prepare_only=True)")
-            print(f"{'='*70}")
-            return  # Skip validation when no calculations were run
 
         print(f"\n{'='*70}")
         print(f"VALIDATING CALCULATIONS")
@@ -620,11 +602,6 @@ class OptimizationWorkflow:
             job_name=self.config['job_name']
         )
 
-        # Return early if prepare_only (no results to parse)
-        if self.config.get('prepare_only', False):
-            print("\n✓ prepare_only=True: Returning without parsing results")
-            return None, {}  # Return None for optimal_ca, empty dict for results
-
         # Parse energies from KFCD outputs
         print("\nParsing energies from KFCD outputs...")
         ca_values = []
@@ -769,11 +746,6 @@ class OptimizationWorkflow:
             sws_values=sws_values,
             job_name=self.config['job_name']
         )
-
-        # Return early if prepare_only (no results to parse)
-        if self.config.get('prepare_only', False):
-            print("\n✓ prepare_only=True: Returning without parsing results")
-            return None, {}  # Return None for optimal_sws, empty dict for results
 
         # Parse energies from KFCD outputs
         print("\nParsing energies from KFCD outputs...")
@@ -975,11 +947,6 @@ class OptimizationWorkflow:
             sws_values=[optimal_sws],
             job_name=self.config['job_name']
         )
-
-        # Return early if prepare_only (no results to parse)
-        if self.config.get('prepare_only', False):
-            print("\n✓ prepare_only=True: Returning without parsing results")
-            return {}  # Return empty dict, no results to parse
 
         # Parse results from KFCD and KGRN outputs
         print("\nParsing optimized calculation results...")
@@ -1267,6 +1234,182 @@ class OptimizationWorkflow:
 
         return report_text
 
+    def _run_prepare_only_mode(self) -> Dict[str, Any]:
+        """
+        Prepare-only mode: Create input files for Phase 1 & 2, skip Phase 3.
+
+        Creates EMTO input files for exploratory calculations (c/a and SWS sweeps)
+        without running any calculations. Phase 3 (final optimized calculation) is
+        skipped entirely - no inputs created.
+
+        Returns
+        -------
+        dict
+            Empty results dictionary with prepare_only flag set
+
+        Notes
+        -----
+        This mode is useful for:
+        - Validating configurations before expensive calculations
+        - Generating inputs to run manually or on different systems
+        - Debugging input file generation
+        """
+        print("\n" + "#" * 80)
+        print("# PREPARE-ONLY MODE: Creating Input Files")
+        print("#" * 80)
+        print(f"\nJob: {self.config['job_name']}")
+        print(f"Output: {self.base_path}")
+        print(f"Mode: Input file generation only (no calculations)")
+        print("#" * 80)
+
+        # Step 1: Create structure
+        print("\n" + "=" * 80)
+        print("STEP 1: STRUCTURE CREATION")
+        print("=" * 80)
+
+        try:
+            from modules.structure_builder import create_emto_structure
+
+            if self.config.get('cif_file'):
+                print(f"Creating structure from CIF: {self.config['cif_file']}")
+                structure_pmg, structure = create_emto_structure(
+                    cif_file=self.config['cif_file'],
+                    user_magnetic_moments=self.config.get('user_magnetic_moments')
+                )
+            else:
+                print(f"Creating structure from parameters...")
+                structure_pmg, structure = create_emto_structure(
+                    lat=self.config['lat'],
+                    a=self.config['a'],
+                    sites=self.config['sites'],
+                    b=self.config.get('b'),
+                    c=self.config.get('c'),
+                    alpha=self.config.get('alpha', 90),
+                    beta=self.config.get('beta', 90),
+                    gamma=self.config.get('gamma', 90),
+                    user_magnetic_moments=self.config.get('user_magnetic_moments')
+                )
+
+            structure['structure_pmg'] = structure_pmg
+
+            print(f"✓ Structure created")
+            print(f"  Lattice: {structure['lattice_name']} (type {structure['lat']})")
+            print(f"  Atoms: {structure['NQ3']}")
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to create structure: {e}")
+
+        # Step 2: Prepare parameter ranges
+        print("\n" + "=" * 80)
+        print("STEP 2: PARAMETER PREPARATION")
+        print("=" * 80)
+
+        try:
+            ca_list, sws_list = self._prepare_ranges(
+                self.config.get('ca_ratios'),
+                self.config.get('sws_values'),
+                structure=structure
+            )
+        except Exception as e:
+            raise RuntimeError(f"Failed to prepare parameter ranges: {e}")
+
+        # Phase 1: Create c/a optimization inputs (if enabled)
+        if self.config.get('optimize_ca', False):
+            print("\n" + "=" * 80)
+            print("PHASE 1: Creating c/a optimization inputs")
+            print("=" * 80)
+
+            try:
+                initial_sws = self.config.get('initial_sws', [sws_list[len(sws_list)//2]])
+
+                # Create Phase 1 directory
+                phase_path = self.base_path / "phase1_ca_optimization"
+                phase_path.mkdir(parents=True, exist_ok=True)
+
+                print(f"Creating inputs for {len(ca_list)} c/a values...")
+                print(f"  c/a values: {ca_list}")
+                print(f"  initial SWS: {initial_sws}")
+                print(f"  Output path: {phase_path}\n")
+
+                # Create inputs
+                from modules.create_input import create_emto_inputs
+
+                phase_config = {
+                    **self.config,
+                    'output_path': str(phase_path),
+                    'ca_ratios': ca_list,
+                    'sws_values': initial_sws,
+                }
+
+                create_emto_inputs(phase_config)
+
+                print(f"\n✓ Phase 1 input files created in: {phase_path}")
+
+            except Exception as e:
+                raise RuntimeError(f"Failed to create Phase 1 inputs: {e}")
+        else:
+            print("\n✓ Phase 1 (c/a optimization) skipped (optimize_ca=False)")
+
+        # Phase 2: Create SWS optimization inputs (if enabled)
+        if self.config.get('optimize_sws', False):
+            print("\n" + "=" * 80)
+            print("PHASE 2: Creating SWS optimization inputs")
+            print("=" * 80)
+
+            try:
+                # Use first c/a value for SWS sweep
+                optimal_ca = ca_list[0] if ca_list else structure.get('coa', 1.0)
+
+                # Create Phase 2 directory
+                phase_path = self.base_path / "phase2_sws_optimization"
+                phase_path.mkdir(parents=True, exist_ok=True)
+
+                print(f"Creating inputs for {len(sws_list)} SWS values...")
+                print(f"  c/a: {optimal_ca:.6f}")
+                print(f"  SWS values: {sws_list}")
+                print(f"  Output path: {phase_path}\n")
+
+                # Create inputs
+                from modules.create_input import create_emto_inputs
+
+                phase_config = {
+                    **self.config,
+                    'output_path': str(phase_path),
+                    'ca_ratios': [optimal_ca],
+                    'sws_values': sws_list,
+                }
+
+                create_emto_inputs(phase_config)
+
+                print(f"\n✓ Phase 2 input files created in: {phase_path}")
+
+            except Exception as e:
+                raise RuntimeError(f"Failed to create Phase 2 inputs: {e}")
+        else:
+            print("\n✓ Phase 2 (SWS optimization) skipped (optimize_sws=False)")
+
+        # Phase 3: Explicitly skip
+        print("\n" + "=" * 80)
+        print("PHASE 3: Skipping final optimized calculation (prepare_only mode)")
+        print("=" * 80)
+        print("✓ Phase 3 inputs NOT created (by design in prepare_only mode)")
+
+        # Summary
+        print("\n" + "#" * 80)
+        print("# PREPARE-ONLY MODE COMPLETED")
+        print("#" * 80)
+        print(f"\n✓ Input files created for:")
+        if self.config.get('optimize_ca'):
+            print(f"  - Phase 1 (c/a optimization): {len(ca_list)} calculations")
+        if self.config.get('optimize_sws'):
+            print(f"  - Phase 2 (SWS optimization): {len(sws_list)} calculations")
+        print(f"\n✓ Phase 3 (final calculation) intentionally skipped")
+        print(f"\n✓ All files saved in: {self.base_path}")
+        print(f"\n✓ No calculations were executed (prepare_only=True)")
+        print("#" * 80 + "\n")
+
+        return {'prepare_only': True}
+
     def run(self) -> Dict[str, Any]:
         """
         Execute complete optimization workflow.
@@ -1295,6 +1438,11 @@ class OptimizationWorkflow:
         This is the main entry point for automated optimization workflows.
         All intermediate results are saved and workflow can be resumed if interrupted.
         """
+        # Single check: Route to prepare-only mode if flag is set
+        if self.config.get('prepare_only', False):
+            return self._run_prepare_only_mode()
+
+        # Normal full workflow (no prepare_only checks needed below)
         print("\n" + "#" * 80)
         print("# COMPLETE OPTIMIZATION WORKFLOW")
         print("#" * 80)
@@ -1398,72 +1546,63 @@ class OptimizationWorkflow:
             )
         except Exception as e:
             raise RuntimeError(f"Optimized calculation failed: {e}")
-        
-        if self.config.get('prepare_only', False):
-            print(f"\n{'='*70}")
-            print(f"PREPARE_ONLY MODE: Skipping DOS analysis and Summary report")
-            print(f"{'='*70}")
-            self.results = {}
-            return self.results
 
-        else:
-
-            # Step 6: DOS analysis (optional)
-            if self.config.get('generate_dos', False):
-                try:
-                    file_id = final_results['file_id']
-                    phase_path = self.base_path / "phase3_optimized_calculation"
-
-                    dos_results = self.generate_dos_analysis(
-                        phase_path=phase_path,
-                        file_id=file_id,
-                        plot_range=self.config.get('dos_plot_range')
-                    )
-
-                    self.results['dos_analysis'] = dos_results
-
-                except Exception as e:
-                    print(f"Warning: DOS analysis failed: {e}")
-
-            # Step 7: Generate summary report
+        # Step 6: DOS analysis (optional)
+        if self.config.get('generate_dos', False):
             try:
-                summary = self.generate_summary_report()
-                print("\n" + summary)
+                file_id = final_results['file_id']
+                phase_path = self.base_path / "phase3_optimized_calculation"
+
+                dos_results = self.generate_dos_analysis(
+                    phase_path=phase_path,
+                    file_id=file_id,
+                    plot_range=self.config.get('dos_plot_range')
+                )
+
+                self.results['dos_analysis'] = dos_results
+
             except Exception as e:
-                print(f"Warning: Failed to generate summary report: {e}")
+                print(f"Warning: DOS analysis failed: {e}")
 
-            # Save complete workflow results
-            import json
+        # Step 7: Generate summary report
+        try:
+            summary = self.generate_summary_report()
+            print("\n" + summary)
+        except Exception as e:
+            print(f"Warning: Failed to generate summary report: {e}")
 
-            workflow_results = {
-                'job_name': self.config['job_name'],
-                'optimal_ca': optimal_ca,
-                'optimal_sws': optimal_sws,
-                'phases_completed': list(self.results.keys()),
-                'final_energy': final_results.get('kfcd_total_energy'),
-                'structure_info': {
-                    'lattice_type': structure['lat'],
-                    'lattice_name': structure.get('lattice_name', 'Unknown'),
-                    'num_atoms': structure['NQ3']
-                }
+        # Save complete workflow results
+        import json
+
+        workflow_results = {
+            'job_name': self.config['job_name'],
+            'optimal_ca': optimal_ca,
+            'optimal_sws': optimal_sws,
+            'phases_completed': list(self.results.keys()),
+            'final_energy': final_results.get('kfcd_total_energy'),
+            'structure_info': {
+                'lattice_type': structure['lat'],
+                'lattice_name': structure.get('lattice_name', 'Unknown'),
+                'num_atoms': structure['NQ3']
             }
+        }
 
-            results_file = self.base_path / "workflow_results.json"
-            with open(results_file, 'w') as f:
-                json.dump(workflow_results, f, indent=2)
+        results_file = self.base_path / "workflow_results.json"
+        with open(results_file, 'w') as f:
+            json.dump(workflow_results, f, indent=2)
 
-            print(f"\n✓ Complete workflow results saved to: {results_file}")
+        print(f"\n✓ Complete workflow results saved to: {results_file}")
 
-            print("\n" + "#" * 80)
-            print("# WORKFLOW COMPLETED SUCCESSFULLY")
-            print("#" * 80)
-            print(f"\nOptimal c/a: {optimal_ca:.6f}")
-            print(f"Optimal SWS: {optimal_sws:.6f} Bohr")
-            print(f"Final energy: {final_results.get('kfcd_total_energy'):.6f} Ry")
-            print(f"\nAll results saved in: {self.base_path}")
-            print("#" * 80 + "\n")
+        print("\n" + "#" * 80)
+        print("# WORKFLOW COMPLETED SUCCESSFULLY")
+        print("#" * 80)
+        print(f"\nOptimal c/a: {optimal_ca:.6f}")
+        print(f"Optimal SWS: {optimal_sws:.6f} Bohr")
+        print(f"Final energy: {final_results.get('kfcd_total_energy'):.6f} Ry")
+        print(f"\nAll results saved in: {self.base_path}")
+        print("#" * 80 + "\n")
 
-            return self.results
+        return self.results
 
 
 def main():
