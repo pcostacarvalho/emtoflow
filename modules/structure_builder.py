@@ -251,14 +251,14 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     # Create SpacegroupAnalyzer (needed for symmetry analysis)
     sga = SpacegroupAnalyzer(structure_pmg)
 
-    # Decide whether to use as-is or convert to conventional
+    # Decide whether to use as-is or convert to primitive
     if user_lat is not None:
         # User explicitly provided LAT and structure - respect their choice
-        # Do NOT convert to conventional cell
+        # Do NOT convert to primitive cell
         work_structure = structure_pmg
     else:
-        # CIF workflow - standardize to conventional cell for consistency
-        work_structure = sga.get_conventional_standard_structure()
+        # CIF workflow - standardize to primitive cell to reduce atoms
+        work_structure = sga.get_primitive_standard_structure()
 
     # Extract lattice parameters
     a = work_structure.lattice.a

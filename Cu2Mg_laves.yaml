@@ -5,7 +5,7 @@ output_path: "Cu2Mg_laves"           # Output directory for all results
 job_name: "Cu2Mg"                 # Job identifier (used in file names)
 
 # Structure Input (REQUIRED - choose ONE approach)
-cif_file: '/home/x_pamca/postdoc_proj/EMTO_input_automation/files/systems/Cu2Mg.cif'                       # Path to CIF file (set to null if using lattice params)
+cif_file: '/home/user/EMTO_input_automation/files/systems/Cu2Mg.cif'                       # Path to CIF file (set to null if using lattice params)
 lat: null                               # EMTO lattice type (1-14)
 a: null                              # Lattice parameter a (Angstroms)
 b: null                              # Lattice parameter b (default: same as a)
@@ -21,7 +21,7 @@ gamma: null                          # Lattice angle gamma (degrees, REQUIRED fo
 ca_ratios: null                      # Calculate from structure's c/a ratio
 sws_values: null                     # Calculate from structure's volume
 initial_sws: [2.60]                  # SWS value(s) to use during
-auto-generate: true                     # Auto-generate ranges around provided values
+auto_generate: true                     # Auto-generate ranges around provided values
 ca_step: 0.02                          # Step size for c/a range (default: 0.02)
 sws_step: 0.05                         # Step size for SWS range (default:
 n_points: 7                            # Number of points in range (default: 7)
