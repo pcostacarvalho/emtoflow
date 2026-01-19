@@ -1,14 +1,14 @@
 KGRN      HP..= 0   !                              xx xxx xx
-JOBNAM...=Cu2Mg_1.00_2.87
+JOBNAM...=CuMg_1.00_2.52
 MSGL.=1 STRT.=A FUNC.=SCA EXPAN=1 FCD.=Y GPM.=N FSM.=N
-FOR001=./smx/Cu2Mg_1.00.tfh
-FOR002=./smx/Cu2Mg_1.00.mdl
+FOR001=./smx/CuMg_1.00.tfh
+FOR002=./smx/CuMg_1.00.mdl
 DIR003=./pot/
 DIR006=
 DIR010=./chd/
 DIR011=./tmp
-DIR021=Cu2Mg_1.00_2.87.gpm.dat
-DIR022=./shp/Cu2Mg_1.00.shp
+DIR021=CuMg_1.00_2.52.gpm.dat
+DIR022=./shp/CuMg_1.00.shp
 FOR098=/home/x_pamca/postdoc_proj/emto/jij_EMTO/kgrn_new2020/ATOM.cfg
 Self-consistent KKR calculation
 **********************************************************************
@@ -22,18 +22,14 @@ ZMSH...= E NZ1..= 16 NZ2..= 16 NZ3..= 16 NRES.=  4 NZD..=999
 DEPTH..=  1.100 IMAGZ.=  0.005 EPS...=  0.200 ELIM..= -1.000
 AMIX...=  0.010 VMIX..=   0.70 EFMIX.=  0.900 VMTZ..=  0.000
 TOLE...= 1.d-07 TOLEF.= 1.d-08 TOLCPA= 1.d-06 TFERMI=  300.0 (K)
-SWS....=   2.87 MMOM..=  0.000
+SWS....=   2.52 MMOM..=  0.000
 EFGS...=  0.000 HX....=  0.101 NX...=  5 NZ0..= 16 KPOLE=  0
 **********************************************************************
 Sort:  information for alloy:                                        *
 ******************************SS-screeining*|***Magnetic structure ***
 Symb  IQ  IT ITA NRM  CONC      a_scr b_scr |Teta    Phi    FXM  m(split)
-Mg     1   1   1   1  1.000000  0.750 1.100  0.0000  0.0000  N   0.0000
-Mg     2   1   1   1  1.000000  0.750 1.100  0.0000  0.0000  N   0.0000
-Cu     3   2   1   1  1.000000  0.750 1.100  0.0000  0.0000  N   0.0000
-Cu     4   2   1   1  1.000000  0.750 1.100  0.0000  0.0000  N   0.0000
-Cu     5   2   1   1  1.000000  0.750 1.100  0.0000  0.0000  N   0.0000
-Cu     6   2   1   1  1.000000  0.750 1.100  0.0000  0.0000  N   0.0000
+Cu     1   1   1   1  0.250000  0.750 1.100  0.0000  0.0000  N   0.0000
+Mg     1   1   2   1  0.750000  0.750 1.100  0.0000  0.0000  N   0.0000
 **********************************************************************
 Spin-spiral wave vector:
 qx....= 0.000000 qy....= 0.000000 qz....= 0.000000

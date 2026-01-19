@@ -87,7 +87,7 @@ user_magnetic_moments: {'Cu': 0.0, 'Mg': 0.0}
 
 # Optimization Settings
 optimize_ca: false                  # Disable for quick test
-optimize_sws: true
+optimize_sws: false
 optimize_dmax: false
 dmax_initial: 2.0
 dmax_target_vectors: 100

@@ -1398,63 +1398,72 @@ class OptimizationWorkflow:
             )
         except Exception as e:
             raise RuntimeError(f"Optimized calculation failed: {e}")
+        
+        if self.config.get('prepare_only', False):
+            print(f"\n{'='*70}")
+            print(f"PREPARE_ONLY MODE: Skipping DOS analysis and Summary report")
+            print(f"{'='*70}")
+            self.results = {}
+            return self.results
 
-        # Step 6: DOS analysis (optional)
-        if self.config.get('generate_dos', False):
+        else:
+
+            # Step 6: DOS analysis (optional)
+            if self.config.get('generate_dos', False):
+                try:
+                    file_id = final_results['file_id']
+                    phase_path = self.base_path / "phase3_optimized_calculation"
+
+                    dos_results = self.generate_dos_analysis(
+                        phase_path=phase_path,
+                        file_id=file_id,
+                        plot_range=self.config.get('dos_plot_range')
+                    )
+
+                    self.results['dos_analysis'] = dos_results
+
+                except Exception as e:
+                    print(f"Warning: DOS analysis failed: {e}")
+
+            # Step 7: Generate summary report
             try:
-                file_id = final_results['file_id']
-                phase_path = self.base_path / "phase3_optimized_calculation"
-
-                dos_results = self.generate_dos_analysis(
-                    phase_path=phase_path,
-                    file_id=file_id,
-                    plot_range=self.config.get('dos_plot_range')
-                )
-
-                self.results['dos_analysis'] = dos_results
-
+                summary = self.generate_summary_report()
+                print("\n" + summary)
             except Exception as e:
-                print(f"Warning: DOS analysis failed: {e}")
+                print(f"Warning: Failed to generate summary report: {e}")
 
-        # Step 7: Generate summary report
-        try:
-            summary = self.generate_summary_report()
-            print("\n" + summary)
-        except Exception as e:
-            print(f"Warning: Failed to generate summary report: {e}")
+            # Save complete workflow results
+            import json
 
-        # Save complete workflow results
-        import json
-
-        workflow_results = {
-            'job_name': self.config['job_name'],
-            'optimal_ca': optimal_ca,
-            'optimal_sws': optimal_sws,
-            'phases_completed': list(self.results.keys()),
-            'final_energy': final_results.get('kfcd_total_energy'),
-            'structure_info': {
-                'lattice_type': structure['lat'],
-                'lattice_name': structure.get('lattice_name', 'Unknown'),
-                'num_atoms': structure['NQ3']
+            workflow_results = {
+                'job_name': self.config['job_name'],
+                'optimal_ca': optimal_ca,
+                'optimal_sws': optimal_sws,
+                'phases_completed': list(self.results.keys()),
+                'final_energy': final_results.get('kfcd_total_energy'),
+                'structure_info': {
+                    'lattice_type': structure['lat'],
+                    'lattice_name': structure.get('lattice_name', 'Unknown'),
+                    'num_atoms': structure['NQ3']
+                }
             }
-        }
 
-        results_file = self.base_path / "workflow_results.json"
-        with open(results_file, 'w') as f:
-            json.dump(workflow_results, f, indent=2)
+            results_file = self.base_path / "workflow_results.json"
+            with open(results_file, 'w') as f:
+                json.dump(workflow_results, f, indent=2)
 
-        print(f"\n✓ Complete workflow results saved to: {results_file}")
+            print(f"\n✓ Complete workflow results saved to: {results_file}")
 
-        print("\n" + "#" * 80)
-        print("# WORKFLOW COMPLETED SUCCESSFULLY")
-        print("#" * 80)
-        print(f"\nOptimal c/a: {optimal_ca:.6f}")
-        print(f"Optimal SWS: {optimal_sws:.6f} Bohr")
-        print(f"Final energy: {final_results.get('kfcd_total_energy'):.6f} Ry")
-        print(f"\nAll results saved in: {self.base_path}")
-        print("#" * 80 + "\n")
+            print("\n" + "#" * 80)
+            print("# WORKFLOW COMPLETED SUCCESSFULLY")
+            print("#" * 80)
+            print(f"\nOptimal c/a: {optimal_ca:.6f}")
+            print(f"Optimal SWS: {optimal_sws:.6f} Bohr")
+            print(f"Final energy: {final_results.get('kfcd_total_energy'):.6f} Ry")
+            print(f"\nAll results saved in: {self.base_path}")
+            print("#" * 80 + "\n")
 
-        return self.results
+            return self.results
 
 
 def main():
