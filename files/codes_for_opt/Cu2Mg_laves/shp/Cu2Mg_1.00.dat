@@ -1,0 +1,32 @@
+SHAPE     HP......=N
+JOBNAM...=Cu2Mg_1.00 MSGL.=  1
+FOR001=../smx/Cu2Mg_1.00.tfh
+DIR002=./
+DIR006=./
+Lmax..= 30 NSR..=129 NFI..= 11
+NPRN..=  0 IVEF.=  3
+****** Relative atomic sphere radii ASR(1:NQ) ******
+ASR(1).= 1.0
+ASR(2).= 1.0
+ASR(3).= 1.0
+ASR(4).= 1.0
+ASR(5).= 1.0
+ASR(6).= 1.0
+ASR(7).= 1.0
+ASR(8).= 1.0
+ASR(9).= 1.0
+ASR(10).= 1.0
+ASR(11).= 1.0
+ASR(12).= 1.0
+ASR(13).= 1.0
+ASR(14).= 1.0
+ASR(15).= 1.0
+ASR(16).= 1.0
+ASR(17).= 1.0
+ASR(18).= 1.0
+ASR(19).= 1.0
+ASR(20).= 1.0
+ASR(21).= 1.0
+ASR(22).= 1.0
+ASR(23).= 1.0
+ASR(24).= 1.0

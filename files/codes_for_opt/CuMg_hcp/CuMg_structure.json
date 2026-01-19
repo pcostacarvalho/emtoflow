@@ -1,0 +1,192 @@
+{
+  "pymatgen_info": {
+    "num_sites": 2,
+    "volume": 46.49202041193456,
+    "lattice_matrix": [
+      [
+        3.21,
+        0.0,
+        0.0
+      ],
+      [
+        -1.605,
+        2.7799415461480477,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        5.21
+      ]
+    ],
+    "lattice_params": {
+      "a": 3.21,
+      "b": 3.2099999999999995,
+      "c": 5.21,
+      "alpha": 90.0,
+      "beta": 90.0,
+      "gamma": 120.00000000000001
+    },
+    "sites": [
+      {
+        "frac_coords": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "cart_coords": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "species": "Mg1",
+        "occupancy": {
+          "Mg": 1.0
+        }
+      },
+      {
+        "frac_coords": [
+          0.3333,
+          0.6667,
+          0.5
+        ],
+        "cart_coords": [
+          -0.00016049999999993996,
+          1.8533870288169032,
+          2.605
+        ],
+        "species": "Mg1",
+        "occupancy": {
+          "Mg": 1.0
+        }
+      }
+    ]
+  },
+  "user_input": {
+    "lat": 4,
+    "a": 3.21,
+    "b": 3.21,
+    "c": 5.21,
+    "gamma": 120,
+    "note": "Includes non-90\u00b0 angles for monoclinic/triclinic lattice"
+  },
+  "emto_structure": {
+    "lat": 4,
+    "lattice_name": "Hexagonal",
+    "a": 3.21,
+    "b": 3.2099999999999995,
+    "c": 5.21,
+    "boa": 0.9999999999999999,
+    "coa": 1.6230529595015577,
+    "BSX": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "BSY": [
+      -0.5,
+      0.8660254037844386,
+      0.0
+    ],
+    "BSZ": [
+      0.0,
+      0.0,
+      1.6230529595015577
+    ],
+    "crystal_system": "hexagonal",
+    "centering": "P",
+    "NQ3": 2,
+    "NL": 3,
+    "atoms": [
+      "Cu,Mg",
+      "Cu,Mg"
+    ],
+    "unique_elements": [
+      "Cu",
+      "Mg"
+    ],
+    "fractional_coords": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.3333,
+        0.6667,
+        0.5
+      ]
+    ],
+    "coords": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        -0.00016049999999993996,
+        1.8533870288169032,
+        2.605
+      ]
+    ],
+    "atom_info": [
+      {
+        "IQ": 1,
+        "symbol": "Cu",
+        "IT": 1,
+        "ITA": 1,
+        "conc": 0,
+        "default_moment": 0.0,
+        "a_scr": 0.75,
+        "b_scr": 1.1
+      },
+      {
+        "IQ": 1,
+        "symbol": "Mg",
+        "IT": 1,
+        "ITA": 2,
+        "conc": 1,
+        "default_moment": 0.0,
+        "a_scr": 0.75,
+        "b_scr": 1.1
+      },
+      {
+        "IQ": 2,
+        "symbol": "Cu",
+        "IT": 1,
+        "ITA": 1,
+        "conc": 0,
+        "default_moment": 0.0,
+        "a_scr": 0.75,
+        "b_scr": 1.1
+      },
+      {
+        "IQ": 2,
+        "symbol": "Mg",
+        "IT": 1,
+        "ITA": 2,
+        "conc": 1,
+        "default_moment": 0.0,
+        "a_scr": 0.75,
+        "b_scr": 1.1
+      }
+    ],
+    "matrix": [
+      [
+        3.21,
+        0.0,
+        0.0
+      ],
+      [
+        -1.605,
+        2.7799415461480477,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        5.21
+      ]
+    ]
+  }
+}
