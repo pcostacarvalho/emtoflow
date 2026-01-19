@@ -21,7 +21,7 @@ gamma: null                          # Lattice angle gamma (degrees, REQUIRED fo
 ca_ratios: null                      # Calculate from structure's c/a ratio
 sws_values: null                     # Calculate from structure's volume
 initial_sws: [2.60]                  # SWS value(s) to use during
-auto-generate: true                     # Auto-generate ranges around provided values
+auto_generate: true                     # Auto-generate ranges around provided values
 ca_step: 0.02                          # Step size for c/a range (default: 0.02)
 sws_step: 0.05                         # Step size for SWS range (default:
 n_points: 7                            # Number of points in range (default: 7)
