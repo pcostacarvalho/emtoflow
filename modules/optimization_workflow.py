@@ -318,6 +318,13 @@ class OptimizationWorkflow:
         """
         phase_path = Path(phase_path)
 
+        # Skip validation if prepare_only mode
+        if self.config.get('prepare_only', False):
+            print(f"\n{'='*70}")
+            print(f"SKIPPING VALIDATION (prepare_only=True)")
+            print(f"{'='*70}")
+            return  # Skip validation when no calculations were run
+
         print(f"\n{'='*70}")
         print(f"VALIDATING CALCULATIONS")
         print(f"{'='*70}")
