@@ -211,6 +211,10 @@ def parse_kfcd(filepath: str) -> EMTOResults:
                     # Build IQ to element mapping
                     if iq not in results.iq_to_element:
                         results.iq_to_element[iq] = atom
+                    # Add to atoms list (will be added here regardless of magnetic moments)
+                    atom_key = (iq, ita, atom)
+                    if atom_key not in results.atoms:
+                        results.atoms.append(atom_key)
 
     # Extract magnetic moments per IQ with ITA context
     current_ita = None  # Only need to track ITA
@@ -234,15 +238,8 @@ def parse_kfcd(filepath: str) -> EMTOResults:
                     atom = iq_ita_to_atom[(iq, current_ita)]
                     key = (iq, current_ita, atom)
                     results.magnetic_moments[key] = mag_moment
+                    # Note: atoms list is already populated during concentration extraction
 
-                    if key not in results.atoms:
-                        results.atoms.append(key)
-    
-    # Build IQ to element mapping from atoms
-    for (iq, ita, atom) in results.atoms:
-        if iq not in results.iq_to_element:
-            results.iq_to_element[iq] = atom
-    
     # Calculate weighted magnetic moments per IQ
     for (iq, ita, atom), magm in results.magnetic_moments.items():
         conc = results.concentrations.get((iq, ita), 0.0)
@@ -326,7 +323,16 @@ def parse_kfcd(filepath: str) -> EMTOResults:
                         results.energies_by_functional['system']['LAG'] = float(match.group(1))
         
         i += 1
-    
+
+    # Set total_energy to GGA value (or LDA if GGA not available)
+    if 'system' in results.energies_by_functional:
+        if 'GGA' in results.energies_by_functional['system']:
+            results.total_energy = results.energies_by_functional['system']['GGA']
+        elif 'LDA' in results.energies_by_functional['system']:
+            results.total_energy = results.energies_by_functional['system']['LDA']
+        elif 'LAG' in results.energies_by_functional['system']:
+            results.total_energy = results.energies_by_functional['system']['LAG']
+
     return results
 
 
