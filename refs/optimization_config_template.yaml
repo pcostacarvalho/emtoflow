@@ -1,0 +1,235 @@
+# ==============================================================================
+# EMTO Input Automation - Complete Configuration Template
+# ==============================================================================
+# This template includes ALL available configuration options with detailed
+# explanations. Copy this file and modify values as needed for your calculation.
+#
+# REQUIRED fields are marked with (REQUIRED)
+# OPTIONAL fields show default values
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# BASIC SETTINGS
+# ------------------------------------------------------------------------------
+
+output_path: "output_directory"     # (REQUIRED) Base directory for all results
+job_name: "job_identifier"          # (REQUIRED) Job name used in filenames
+
+
+# ------------------------------------------------------------------------------
+# STRUCTURE INPUT - Choose ONE of two approaches
+# ------------------------------------------------------------------------------
+
+# Option 1: CIF File Input (for ordered structures)
+cif_file: "path/to/structure.cif"   # Path to CIF file (set to null if using lattice params)
+
+# Option 2: Lattice Parameter Input (for alloys and custom structures)
+lat: null                            # EMTO lattice type (1-14, see LATTICE_TYPES.md)
+a: null                              # Lattice parameter a (Angstroms)
+b: null                              # Lattice parameter b (default: same as a)
+c: null                              # Lattice parameter c (default: same as a for cubic, 1.633*a for HCP)
+alpha: null                          # Lattice angle alpha (degrees, REQUIRED for LAT 14 triclinic)
+beta: null                           # Lattice angle beta (degrees, REQUIRED for LAT 14 triclinic)
+gamma: null                          # Lattice angle gamma (degrees, REQUIRED for LAT 12-14 monoclinic/triclinic)
+
+# Site specifications for parameter-based input (REQUIRED if not using CIF)
+# Example - FCC Cu-Mg random alloy:
+#   sites: [{'position': [0, 0, 0], 'elements': ['Cu', 'Mg'], 'concentrations': [0.8, 0.2]}]
+# Example - L10 ordered structure:
+#   sites: [{'position': [0, 0, 0], 'elements': ['Fe'], 'concentrations': [1.0]},
+#           {'position': [0.5, 0.5, 0.5], 'elements': ['Pt'], 'concentrations': [1.0]}]
+sites: null
+
+
+# ------------------------------------------------------------------------------
+# PARAMETER RANGES - Controls c/a and SWS sweeps
+# ------------------------------------------------------------------------------
+
+# Direct specification (use ONE of these for each parameter)
+ca_ratios: null                      # List of c/a ratios: [0.96, 0.98, 1.00, 1.02, 1.04]
+                                     # If null: uses structure's c/a ratio
+sws_values: null                     # List of SWS values: [2.60, 2.65, 2.70]
+                                     # If null: calculates from structure volume
+
+# Auto-generation from single values (creates range around provided value)
+auto_generate: true                  # Auto-generate ranges if single value provided
+ca_step: 0.02                        # Step size for c/a range (default: 0.02)
+sws_step: 0.05                       # Step size for SWS range (default: 0.05)
+n_points: 7                          # Number of points in auto-generated range (default: 7)
+
+# Initial SWS for c/a optimization (Phase 1)
+initial_sws: null                    # SWS value(s) to use during c/a optimization
+                                     # If null: uses middle value from sws_values
+
+
+# ------------------------------------------------------------------------------
+# EMTO CALCULATION PARAMETERS
+# ------------------------------------------------------------------------------
+
+dmax: null                           # Maximum distance parameter for neighbor shells
+                                     # Typical values: 1.3-2.5 (default: 1.8 if null)
+
+magnetic: "P"                        # Magnetic configuration:
+                                     # "P" = Paramagnetic (default)
+                                     # "F" = Ferromagnetic
+                                     # "A" = Antiferromagnetic
+
+user_magnetic_moments: null          # Custom magnetic moments per element
+                                     # Example: {'Fe': 2.2, 'Co': 1.7, 'Ni': 0.6}
+                                     # If null: uses default database values
+
+functional: "GGA"                    # Exchange-correlation functional/pseudopotential:
+                                     # "GGA" = Generalized Gradient Approximation (default)
+                                     # "LDA" = Local Density Approximation
+                                     # "LAG" = Langreth-Lundqvist
+
+
+# ------------------------------------------------------------------------------
+# OPTIMIZATION FLAGS - Enable/disable optimization phases
+# ------------------------------------------------------------------------------
+
+optimize_ca: false                   # Enable c/a ratio optimization (Phase 1)
+optimize_sws: false                  # Enable SWS (volume) optimization (Phase 2)
+
+
+# ------------------------------------------------------------------------------
+# DMAX OPTIMIZATION - Automatic cutoff distance optimization
+# ------------------------------------------------------------------------------
+
+optimize_dmax: false                 # Enable automatic DMAX optimization
+dmax_initial: 2.0                    # Initial DMAX guess (default: 2.0)
+dmax_target_vectors: 100             # Target number of k-vectors (default: 100)
+dmax_vector_tolerance: 15            # Acceptable deviation ±N vectors (default: 15)
+
+
+# ------------------------------------------------------------------------------
+# EXECUTION SETTINGS
+# ------------------------------------------------------------------------------
+
+run_mode: "local"                    # Execution mode:
+                                     # "local" = Run on local machine (default)
+                                     # "sbatch" = Submit to SLURM queue
+
+prcs: 8                              # Number of processors per job (default: 8)
+
+# SLURM settings (only used if run_mode="sbatch")
+slurm_account: "naiss2025-1-38"      # SLURM account (default: "naiss2025-1-38")
+slurm_partition: "main"              # SLURM partition (default: "main")
+slurm_time: "02:00:00"               # Time limit HH:MM:SS (default: "02:00:00")
+
+# Job script settings
+create_job_script: true              # Generate job submission scripts (default: true)
+job_mode: "serial"                   # Job execution mode:
+                                     # "serial" = Sequential execution (default)
+                                     # "parallel" = Parallel execution with dependencies
+
+
+# ------------------------------------------------------------------------------
+# EXECUTABLE PATHS - Paths to EMTO binaries
+# ------------------------------------------------------------------------------
+
+kstr_executable: "/home/x_pamca/postdoc_proj/emto/bin/kstr.exe"
+shape_executable: "/home/x_pamca/postdoc_proj/emto/bin/shape.exe"
+kgrn_executable: "/home/x_pamca/postdoc_proj/emto/bin/kgrn_mpi.x"
+kfcd_executable: "/home/x_pamca/postdoc_proj/emto/bin/kfcd.exe"
+eos_executable: "/home/x_pamca/postdoc_proj/emto/bin/eos.exe"
+
+
+# ------------------------------------------------------------------------------
+# EQUATION OF STATE SETTINGS
+# ------------------------------------------------------------------------------
+
+eos_type: "MO88"                     # EOS fitting type:
+                                     # "MO88" = Morse (default)
+                                     # "POLN" = Polynomial
+                                     # "SPLN" = Spline
+                                     # "MU37" = Murnaghan
+                                     # "BM35" = Birch-Murnaghan
+                                     # "ALL" = Fit all types
+
+
+# ------------------------------------------------------------------------------
+# ANALYSIS SETTINGS
+# ------------------------------------------------------------------------------
+
+generate_plots: true                 # Generate EOS and DOS plots (default: true)
+export_csv: true                     # Export results to CSV format (default: true)
+plot_format: "png"                   # Plot file format: png, pdf, svg (default: "png")
+
+generate_dos: false                  # Generate DOS files during calculations (default: false)
+dos_plot_range: [-0.8, 0.15]         # Energy range for DOS plots in Ry (default: [-0.8, 0.15])
+
+
+# ------------------------------------------------------------------------------
+# REFERENCE VALUES - For percentage calculations in results
+# ------------------------------------------------------------------------------
+
+reference_ca: null                   # Reference c/a ratio for % deviation calculations
+reference_sws: null                  # Reference SWS value for % deviation calculations
+reference_volume: null               # Reference volume for % deviation calculations
+
+
+# ------------------------------------------------------------------------------
+# JOB MONITORING SETTINGS
+# ------------------------------------------------------------------------------
+
+poll_interval: 30                    # Check job status every N seconds (default: 30)
+max_wait_time: 7200                  # Maximum wait time in seconds (default: 7200 = 2 hours)
+timeout_action: "stop"               # Action on timeout:
+                                     # "stop" = Stop workflow (default)
+                                     # "continue" = Continue to next phase
+                                     # "retry" = Retry the timed-out phase
+
+
+# ------------------------------------------------------------------------------
+# ADVANCED SETTINGS
+# ------------------------------------------------------------------------------
+
+skip_existing: false                 # Skip calculations if output files exist (default: false)
+save_intermediate: true              # Save intermediate results to JSON (default: true)
+cleanup_temp: false                  # Remove temporary files after completion (default: false)
+log_level: "INFO"                    # Logging verbosity:
+                                     # "DEBUG", "INFO", "WARNING", "ERROR" (default: "INFO")
+
+
+# ------------------------------------------------------------------------------
+# WORKFLOW MODE
+# ------------------------------------------------------------------------------
+
+prepare_only: false                  # Prepare input files only, don't run calculations (default: false)
+                                     # Useful for generating inputs to run manually or on a different system
+
+
+# ------------------------------------------------------------------------------
+# ALLOY PERCENTAGE LOOP - Systematic composition variation
+# ------------------------------------------------------------------------------
+# Enables automatic looping over different alloy compositions
+# See ALLOY_LOOP_USAGE.md for detailed documentation
+
+loop_perc: null                      # Set to a dictionary to enable alloy composition loop
+                                     # If null: single composition calculation (default)
+
+# Example configuration for alloy percentage loop:
+# loop_perc:
+#   enabled: true                    # Enable composition loop (REQUIRED if using loop_perc)
+#   start: 0                         # Starting percentage (default: 0)
+#   end: 100                         # Ending percentage (default: 100)
+#   step: 10                         # Percentage step size (default: 10)
+#   site_index: 0                    # Site index to vary (0-based, default: 0)
+#   element_index: 0                 # Element index within site (0-based, default: 0)
+#   phase_diagram: false             # Generate phase diagram data (default: false)
+#   percentages: null                # Custom list of percentages (overrides start/end/step)
+#                                    # Example: [0, 25, 50, 75, 100]
+
+# Example: Loop Cu concentration from 0-100% in Cu-Mg FCC alloy
+# loop_perc:
+#   enabled: true
+#   start: 0
+#   end: 100
+#   step: 10
+#   site_index: 0        # First (and only) site
+#   element_index: 0     # Cu is first element in ['Cu', 'Mg']
+
+# ==============================================================================
+# END OF CONFIGURATION TEMPLATE
+# ==============================================================================

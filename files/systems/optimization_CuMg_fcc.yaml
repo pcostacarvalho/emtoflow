@@ -73,6 +73,7 @@ n_points: 7                            # Number of points in range (default: 7)
 # ------------------------------------------------------------------------------
 dmax: 1.52                             # Maximum distance parameter
 magnetic: "P"                          # Magnetic type: "P" (paramagnetic) or "F" (ferromagnetic)
+functional: "GGA"                      # Exchange-correlation functional: "GGA", "LDA", "LAG" (default: "GGA")
 
 # Optional EMTO parameters (usually auto-detected from structure)
 # NL: 3                                # Maximum angular momentum
@@ -126,16 +127,34 @@ plot_format: "png"                     # Plot format: png, pdf, svg
 # reference_volume: null               # Reference volume
 
 # ------------------------------------------------------------------------------
+# Workflow Mode (OPTIONAL)
+# ------------------------------------------------------------------------------
+# prepare_only: false                  # Prepare input files only, don't run calculations (default: false)
+
+# ------------------------------------------------------------------------------
 # Advanced Settings (OPTIONAL)
 # ------------------------------------------------------------------------------
 # skip_existing: false                 # Skip calculations if output exists
 # save_intermediate: true              # Save intermediate results
 # cleanup_temp: false                  # Remove temporary files after completion
 # log_level: "INFO"                    # Logging level: DEBUG, INFO, WARNING, ERROR
-# max_iterations: 100                  # Maximum SCF iterations
-# convergence_tolerance: 1e-6          # SCF convergence tolerance
 
 # Job monitoring settings
 # poll_interval: 30                    # Check job status every N seconds
 # max_wait_time: 7200                  # Maximum wait time (seconds)
 # timeout_action: "stop"               # Action on timeout: stop, continue, retry
+
+# ------------------------------------------------------------------------------
+# Alloy Percentage Loop (OPTIONAL)
+# ------------------------------------------------------------------------------
+# Enables systematic variation of alloy composition
+# See ALLOY_LOOP_USAGE.md for detailed documentation
+# loop_perc:
+#   enabled: true                      # Enable composition loop
+#   start: 0                           # Starting percentage (default: 0)
+#   end: 100                           # Ending percentage (default: 100)
+#   step: 10                           # Percentage step size (default: 10)
+#   site_index: 0                      # Site index to vary (0-based, default: 0)
+#   element_index: 0                   # Element index within site (0-based, default: 0)
+#   phase_diagram: false               # Generate phase diagram data (default: false)
+#   percentages: null                  # Custom list of percentages (overrides start/end/step)

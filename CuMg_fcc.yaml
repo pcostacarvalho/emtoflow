@@ -28,8 +28,9 @@ n_points: 7                            # Number of points in range (default: 7)
 
 # EMTO Calculation Parameters (REQUIRED)
 dmax: 1.8                             # Maximum distance parameter for neighbor shells
-magnetic: "P"                          # Magnetic type: "P" (paramagnetic) or
+magnetic: "P"                          # Magnetic type: "P" (paramagnetic) or "F" (ferromagnetic)
 user_magnetic_moments: {'Cu':0.0, 'Mg': 0.0}          # Custom magnetic moments (optional)
+functional: "GGA"                      # Exchange-correlation functional: "GGA", "LDA", "LAG" (default: "GGA")
 
  
  # Optimization Settings (REQUIRED)
