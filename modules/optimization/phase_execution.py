@@ -162,6 +162,33 @@ def optimize_ca_ratio(
         eos_type=config.get('eos_type', 'MO88')
     )
 
+    # Generate EOS plot
+    try:
+        from modules.optimization.analysis import plot_eos_fit
+
+        # Determine which EOS type to plot (default to morse)
+        eos_type_map = {
+            'MO88': 'morse',
+            'POLN': 'polynomial',
+            'SPLN': 'spline',
+            'MU37': 'murnaghan',
+            'BM52': 'birch_murnaghan',
+            'ALL': 'morse'  # Default to morse if ALL was used
+        }
+        plot_eos_type = eos_type_map.get(config.get('eos_type', 'MO88'), 'morse')
+
+        eos_output_file = phase_path / f"eos_{config['job_name']}_ca.out"
+        plot_eos_fit(
+            eos_output_file=eos_output_file,
+            output_path=phase_path,
+            variable_name='c/a',
+            variable_units='',
+            title=f"c/a Ratio Optimization - {config['job_name']}",
+            eos_type=plot_eos_type
+        )
+    except Exception as e:
+        print(f"Warning: Failed to generate EOS plot: {e}")
+
     # Save results
     phase_results = {
         'optimal_ca': optimal_ca,
@@ -320,6 +347,33 @@ def optimize_sws(
         comment=f"SWS optimization for {config['job_name']} at c/a={optimal_ca:.4f}",
         eos_type=config.get('eos_type', 'MO88')
     )
+
+    # Generate EOS plot
+    try:
+        from modules.optimization.analysis import plot_eos_fit
+
+        # Determine which EOS type to plot (default to morse)
+        eos_type_map = {
+            'MO88': 'morse',
+            'POLN': 'polynomial',
+            'SPLN': 'spline',
+            'MU37': 'murnaghan',
+            'BM52': 'birch_murnaghan',
+            'ALL': 'morse'  # Default to morse if ALL was used
+        }
+        plot_eos_type = eos_type_map.get(config.get('eos_type', 'MO88'), 'morse')
+
+        eos_output_file = phase_path / f"eos_{config['job_name']}_sws.out"
+        plot_eos_fit(
+            eos_output_file=eos_output_file,
+            output_path=phase_path,
+            variable_name='R_WS',
+            variable_units='Bohr',
+            title=f"Wigner-Seitz Radius Optimization - {config['job_name']}",
+            eos_type=plot_eos_type
+        )
+    except Exception as e:
+        print(f"Warning: Failed to generate EOS plot: {e}")
 
     # Calculate derived parameters
     # SWS is in atomic units (Bohr), convert to lattice parameters in Angstroms

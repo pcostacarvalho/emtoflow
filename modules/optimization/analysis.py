@@ -8,9 +8,11 @@ Handles EOS fitting, DOS analysis, and report generation.
 import subprocess
 from pathlib import Path
 from typing import Union, List, Dict, Any, Optional, Tuple
+import numpy as np
+import matplotlib.pyplot as plt
 
 from modules.inputs.eos_emto import create_eos_input
-from modules.inputs.eos_emto import parse_eos_output
+from modules.inputs.eos_emto import parse_eos_output, morse_energy
 
 
 def run_eos_fit(
@@ -152,6 +154,202 @@ def run_eos_fit(
     print(f"{'='*70}\n")
 
     return optimal_value, results
+
+
+def plot_eos_fit(
+    eos_output_file: Union[str, Path],
+    output_path: Union[str, Path],
+    variable_name: str = 'R',
+    variable_units: str = 'au',
+    title: Optional[str] = None,
+    eos_type: str = 'morse'
+) -> Dict[str, Any]:
+    """
+    Generate EOS fit plot from EMTO EOS output.
+
+    Creates a plot showing:
+    - DFT data points (black circles)
+    - Fitted curve (blue line)
+    - Vertical line at optimal value (gray dashed)
+    - Grid and labels
+
+    Parameters
+    ----------
+    eos_output_file : str or Path
+        Path to EOS output file (e.g., 'eos.out')
+    output_path : str or Path
+        Directory where plot will be saved
+    variable_name : str, optional
+        Name of the independent variable (e.g., 'c/a', 'R_WS', 'V')
+        Default: 'R'
+    variable_units : str, optional
+        Units of the independent variable (e.g., 'au', 'Bohr', 'Å³')
+        Default: 'au'
+    title : str, optional
+        Plot title. If None, auto-generates based on EOS type
+    eos_type : str, optional
+        Which EOS fit to plot: 'morse', 'polynomial', 'birch_murnaghan',
+        'murnaghan', 'spline'. Default: 'morse'
+
+    Returns
+    -------
+    dict
+        Dictionary with plot information:
+        - 'plot_file': Path to saved plot
+        - 'optimal_value': Optimal parameter from fit
+        - 'equilibrium_energy': Equilibrium energy
+        - 'eos_type': Type of EOS used
+
+    Raises
+    ------
+    FileNotFoundError
+        If EOS output file doesn't exist
+    ValueError
+        If requested EOS type not found in output
+    RuntimeError
+        If plotting fails
+
+    Notes
+    -----
+    Based on the plotting code from files/codes_for_opt/pm_parse_percentages.ipynb
+    Supports all EMTO EOS fit types.
+
+    Examples
+    --------
+    >>> # Plot c/a optimization
+    >>> plot_eos_fit(
+    ...     'phase1_ca_optimization/eos.out',
+    ...     'phase1_ca_optimization',
+    ...     variable_name='c/a',
+    ...     variable_units='',
+    ...     title='c/a Ratio Optimization'
+    ... )
+
+    >>> # Plot SWS optimization
+    >>> plot_eos_fit(
+    ...     'phase2_sws_optimization/eos.out',
+    ...     'phase2_sws_optimization',
+    ...     variable_name='R_WS',
+    ...     variable_units='Bohr',
+    ...     title='Wigner-Seitz Radius Optimization'
+    ... )
+    """
+    eos_output_file = Path(eos_output_file)
+    output_path = Path(output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    if not eos_output_file.exists():
+        raise FileNotFoundError(f"EOS output file not found: {eos_output_file}")
+
+    print(f"\n{'='*70}")
+    print("GENERATING EOS PLOT")
+    print(f"{'='*70}")
+    print(f"Output file: {eos_output_file}")
+    print(f"EOS type: {eos_type}")
+
+    # Parse EOS output
+    try:
+        results = parse_eos_output(str(eos_output_file))
+    except Exception as e:
+        raise RuntimeError(f"Failed to parse EOS output: {e}")
+
+    if not results:
+        raise RuntimeError("No EOS fits found in output file")
+
+    if eos_type not in results:
+        available = ', '.join(results.keys())
+        raise ValueError(
+            f"EOS type '{eos_type}' not found in output. Available: {available}"
+        )
+
+    # Get the requested EOS fit
+    eos_fit = results[eos_type]
+
+    if not eos_fit.data_points:
+        raise RuntimeError(f"No data points found for {eos_type} fit")
+
+    # Extract data points
+    r_data = [p.r for p in eos_fit.data_points]
+    etot_data = [p.etot for p in eos_fit.data_points]
+    efit_data = [p.efit for p in eos_fit.data_points]
+
+    # Generate smooth curve for plotting
+    r_min = min(r_data)
+    r_max = max(r_data)
+    r_smooth = np.linspace(r_min * 0.95, r_max * 1.05, 200)
+
+    # Calculate smooth fitted curve based on EOS type
+    if eos_type == 'morse':
+        # Use Morse equation
+        if not eos_fit.additional_params:
+            raise RuntimeError("Morse parameters not found in EOS fit")
+
+        a = eos_fit.additional_params['a']
+        b = eos_fit.additional_params['b']
+        c = eos_fit.additional_params['c']
+        lambda_param = eos_fit.additional_params['lambda']
+
+        # Calculate relative energies and find offset
+        e_relative_data = [morse_energy(r, a, b, c, lambda_param) for r in r_data]
+        offset = efit_data[0] - e_relative_data[0]
+
+        # Generate smooth curve
+        e_smooth = np.array([morse_energy(r, a, b, c, lambda_param) + offset
+                             for r in r_smooth])
+
+    else:
+        # For other EOS types, use the efit values directly
+        # Interpolate for smooth curve
+        e_smooth = np.interp(r_smooth, r_data, efit_data)
+
+    # Create plot
+    plt.rcParams.update({'font.size': 12})
+    fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+
+    # Plot data points and fitted curve
+    ax.plot(r_data, etot_data, 'ko', markersize=8, label='DFT Data', zorder=5)
+    ax.plot(r_smooth, e_smooth, 'b-', linewidth=2,
+            label=f'{eos_fit.eos_type}', zorder=3, alpha=0.8)
+
+    # Mark optimal value
+    ax.axvline(eos_fit.rwseq, color='gray', linestyle='--', alpha=0.5,
+               label=f'Optimal = {eos_fit.rwseq:.4f} {variable_units}')
+
+    # Labels and formatting
+    if variable_units:
+        xlabel = f'{variable_name} ({variable_units})'
+    else:
+        xlabel = variable_name
+    ax.set_xlabel(xlabel, fontsize=12)
+    ax.set_ylabel('Total Energy (Ry)', fontsize=12)
+
+    if title is None:
+        title = f'Equation of State: {eos_fit.eos_type}'
+    ax.set_title(title, fontsize=13, fontweight='bold')
+
+    ax.legend(fontsize=10, loc='best')
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+
+    # Save plot
+    plot_file = output_path / f"eos_plot_{eos_type}.png"
+    plt.savefig(plot_file, dpi=150, bbox_inches='tight')
+    plt.close()
+
+    print(f"✓ EOS plot saved: {plot_file}")
+    print(f"  Optimal value: {eos_fit.rwseq:.6f} {variable_units}")
+    print(f"  Equilibrium energy: {eos_fit.eeq:.6f} Ry")
+    print(f"  Bulk modulus: {eos_fit.bmod:.2f} kBar")
+    print(f"{'='*70}\n")
+
+    return {
+        'plot_file': str(plot_file),
+        'optimal_value': eos_fit.rwseq,
+        'equilibrium_energy': eos_fit.eeq,
+        'bulk_modulus': eos_fit.bmod,
+        'eos_type': eos_type
+    }
 
 
 def generate_dos_analysis(
@@ -322,6 +520,11 @@ def generate_summary_report(
                 report.append(f"    Equilibrium energy: {params['eeq']:.6f} Ry")
                 report.append(f"    Bulk modulus: {params['bulk_modulus']:.3f} GPa")
 
+        # Check for EOS plot
+        phase1_path = base_path / "phase1_ca_optimization"
+        if (phase1_path / "eos_plot_morse.png").exists():
+            report.append(f"\n  EOS plot: phase1_ca_optimization/eos_plot_morse.png")
+
     # Phase 2: SWS optimization
     if 'phase2_sws_optimization' in results:
         phase2 = results['phase2_sws_optimization']
@@ -342,6 +545,11 @@ def generate_summary_report(
             report.append(f"    c/a = {params['optimal_ca']:.6f}")
             report.append(f"    Volume = {params['total_volume_angstrom3']:.6f} Å³")
             report.append(f"    Lattice: {params['lattice_name']} (type {params['lattice_type']})")
+
+        # Check for EOS plot
+        phase2_path = base_path / "phase2_sws_optimization"
+        if (phase2_path / "eos_plot_morse.png").exists():
+            report.append(f"\n  EOS plot: phase2_sws_optimization/eos_plot_morse.png")
 
     # Phase 3: Optimized calculation
     if 'phase3_optimized_calculation' in results:
