@@ -146,8 +146,12 @@ def run_prepare_only_mode(
         print("=" * 80)
 
         try:
-            # Use first c/a value for SWS sweep
-            optimal_ca = ca_list[0] if ca_list else structure.get('coa', 1.0)
+            # Use first c/a value for SWS sweep (force 1.0 for cubic lattices)
+            if structure.get('lat') in [1, 2, 3]:  # SC, FCC, BCC
+                optimal_ca = 1.0
+                print(f"Cubic lattice detected (LAT={structure.get('lat')}): c/a forced to 1.0")
+            else:
+                optimal_ca = ca_list[0] if ca_list else structure.get('coa', 1.0)
 
             # Create Phase 2 directory
             phase_path = base_path / "phase2_sws_optimization"

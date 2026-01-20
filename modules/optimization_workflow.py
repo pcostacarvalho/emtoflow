@@ -723,8 +723,13 @@ class OptimizationWorkflow:
             except Exception as e:
                 raise RuntimeError(f"c/a optimization failed: {e}")
         else:
-            optimal_ca = ca_list[0] if ca_list else structure.get('coa', 1.0)
-            print(f"\nSkipping c/a optimization, using: {optimal_ca:.6f}")
+            # For cubic lattices, c/a must be 1.0
+            if structure.get('lat') in [1, 2, 3]:  # SC, FCC, BCC
+                optimal_ca = 1.0
+                print(f"\nCubic lattice detected (LAT={structure.get('lat')}): c/a forced to 1.0")
+            else:
+                optimal_ca = ca_list[0] if ca_list else structure.get('coa', 1.0)
+                print(f"\nSkipping c/a optimization, using: {optimal_ca:.6f}")
 
         # Step 4: SWS optimization (optional)
         optimal_sws = None
