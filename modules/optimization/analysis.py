@@ -118,8 +118,10 @@ def run_eos_fit(
         raise RuntimeError(f"Failed to run EOS executable: {e}")
 
     # Step 3: Parse EOS output
+
+    filename_eos_results = output_path / f"{job_name}.out"
     try:
-        results = parse_eos_output(str(eos_output_file))
+        results = parse_eos_output(filename_eos_results)
 
         if not results:
             raise RuntimeError("No results found in EOS output")

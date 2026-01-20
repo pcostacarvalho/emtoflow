@@ -141,13 +141,13 @@ def optimize_ca_ratio(
 
         try:
             results = parse_kfcd(str(kfcd_file))
-            if results.total_energy is None:
+            if results.energies_by_functional['system']['GGA'] is None:
                 raise RuntimeError(f"No total energy found in {kfcd_file}")
 
             ca_values.append(ca)
-            energy_values.append(results.total_energy)
+            energy_values.append(results.energies_by_functional['system']['GGA'])
 
-            print(f"  c/a = {ca:.4f}: E = {results.total_energy:.6f} Ry")
+            print(f"  c/a = {ca:.4f}: E = {results.energies_by_functional['system']['GGA']:.6f} Ry")
 
         except Exception as e:
             raise RuntimeError(f"Failed to parse {kfcd_file}: {e}")
@@ -300,13 +300,13 @@ def optimize_sws(
 
         try:
             results = parse_kfcd(str(kfcd_file))
-            if results.total_energy is None:
+            if results.energies_by_functional['system']['GGA'] is None:
                 raise RuntimeError(f"No total energy found in {kfcd_file}")
 
             sws_parsed.append(sws)
-            energy_values.append(results.total_energy)
+            energy_values.append(results.energies_by_functional['system']['GGA'])
 
-            print(f"  SWS = {sws:.4f}: E = {results.total_energy:.6f} Ry")
+            print(f"  SWS = {sws:.4f}: E = {results.energies_by_functional['system']['GGA']:.6f} Ry")
 
         except Exception as e:
             raise RuntimeError(f"Failed to parse {kfcd_file}: {e}")
@@ -512,7 +512,7 @@ def run_optimized_calculation(
     try:
         kfcd_results = parse_kfcd(str(kfcd_file))
         print(f"\n✓ KFCD results parsed")
-        print(f"  Total energy: {kfcd_results.total_energy:.6f} Ry")
+        print(f"  Total energy: {kfcd_results.energies_by_functional['system']['GGA']:.6f} Ry")
     except Exception as e:
         raise RuntimeError(f"Failed to parse {kfcd_file}: {e}")
 
@@ -527,8 +527,8 @@ def run_optimized_calculation(
                 kfcd_results.atoms
             )
             print(f"✓ KGRN results parsed")
-            if kgrn_results.total_energy:
-                print(f"  Total energy: {kgrn_results.total_energy:.6f} Ry")
+            if kgrn_results.energies_by_functional['system']['GGA']:
+                print(f"  Total energy: {kgrn_results.energies_by_functional['system']['GGA']:.6f} Ry")
         except Exception as e:
             print(f"Warning: Failed to parse KGRN output: {e}")
 
@@ -536,8 +536,8 @@ def run_optimized_calculation(
     phase_results = {
         'optimal_ca': optimal_ca,
         'optimal_sws': optimal_sws,
-        'kfcd_total_energy': kfcd_results.total_energy,
-        'kgrn_total_energy': kgrn_results.total_energy if kgrn_results else None,
+        'kfcd_total_energy': kfcd_results.energies_by_functional['system']['GGA'],
+        'kgrn_total_energy': kgrn_results.energies_by_functional['system']['GGA'] if kgrn_results else None,
         'magnetic_moments': {
             f"IQ{iq}_ITA{ita}_{atom}": moment
             for (iq, ita, atom), moment in kfcd_results.magnetic_moments.items()

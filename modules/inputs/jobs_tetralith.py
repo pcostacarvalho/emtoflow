@@ -26,10 +26,10 @@ for r in {ratios_str}; do
     cd smx
 
     echo "Running KSTR:"
-    {kstr_executable} < ${{id_ratio}}_${{r}}.dat > smx_${{r}}.log
+    {kstr_executable} < {id_ratio}_${{r}}.dat > smx_${{r}}.log
 
     # Check KSTR completion via .prn content
-    if [ ! -f ${id_ratio}_${{r}}.prn ] || ! grep -q "Finished at:" ${id_ratio}_${{r}}.prn 2>/dev/null; then
+    if [ ! -f {id_ratio}_${{r}}.prn ] || ! grep -q "Finished at:" {id_ratio}_${{r}}.prn 2>/dev/null; then
         echo "KSTR failed: .prn file missing or incomplete!"
         grep "Try DMAX" smx_${{r}}.log
         exit 1
@@ -121,10 +121,10 @@ r={r_fmt}
 cd smx
 
 echo "Running KSTR:"
-{kstr_executable} < ${{id_ratio}}_${{r}}.dat > smx_${{r}}.log
+{kstr_executable} < {id_ratio}_${{r}}.dat > smx_${{r}}.log
 
 # Check KSTR completion via .prn content
-if [ ! -f ${id_ratio}_${{r}}.prn ] || ! grep -q "Finished at:" ${id_ratio}_${{r}}.prn 2>/dev/null; then
+if [ ! -f {id_ratio}_${{r}}.prn ] || ! grep -q "Finished at:" {id_ratio}_${{r}}.prn 2>/dev/null; then
     echo "KSTR failed: .prn file missing or incomplete!"
     grep "Try DMAX" smx_${{r}}.log
     exit 1
@@ -138,7 +138,7 @@ grep -A1 "Primv" smx_${{r}}.log
 cd ../shp
 
 echo "Running SHAPE:"
-{shape_executable} < ${{id_ratio}}_${{r}}.dat > shp_${{r}}.log
+{shape_executable} < {id_ratio}_${{r}}.dat > shp_${{r}}.log
 
 # Check SHAPE completion via log content
 if [ ! -f shp_${{r}}.log ] || ! grep -q "Shape function completed" shp_${{r}}.log 2>/dev/null; then
