@@ -728,7 +728,8 @@ class OptimizationWorkflow:
                 optimal_ca = 1.0
                 print(f"\nCubic lattice detected (LAT={structure.get('lat')}): c/a forced to 1.0")
             else:
-                optimal_ca = ca_list[0] if ca_list else structure.get('coa', 1.0)
+                # Prioritize actual input value from structure/CIF over auto-generated list
+                optimal_ca = structure.get('coa') if structure.get('coa') is not None else (ca_list[0] if ca_list else 1.0)
                 print(f"\nSkipping c/a optimization, using: {optimal_ca:.6f}")
 
         # Step 4: SWS optimization (optional)
@@ -743,7 +744,8 @@ class OptimizationWorkflow:
             except Exception as e:
                 raise RuntimeError(f"SWS optimization failed: {e}")
         else:
-            optimal_sws = sws_list[0] if sws_list else None
+            # Prioritize actual input value from structure/CIF over auto-generated list
+            optimal_sws = structure.get('sws') if structure.get('sws') is not None else (sws_list[0] if sws_list else None)
             if optimal_sws is None:
                 raise ValueError("SWS value required but not provided")
             print(f"\nSkipping SWS optimization, using: {optimal_sws:.6f} Bohr")

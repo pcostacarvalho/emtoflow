@@ -151,7 +151,8 @@ def run_prepare_only_mode(
                 optimal_ca = 1.0
                 print(f"Cubic lattice detected (LAT={structure.get('lat')}): c/a forced to 1.0")
             else:
-                optimal_ca = ca_list[0] if ca_list else structure.get('coa', 1.0)
+                # Prioritize actual input value from structure/CIF over auto-generated list
+                optimal_ca = structure.get('coa') if structure.get('coa') is not None else (ca_list[0] if ca_list else 1.0)
 
             # Create Phase 2 directory
             phase_path = base_path / "phase2_sws_optimization"
