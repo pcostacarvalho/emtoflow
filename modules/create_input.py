@@ -452,7 +452,11 @@ def create_emto_inputs(config):
                 id_full=file_id_full,
                 id_ratio=file_id_ratio,
                 SWS=sws,
-                magnetic= magnetic if magnetic is not None else 'F'
+                magnetic=magnetic if magnetic is not None else 'F',
+                kpoints=config.get('kpoints'),
+                nkx=config.get('nkx', 21),
+                nky=config.get('nky', 21),
+                nkz=config.get('nkz', 21)
             )
  
             # Create KFCD input

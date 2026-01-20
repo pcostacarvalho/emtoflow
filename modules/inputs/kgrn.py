@@ -1,6 +1,6 @@
 import os
 
-def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic):
+def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic, kpoints=None, nkx=21, nky=21, nkz=21):
     """
     Create a KGRN (self-consistent KKR) input file for EMTO from structure dict.
 
@@ -21,6 +21,16 @@ def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic):
         Wigner-Seitz radius
     magnetic : str
         'P' for paramagnetic or 'F' for ferromagnetic
+    kpoints : list of lists, optional
+        Custom k-points in format [[kx, ky, kz], ...] or [[kx, ky, kz, weight], ...]
+        If provided, uses explicit k-points instead of automatic mesh.
+        Default: None (uses automatic Monkhorst-Pack mesh)
+    nkx : int, optional
+        K-mesh divisions along x-axis (default: 21, ignored if kpoints provided)
+    nky : int, optional
+        K-mesh divisions along y-axis (default: 21, ignored if kpoints provided)
+    nkz : int, optional
+        K-mesh divisions along z-axis (default: 21, ignored if kpoints provided)
 
     Notes
     -----
@@ -55,6 +65,27 @@ def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic):
 
     atoms_section = "\n".join(atom_lines)
 
+    # Build k-mesh line based on whether custom k-points are provided
+    if kpoints is not None:
+        # Use explicit k-points (KMSH='E')
+        kmsh_line = f"KMSH...= E IBZ..={lat:>3} NKX..=  0 NKY..=  0 NKZ..=  0 FBZ..=  N"
+
+        # Build k-points section
+        nk = len(kpoints)
+        kpoints_lines = [f"NK....={nk:>4}"]
+
+        for k, kpt in enumerate(kpoints, start=1):
+            kx, ky, kz = kpt[0], kpt[1], kpt[2]
+            weight = kpt[3] if len(kpt) == 4 else 1.0
+            kpoint_line = f"{k:>3} {kx:>10.6f} {ky:>10.6f} {kz:>10.6f} {weight:>10.6f}"
+            kpoints_lines.append(kpoint_line)
+
+        kpoints_section = "\n".join(kpoints_lines)
+    else:
+        # Use automatic Monkhorst-Pack mesh (KMSH='S')
+        kmsh_line = f"KMSH...= S IBZ..={lat:>3} NKX..={nkx:>3} NKY..={nky:>3} NKZ..={nkz:>3} FBZ..=  N"
+        kpoints_section = ""
+
     template = f"""KGRN      HP..= 0   !                              xx xxx xx
 JOBNAM...={id_full}
 MSGL.=1 STRT.=A FUNC.=SCA EXPAN=1 FCD.=Y GPM.=N FSM.=N
@@ -74,8 +105,8 @@ SCFP:  information for self-consistency procedure:                   *
 NITER.= 99 NLIN.= 31 NCPA.=  7 NPRN....=000000000
 FRC...=  N DOS..=  Y OPS..=  N AFM..=  {magnetic:>1} CRT..=  M STMP..= A
 Lmaxh.=  8 Lmaxt=  4 NFI..= 31 FIXG.=  2 SHF..=  0 SOFC.=  Y
-KMSH...= S IBZ..={lat:>3} NKX..= 21 NKY..= 21 NKZ..= 21 FBZ..=  N
-ZMSH...= E NZ1..= 16 NZ2..= 16 NZ3..= 16 NRES.=  4 NZD..=999
+{kmsh_line}
+{"" if not kpoints_section else kpoints_section + "\n"}ZMSH...= E NZ1..= 16 NZ2..= 16 NZ3..= 16 NRES.=  4 NZD..=999
 DEPTH..=  1.100 IMAGZ.=  0.005 EPS...=  0.200 ELIM..= -1.000
 AMIX...=  0.010 VMIX..=   0.70 EFMIX.=  0.900 VMTZ..=  0.000
 TOLE...= 1.d-07 TOLEF.= 1.d-08 TOLCPA= 1.d-06 TFERMI=  300.0 (K)

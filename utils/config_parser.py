@@ -295,6 +295,47 @@ def validate_config(config: Dict[str, Any]) -> None:
             f"Must be one of: {', '.join(valid_functionals)}"
         )
 
+    # Validate custom k-points if provided
+    if config.get('kpoints') is not None:
+        kpoints = config['kpoints']
+        if not isinstance(kpoints, list):
+            raise ConfigValidationError(
+                "kpoints must be a list of [kx, ky, kz] or [kx, ky, kz, weight]"
+            )
+        for i, kpt in enumerate(kpoints):
+            if not isinstance(kpt, list):
+                raise ConfigValidationError(
+                    f"kpoint {i+1} must be a list, got: {type(kpt)}"
+                )
+            if len(kpt) not in [3, 4]:
+                raise ConfigValidationError(
+                    f"kpoint {i+1} must have 3 coordinates [kx,ky,kz] or 4 values [kx,ky,kz,weight], got {len(kpt)} values"
+                )
+            if not all(isinstance(x, (int, float)) for x in kpt):
+                raise ConfigValidationError(
+                    f"kpoint {i+1} must contain only numbers, got: {kpt}"
+                )
+            # Validate k-point coordinates are between 0 and 1
+            if not all(0 <= kpt[j] <= 1 for j in range(3)):
+                raise ConfigValidationError(
+                    f"kpoint {i+1} coordinates must be between 0 and 1, got: [{kpt[0]:.4f}, {kpt[1]:.4f}, {kpt[2]:.4f}]"
+                )
+            # Validate weight if provided
+            if len(kpt) == 4 and kpt[3] <= 0:
+                raise ConfigValidationError(
+                    f"kpoint {i+1} weight must be positive, got: {kpt[3]}"
+                )
+
+    # Validate k-mesh parameters (NKX, NKY, NKZ) if using automatic mesh
+    if config.get('kpoints') is None:
+        for param_name in ['nkx', 'nky', 'nkz']:
+            if param_name in config:
+                value = config[param_name]
+                if not isinstance(value, int) or value <= 0:
+                    raise ConfigValidationError(
+                        f"{param_name.upper()} must be a positive integer, got: {value}"
+                    )
+
     # Validate eos_executable for optimization workflows
     if config.get('optimize_ca') or config.get('optimize_sws'):
         if config.get('eos_executable') is None:
@@ -641,6 +682,12 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
 
         # Energy functional/pseudopotential defaults
         'functional': 'GGA',
+
+        # K-mesh defaults
+        'kpoints': None,                 # Custom k-points (if provided, overrides NKX/NKY/NKZ)
+        'nkx': 21,                       # K-mesh divisions along x (default: 21)
+        'nky': 21,                       # K-mesh divisions along y (default: 21)
+        'nkz': 21,                       # K-mesh divisions along z (default: 21)
 
         # Analysis defaults
         'generate_plots': True,

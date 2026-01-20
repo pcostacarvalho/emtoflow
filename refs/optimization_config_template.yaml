@@ -85,6 +85,44 @@ functional: "GGA"                    # Exchange-correlation functional/pseudopot
 
 
 # ------------------------------------------------------------------------------
+# K-MESH SETTINGS
+# ------------------------------------------------------------------------------
+
+# Option 1: Automatic Monkhorst-Pack mesh (default)
+nkx: 21                              # K-mesh divisions along x-axis (default: 21)
+nky: 21                              # K-mesh divisions along y-axis (default: 21)
+nkz: 21                              # K-mesh divisions along z-axis (default: 21)
+
+# Option 2: Custom explicit k-points (overrides NKX/NKY/NKZ if provided)
+kpoints: null                        # List of k-points in format [[kx, ky, kz], ...] or [[kx, ky, kz, weight], ...]
+                                     # Coordinates must be in fractional (crystal) units between 0 and 1
+                                     # If weights not provided, equal weights (1.0) are assumed
+
+# Example - Gamma point only:
+#   kpoints: [[0.0, 0.0, 0.0]]
+
+# Example - Gamma-centered 2x2x2 mesh with explicit k-points:
+#   kpoints:
+#     - [0.00, 0.00, 0.00, 0.125]
+#     - [0.25, 0.00, 0.00, 0.125]
+#     - [0.00, 0.25, 0.00, 0.125]
+#     - [0.25, 0.25, 0.00, 0.125]
+#     - [0.00, 0.00, 0.25, 0.125]
+#     - [0.25, 0.00, 0.25, 0.125]
+#     - [0.00, 0.25, 0.25, 0.125]
+#     - [0.25, 0.25, 0.25, 0.125]
+
+# Example - High-symmetry path for band structure (weights optional):
+#   kpoints:
+#     - [0.0, 0.0, 0.0]     # Gamma
+#     - [0.5, 0.0, 0.5]     # X
+#     - [0.5, 0.25, 0.75]   # W
+#     - [0.375, 0.375, 0.75] # K
+#     - [0.0, 0.0, 0.0]     # Gamma
+#     - [0.5, 0.5, 0.5]     # L
+
+
+# ------------------------------------------------------------------------------
 # OPTIMIZATION FLAGS - Enable/disable optimization phases
 # ------------------------------------------------------------------------------
 
