@@ -173,7 +173,7 @@ def optimize_ca_ratio(
                 'rwseq': params.rwseq,
                 'v_eq': params.v_eq,
                 'eeq': params.eeq,
-                'bulk_modulus': params.bulk_modulus
+                'bulk_modulus': params.bmod * 0.1  # Convert kBar to GPa
             }
             for name, params in eos_results.items()
         }
@@ -383,7 +383,7 @@ def optimize_sws(
                 'rwseq': params.rwseq,
                 'v_eq': params.v_eq,
                 'eeq': params.eeq,
-                'bulk_modulus': params.bulk_modulus
+                'bulk_modulus': params.bmod * 0.1  # Convert kBar to GPa
             }
             for name, params in eos_results.items()
         },

@@ -2,7 +2,7 @@
 # This demonstrates the three loop modes
 
 # ------------------------------------------------------------------------------
-output_path: "CuMg_fcc_test"        # Output directory for all results
+output_path: "CuMg_phase_diagram"        # Output directory for all results
 job_name: "CuMg"                    # Job identifier (used in file names)
 
 # Structure Input
@@ -24,32 +24,32 @@ sites:
 
 # --- MODE 1: Explicit List ---
 # Specify exact compositions you want to test
-loop_perc:
-  enabled: true
-  step: null
-  start: null
-  end: null
-  site_index: 0
-  element_index: null
-  phase_diagram: false
-  percentages:
-    - [0, 100]      # Pure Mg
-    - [25, 75]      # Cu25Mg75
-    - [50, 50]      # Cu50Mg50
-    - [75, 25]      # Cu75Mg25
-    - [100, 0]      # Pure Cu
-
-# --- MODE 2: Phase Diagram ---
-# Uncomment to generate all valid compositions
 # loop_perc:
 #   enabled: true
-#   step: 10                        # Will generate: 0%, 10%, 20%, ..., 100%
+#   step: null
 #   start: null
 #   end: null
 #   site_index: 0
 #   element_index: null
-#   phase_diagram: true             # Generate all combinations
-#   percentages: null
+#   phase_diagram: false
+#   percentages:
+#     - [0, 100]      # Pure Mg
+#     - [25, 75]      # Cu25Mg75
+#     - [50, 50]      # Cu50Mg50
+#     - [75, 25]      # Cu75Mg25
+#     - [100, 0]      # Pure Cu
+
+# --- MODE 2: Phase Diagram ---
+# Uncomment to generate all valid compositions
+loop_perc:
+  enabled: true
+  step: 10                        # Will generate: 0%, 10%, 20%, ..., 100%
+  start: null
+  end: null
+  site_index: 0
+  element_index: null
+  phase_diagram: true             # Generate all combinations
+  percentages: null
 
 # --- MODE 3: Single Element Sweep ---
 # Uncomment to vary one element systematically
@@ -87,7 +87,7 @@ user_magnetic_moments: {'Cu': 0.0, 'Mg': 0.0}
 
 # Optimization Settings
 optimize_ca: false                  # Disable for quick test
-optimize_sws: false
+optimize_sws: true
 optimize_dmax: false
 dmax_initial: 2.0
 dmax_target_vectors: 100

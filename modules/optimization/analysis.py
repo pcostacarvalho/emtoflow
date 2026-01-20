@@ -9,8 +9,8 @@ import subprocess
 from pathlib import Path
 from typing import Union, List, Dict, Any, Optional, Tuple
 
-from modules.create_input import create_eos_input
-from modules.parse import parse_eos_output
+from modules.inputs.eos_emto import create_eos_input
+from modules.inputs.eos_emto import parse_eos_output
 
 
 def run_eos_fit(

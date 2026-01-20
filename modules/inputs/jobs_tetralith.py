@@ -28,8 +28,10 @@ for r in {ratios_str}; do
     echo "Running KSTR:"
     {kstr_executable} < ${{id_ratio}}_${{r}}.dat > smx_${{r}}.log
 
-    if [ $? -ne 0 ]; then
-        echo "KSTR failed!"
+    # Check KSTR completion via .prn content
+    if [ ! -f ${id_ratio}_${{r}}.prn ] || ! grep -q "Finished at:" ${id_ratio}_${{r}}.prn 2>/dev/null; then
+        echo "KSTR failed: .prn file missing or incomplete!"
+        grep "Try DMAX" smx_${{r}}.log
         exit 1
     else
         echo "DONE!"
@@ -43,7 +45,8 @@ for r in {ratios_str}; do
     echo "Running SHAPE:"
     {shape_executable} < ${{id_ratio}}_${{r}}.dat > shp_${{r}}.log
 
-    if [ $? -ne 0 ]; then
+    # Check SHAPE completion via log content
+    if [ ! -f shp_${{r}}.log ] || ! grep -q "Shape function completed" shp_${{r}}.log 2>/dev/null; then
         echo "SHAPE failed!"
         exit 1
     else
@@ -59,7 +62,8 @@ for r in {ratios_str}; do
         echo "Running KGRN:"
         mpirun -n {prcs}  {kgrn_executable} < {id_ratio}_${{r}}_${{v}}.dat > kgrn_${{r}}_${{v}}.log
 
-        if [ $? -ne 0 ]; then
+        # Check KGRN completion via .prn content
+        if [ ! -f {id_ratio}_${{r}}_${{v}}.prn ] || ! grep -q "Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
             echo "KGRN failed!"
             exit 1
         else
@@ -71,7 +75,8 @@ for r in {ratios_str}; do
         echo "Running KFCD:"
         {kfcd_executable} < {id_ratio}_${{r}}_${{v}}.dat > kfcd_${{r}}_${{v}}.log
 
-        if [ $? -ne 0 ]; then
+        # Check KFCD completion via .prn content
+        if [ ! -f {id_ratio}_${{r}}_${{v}}.prn ] || ! grep -q "Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
             echo "KFCD failed!"
             exit 1
         else
@@ -87,6 +92,8 @@ done
     
     with open(f"{path}/{job_name}.sh", "w") as f:
         f.write(script)
+# Revised syntax (typo in the comment, should be 'syntax')
+# There is no code to insert here, just correcting the comment to "revise syntax"
 
 
 def write_parallel_sbatch(path, ratios, volumes, job_name, prcs=1, time="00:30:00", account="naiss2025-1-38", id_ratio="fept",
@@ -116,8 +123,10 @@ cd smx
 echo "Running KSTR:"
 {kstr_executable} < ${{id_ratio}}_${{r}}.dat > smx_${{r}}.log
 
-if [ $? -ne 0 ]; then
-    echo "KSTR failed!"
+# Check KSTR completion via .prn content
+if [ ! -f ${id_ratio}_${{r}}.prn ] || ! grep -q "Finished at:" ${id_ratio}_${{r}}.prn 2>/dev/null; then
+    echo "KSTR failed: .prn file missing or incomplete!"
+    grep "Try DMAX" smx_${{r}}.log
     exit 1
 else
     echo "DONE!"
@@ -131,7 +140,8 @@ cd ../shp
 echo "Running SHAPE:"
 {shape_executable} < ${{id_ratio}}_${{r}}.dat > shp_${{r}}.log
 
-if [ $? -ne 0 ]; then
+# Check SHAPE completion via log content
+if [ ! -f shp_${{r}}.log ] || ! grep -q "Shape function completed" shp_${{r}}.log 2>/dev/null; then
     echo "SHAPE failed!"
     exit 1
 else
@@ -169,7 +179,8 @@ v={v_fmt}
 echo "Running KGRN:"
 mpirun -n {prcs} {kgrn_executable} < {id_ratio}_${{r}}_${{v}}.dat > kgrn_${{r}}_${{v}}.log
 
-if [ $? -ne 0 ]; then
+# Check KGRN completion via .prn content
+if [ ! -f {id_ratio}_${{r}}_${{v}}.prn ] || ! grep -q "Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
     echo "KGRN failed!"
     exit 1
 else
@@ -181,7 +192,8 @@ cd fcd/
 echo "Running KFCD:"
 {kfcd_executable} < {id_ratio}_${{r}}_${{v}}.dat > kfcd_${{r}}_${{v}}.log
 
-if [ $? -ne 0 ]; then
+# Check KFCD completion via .prn content
+if [ ! -f {id_ratio}_${{r}}_${{v}}.prn ] || ! grep -q "Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
     echo "KFCD failed!"
     exit 1
 else
