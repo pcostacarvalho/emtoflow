@@ -140,7 +140,7 @@ def optimize_ca_ratio(
             )
 
         try:
-            results = parse_kfcd(str(kfcd_file))
+            results = parse_kfcd(str(kfcd_file), functional=config.get('functional', 'GGA'))
             if results.total_energy is None:
                 raise RuntimeError(f"No total energy found in {kfcd_file}")
 
@@ -326,7 +326,7 @@ def optimize_sws(
             )
 
         try:
-            results = parse_kfcd(str(kfcd_file))
+            results = parse_kfcd(str(kfcd_file), functional=config.get('functional', 'GGA'))
             if results.total_energy is None:
                 raise RuntimeError(f"No total energy found in {kfcd_file}")
 
@@ -564,7 +564,7 @@ def run_optimized_calculation(
 
     # Parse KFCD
     try:
-        kfcd_results = parse_kfcd(str(kfcd_file))
+        kfcd_results = parse_kfcd(str(kfcd_file), functional=config.get('functional', 'GGA'))
         print(f"\n✓ KFCD results parsed")
         print(f"  Total energy: {kfcd_results.total_energy:.6f} Ry")
     except Exception as e:

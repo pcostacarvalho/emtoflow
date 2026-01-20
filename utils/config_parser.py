@@ -287,6 +287,14 @@ def validate_config(config: Dict[str, Any]) -> None:
             f"Must be one of: {', '.join(valid_eos_types)}"
         )
 
+    # Validate functional type
+    valid_functionals = ['GGA', 'LDA', 'LAG']
+    if config['functional'] not in valid_functionals:
+        raise ConfigValidationError(
+            f"Invalid functional: {config['functional']}. "
+            f"Must be one of: {', '.join(valid_functionals)}"
+        )
+
     # Validate eos_executable for optimization workflows
     if config.get('optimize_ca') or config.get('optimize_sws'):
         if config.get('eos_executable') is None:
@@ -630,6 +638,9 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
 
         # EOS defaults
         'eos_type': 'MO88',
+
+        # Energy functional/pseudopotential defaults
+        'functional': 'GGA',
 
         # Analysis defaults
         'generate_plots': True,
