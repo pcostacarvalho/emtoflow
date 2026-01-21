@@ -181,9 +181,24 @@ def parse_kgrn(filepath: str, concentrations: Dict[Tuple[int, int], float],
     return results
 
 
-def parse_kfcd(filepath: str) -> EMTOResults:
-    """Parse KFCD output file (.prn)."""
-    
+def parse_kfcd(filepath: str, functional: str = 'GGA') -> EMTOResults:
+    """
+    Parse KFCD output file (.prn).
+
+    Parameters
+    ----------
+    filepath : str
+        Path to KFCD output file
+    functional : str, optional
+        Which functional/pseudopotential to use for total energy.
+        Options: 'GGA' (default), 'LDA', 'LAG'
+
+    Returns
+    -------
+    EMTOResults
+        Parsed results with total_energy set from specified functional
+    """
+
     results = EMTOResults()
     
     with open(filepath, 'r') as f:
@@ -211,6 +226,10 @@ def parse_kfcd(filepath: str) -> EMTOResults:
                     # Build IQ to element mapping
                     if iq not in results.iq_to_element:
                         results.iq_to_element[iq] = atom
+                    # Add to atoms list (will be added here regardless of magnetic moments)
+                    atom_key = (iq, ita, atom)
+                    if atom_key not in results.atoms:
+                        results.atoms.append(atom_key)
 
     # Extract magnetic moments per IQ with ITA context
     current_ita = None  # Only need to track ITA
@@ -234,15 +253,8 @@ def parse_kfcd(filepath: str) -> EMTOResults:
                     atom = iq_ita_to_atom[(iq, current_ita)]
                     key = (iq, current_ita, atom)
                     results.magnetic_moments[key] = mag_moment
+                    # Note: atoms list is already populated during concentration extraction
 
-                    if key not in results.atoms:
-                        results.atoms.append(key)
-    
-    # Build IQ to element mapping from atoms
-    for (iq, ita, atom) in results.atoms:
-        if iq not in results.iq_to_element:
-            results.iq_to_element[iq] = atom
-    
     # Calculate weighted magnetic moments per IQ
     for (iq, ita, atom), magm in results.magnetic_moments.items():
         conc = results.concentrations.get((iq, ita), 0.0)
@@ -326,7 +338,22 @@ def parse_kfcd(filepath: str) -> EMTOResults:
                         results.energies_by_functional['system']['LAG'] = float(match.group(1))
         
         i += 1
-    
+
+    # Set total_energy to specified functional (with fallback to others)
+    if 'system' in results.energies_by_functional:
+        system_energies = results.energies_by_functional['system']
+
+        # Try to use the specified functional first
+        if functional in system_energies:
+            results.total_energy = system_energies[functional]
+        # Fallback: try other functionals in order GGA > LDA > LAG
+        elif 'GGA' in system_energies:
+            results.total_energy = system_energies['GGA']
+        elif 'LDA' in system_energies:
+            results.total_energy = system_energies['LDA']
+        elif 'LAG' in system_energies:
+            results.total_energy = system_energies['LAG']
+
     return results
 
 
@@ -502,19 +529,21 @@ def generate_report(kgrn_results: EMTOResults, kfcd_results: EMTOResults) -> str
     return "\n".join(report)
 
 
-def parse_emto_output(kgrn_file: str, kfcd_file: str):
+def parse_emto_output(kgrn_file: str, kfcd_file: str, functional: str = 'GGA'):
     """
     Main function to parse EMTO output files and generate report.
-    
+
     Args:
         kgrn_file: Path to KGRN .prn output file
         kfcd_file: Path to KFCD .prn output file
-    
+        functional: Which functional/pseudopotential to use for total energy
+                   Options: 'GGA' (default), 'LDA', 'LAG'
+
     Returns:
         Tuple of (report string, kgrn_results, kfcd_results)
     """
     # Parse KFCD first to get concentrations, atoms, and IQ->element mapping
-    kfcd_results = parse_kfcd(kfcd_file)
+    kfcd_results = parse_kfcd(kfcd_file, functional=functional)
 
     # Parse KGRN with data from KFCD
     kgrn_results = parse_kgrn(kgrn_file,

@@ -382,7 +382,7 @@ def validate_emto_vectors(cif_file, verbose=True):
     bool
         True if validation passes
     """
-    from deprecated_scripts.parse_cif import get_LatticeVectors
+    from utils.parse_cif import get_LatticeVectors
     
     # Get pymatgen matrix
     pm_matrix, _, pm_a, pm_b, pm_c, _ = get_LatticeVectors(cif_file)

@@ -1,6 +1,5 @@
-import os
 
-def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic):
+def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic, nkx, nky, nkz):
     """
     Create a KGRN (self-consistent KKR) input file for EMTO from structure dict.
 
@@ -21,6 +20,16 @@ def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic):
         Wigner-Seitz radius
     magnetic : str
         'P' for paramagnetic or 'F' for ferromagnetic
+    kpoints : list of lists, optional
+        Custom k-points in format [[kx, ky, kz], ...] or [[kx, ky, kz, weight], ...]
+        If provided, uses explicit k-points instead of automatic mesh.
+        Default: None (uses automatic Monkhorst-Pack mesh)
+    nkx : int, optional
+        K-mesh divisions along x-axis (default: 21, ignored if kpoints provided)
+    nky : int, optional
+        K-mesh divisions along y-axis (default: 21, ignored if kpoints provided)
+    nkz : int, optional
+        K-mesh divisions along z-axis (default: 21, ignored if kpoints provided)
 
     Notes
     -----
@@ -74,7 +83,7 @@ SCFP:  information for self-consistency procedure:                   *
 NITER.= 99 NLIN.= 31 NCPA.=  7 NPRN....=000000000
 FRC...=  N DOS..=  Y OPS..=  N AFM..=  {magnetic:>1} CRT..=  M STMP..= A
 Lmaxh.=  8 Lmaxt=  4 NFI..= 31 FIXG.=  2 SHF..=  0 SOFC.=  Y
-KMSH...= S IBZ..={lat:>3} NKX..= 21 NKY..= 21 NKZ..= 21 FBZ..=  N
+KMSH...= S IBZ..={lat:>3} NKX..={nkx:>3} NKY..={nky:>3} NKZ..={nkz:>3} FBZ..=  N
 ZMSH...= E NZ1..= 16 NZ2..= 16 NZ3..= 16 NRES.=  4 NZD..=999
 DEPTH..=  1.100 IMAGZ.=  0.005 EPS...=  0.200 ELIM..= -1.000
 AMIX...=  0.010 VMIX..=   0.70 EFMIX.=  0.900 VMTZ..=  0.000

@@ -1,0 +1,88 @@
+
+
+# ------------------------------------------------------------------------------
+output_path: "CuMg_hcp"           # Output directory for all results
+job_name: "CuMg"                 # Job identifier (used in file names)
+
+# Structure Input (REQUIRED - choose ONE approach)
+cif_file: null                       # Path to CIF file (set to null if using lattice params)
+lat: 4                               # EMTO lattice type (1-14)
+a: 3.21                              # Lattice parameter a (Angstroms)
+b: null                              # Lattice parameter b (default: same as a)
+c: 5.21                             # Lattice parameter c (default: same as a)
+alpha: null                          # Lattice angle alpha (degrees, REQUIRED for LAT 14 triclinic)
+beta: null                           # Lattice angle beta (degrees, REQUIRED for LAT 14 triclinic)
+gamma: null                          # Lattice angle gamma (degrees, REQUIRED for LAT 12-14 monoclinic/triclinic)
+sites: [{'position': [0, 0, 0], 'elements': ['Cu', 'Mg'], 'concentrations': [0,1]}, 
+        {'position': [0.3333, 0.6667, 0.5], 'elements': ['Cu', 'Mg'], 'concentrations': [0,1]}]  # Atomic sites
+
+# Parameter Ranges (choose ONE option for each parameter)
+ca_ratios: null                      # Calculate from structure's c/a ratio
+sws_values: null                     # Calculate from structure's volume
+initial_sws: [3.3]                  # SWS value(s) to use during
+auto_generate: true                     # Auto-generate ranges around provided values
+ca_step: 0.02                          # Step size for c/a range (default: 0.02)
+sws_step: 0.05                         # Step size for SWS range (default:
+n_points: 7                            # Number of points in range (default: 7)
+
+# EMTO Calculation Parameters (REQUIRED)
+dmax: 1.8                             # Maximum distance parameter for neighbor shells
+magnetic: "P"                          # Magnetic type: "P" (paramagnetic) or
+user_magnetic_moments: {'Cu':0.0, 'Mg': 0.0}          # Custom magnetic moments (optional)
+
+ 
+ # Optimization Settings (REQUIRED)
+optimize_ca: true                      # Enable c/a ratio optimization (Phase 1)
+optimize_sws: true                     # Enable SWS optimization (Phase 2)
+optimize_dmax: false                   # Enable automatic DMAX cutoff optimization
+dmax_initial: 2.0                      # Initial DMAX guess for optimization
+dmax_target_vectors: 100               # Target number of k-vectors
+dmax_vector_tolerance: 15              # Acceptable deviation (±N vectors)
+prepare_only: false 
+
+loop_perc:
+  enabled: false
+  step: 10                        # Will generate: 0%, 10%, 20%, ..., 100%
+  start: null
+  end: null
+  site_index: 0
+  element_index: null
+  phase_diagram: true             # Generate all combinations
+  percentages: null
+
+# Execution Settings (REQUIRED)
+run_mode: "local"                     # Execution mode: "sbatch" (SLURM
+prcs: 8                                # Number of processors per job
+slurm_account: "naiss2025-1-38"        # SLURM
+slurm_time: "02:00:00"                 # Time limit (HH:MM:SS)
+slurm_partition: "main"                # SLURM partition
+create_job_script: true                # Generate job script
+job_mode: "serial"                     # Job execution: "serial" or "parallel"  
+
+# Executable paths
+eos_executable: "/home/x_pamca/postdoc_proj/emto/bin/eos.exe"                    # Path to EMTO EOS executable
+kstr_executable: "/home/x_pamca/postdoc_proj/emto/bin/kstr.exe"                  # Path to KSTR executable (required if optimize_dmax=true)
+shape_executable: "/home/x_pamca/postdoc_proj/emto/bin/shape.exe"
+kgrn_executable: "/home/x_pamca/postdoc_proj/emto/bin/kgrn_mpi.x"
+kfcd_executable: "/home/x_pamca/postdoc_proj/emto/bin/kfcd.exe"
+
+# Analysis Settings (OPTIONAL)
+eos_type: "MO88"                       # EOS fit type: MO88, POLN, SPLN, MU37, ALL
+generate_plots: true                   # Generate EOS and DOS plots
+export_csv: true                       # Export results to CSV format
+plot_format: "png"                     # Plot format: png, pdf, svg
+generate_dos: false                    # Generate DOS files during calculations
+dos_plot_range: [-0.8, 0.15]          # Energy range for
+
+
+#Job monitoring settings (optional)
+poll_interval: 30                    # Check job status every N seconds
+max_wait_time: 7200                  # Maximum wait time in seconds (2 hours)
+timeout_action: "stop"               # Action on timeout: stop, continue, retry
+skip_existing: false                 # Skip calculations if output files exist
+save_intermediate: true              # Save intermediate results to JSON files
+cleanup_temp: false                  # Remove temporary files after completion
+log_level: "INFO"                    # Logging level: DEBUG, INFO, WARNING, ERROR
+# ------------------------------------------------------------------------------
+
+
