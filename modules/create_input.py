@@ -11,7 +11,11 @@ from modules.inputs import (
     write_serial_sbatch,
     write_parallel_sbatch
 )
-from modules.structure_builder import create_emto_structure, lattice_param_to_sws
+from modules.structure_builder import (
+    create_emto_structure,
+    lattice_param_to_sws,
+    apply_substitutions_to_structure
+)
 from modules.dmax_optimizer import _run_dmax_optimization
 from utils.config_parser import load_and_validate_config
 from utils.aux_lists import prepare_ranges
@@ -315,6 +319,7 @@ def create_emto_inputs(config):
     shape_executable = cfg['shape_executable']
     kgrn_executable = cfg['kgrn_executable']
     kfcd_executable = cfg['kfcd_executable']
+    substitutions = cfg['substitutions']
 
 
     # ==================== CREATE DIRECTORY STRUCTURE ====================
@@ -331,8 +336,28 @@ def create_emto_inputs(config):
     if cif_file is not None:
         # CIF workflow
         print(f"\nParsing CIF file: {cif_file}")
+             
+            # Load CIF as pymatgen Structure
+        from pymatgen.core import Structure as PMGStructure
+        structure_pmg_original = PMGStructure.from_file(cif_file)
+
+        # Apply substitutions if provided
+        if substitutions is not None:
+            print("  Applying element substitutions:")
+            for element, subst in substitutions.items():
+                elements_str = ", ".join(subst['elements'])
+                conc_str = ", ".join([f"{c:.3f}" for c in subst['concentrations']])
+                print(f"    {element} → [{elements_str}] with concentrations [{conc_str}]")
+
+            structure_pmg_to_parse = apply_substitutions_to_structure(
+                structure_pmg_original, substitutions
+            )
+        else:
+            structure_pmg_to_parse = structure_pmg_original
+
+        # Parse structure to EMTO format
         structure_pmg, structure_dict = create_emto_structure(
-            cif_file=cif_file,
+            structure_pmg=structure_pmg_to_parse,
             user_magnetic_moments=user_magnetic_moments
         )
 

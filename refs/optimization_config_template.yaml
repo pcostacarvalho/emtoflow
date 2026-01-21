@@ -40,6 +40,24 @@ gamma: null                          # Lattice angle gamma (degrees, REQUIRED fo
 #           {'position': [0.5, 0.5, 0.5], 'elements': ['Pt'], 'concentrations': [1.0]}]
 sites: null
 
+# Element substitutions for CIF files (optional)
+# Use this to create alloy structures from pure element CIF files
+# Replaces ALL sites of each specified element with the given composition
+# Set to null for regular CIF workflow (no substitutions)
+substitutions: null
+# Example - Replace Fe with Fe0.7Co0.3 alloy, keep Pt pure:
+#   substitutions:
+#     Fe:
+#       elements: ['Fe', 'Co']
+#       concentrations: [0.7, 0.3]
+#     Pt:
+#       elements: ['Pt']
+#       concentrations: [1.0]
+# Notes:
+#   - Only works with CIF files (cif_file must be provided)
+#   - For parameter-based alloys, use 'sites' specification instead
+#   - All concentrations must sum to 1.0
+#   - All elements in substitutions must exist in the CIF structure
 
 # ------------------------------------------------------------------------------
 # PARAMETER RANGES - Controls c/a and SWS sweeps

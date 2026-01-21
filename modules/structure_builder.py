@@ -14,7 +14,7 @@ EMTO input generation.
 """
 
 import numpy as np
-from pymatgen.core import Structure, Lattice
+from pymatgen.core import Structure, Lattice, Species
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 
 from modules.lat_detector import (
@@ -24,6 +24,120 @@ from modules.lat_detector import (
 )
 from modules.element_database import get_default_moment
 
+# ==================== ELEMENT SUBSTITUTIONS ====================
+ 
+def apply_substitutions_to_structure(structure_pmg, substitutions):
+    """
+    Apply element substitutions to pymatgen Structure from CIF.
+ 
+    This function replaces all sites of specified elements with partial
+    occupancies for alloy calculations. All sites of the same element
+    receive the same substitution.
+ 
+    Parameters
+    ----------
+    structure_pmg : pymatgen.core.Structure
+        Original structure from CIF file
+    substitutions : dict
+        Element substitutions mapping element symbols to new compositions.
+        Format: {'Fe': {'elements': ['Fe', 'Co'], 'concentrations': [0.7, 0.3]},
+                 'Pt': {'elements': ['Pt'], 'concentrations': [1.0]}}
+ 
+    Returns
+    -------
+    pymatgen.core.Structure
+        New structure with partial occupancies applied
+ 
+    Raises
+    ------
+    ValueError
+        If substitution references element not present in structure
+ 
+    Examples
+    --------
+    >>> from pymatgen.core import Structure
+    >>> # Original FePt structure
+    >>> structure = Structure.from_file("FePt.cif")
+    >>>
+    >>> # Replace all Fe with Fe0.7Co0.3, keep Pt pure
+    >>> substitutions = {
+    ...     'Fe': {'elements': ['Fe', 'Co'], 'concentrations': [0.7, 0.3]},
+    ...     'Pt': {'elements': ['Pt'], 'concentrations': [1.0]}
+    ... }
+    >>> new_structure = apply_substitutions_to_structure(structure, substitutions)
+ 
+    Notes
+    -----
+    - All sites with the same element symbol receive the same substitution
+    - Elements not in substitutions dictionary remain unchanged
+    - For ordered structures, use parameter workflow (lat, a, sites) instead
+    - Concentrations must sum to 1.0 (validated in config_parser)
+    """
+ 
+    # Get all unique elements in the structure
+    structure_elements = set()
+    for site in structure_pmg:
+        # Handle both pure elements and species with partial occupancy
+        if hasattr(site.specie, 'symbol'):
+            structure_elements.add(site.specie.symbol)
+        else:
+            # Site already has partial occupancy
+            for elem in site.species.elements:
+                structure_elements.add(elem.symbol)
+ 
+    # Check that all substitution keys exist in the structure
+    for element in substitutions.keys():
+        if element not in structure_elements:
+            raise ValueError(
+                f"Element '{element}' in substitutions not found in CIF structure. "
+                f"Available elements: {', '.join(sorted(structure_elements))}"
+            )
+ 
+    # Create new structure with substitutions
+    new_species = []
+    new_coords = []
+ 
+    for site in structure_pmg:
+        # Get the element symbol for this site
+        if hasattr(site.specie, 'symbol'):
+            element_symbol = site.specie.symbol
+        else:
+            # Site has mixed occupancy - use dominant element
+            element_symbol = max(site.species.items(), key=lambda x: x[1])[0].symbol
+ 
+        position = site.frac_coords
+ 
+        # Check if this element has a substitution
+        if element_symbol in substitutions:
+            subst = substitutions[element_symbol]
+            elements = subst['elements']
+            concentrations = subst['concentrations']
+ 
+            # Create Species with partial occupancy
+            if len(elements) == 1 and concentrations[0] == 1.0:
+                # Pure element (no actual substitution)
+                new_species.append(elements[0])
+            else:
+                # Mixed occupancy (CPA alloy)
+                species_dict = {elem: conc for elem, conc in zip(elements, concentrations)}
+                new_species.append(species_dict)
+        else:
+            # No substitution - keep original
+            new_species.append(site.specie)
+ 
+        new_coords.append(position)
+ 
+    # Create new structure with substitutions
+    new_structure = Structure(
+        structure_pmg.lattice,
+        new_species,
+        new_coords,
+        coords_are_cartesian=False
+    )
+ 
+    return new_structure
+ 
+ 
 
 # ==================== SWS CONVERSION ====================
 
@@ -433,21 +547,25 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     }
 
 
-def create_emto_structure(cif_file=None, lat=None, a=None, sites=None,
+def create_emto_structure(cif_file=None, structure_pmg=None, lat=None, a=None, sites=None,
                          b=None, c=None, alpha=90, beta=90, gamma=90,
                          user_magnetic_moments=None):
     """
-    Create EMTO structure dictionary from CIF file or input parameters.
-
+    Create EMTO structure dictionary from CIF file, pymatgen Structure, or input parameters.
+ 
     This is the main entry point for creating EMTO structures. It provides
-    a unified interface that works for both workflows:
+    a unified interface that works for multiple workflows:
     1. From CIF file (experimental structures)
-    2. From lattice parameters (for alloys, ordered structures, etc.)
-
+    2. From pymatgen Structure (e.g., after applying substitutions)
+    3. From lattice parameters (for alloys, ordered structures, etc.)
+ 
     Parameters
     ----------
     cif_file : str, optional
         Path to CIF file. If provided, structure is loaded from CIF.
+    structure_pmg : pymatgen.core.Structure, optional
+        Pre-loaded pymatgen Structure object. Useful when applying
+        element substitutions before EMTO conversion.
     lat : int, optional
         EMTO lattice number (1-14). Required if creating from parameters.
     a : float, optional
@@ -460,7 +578,7 @@ def create_emto_structure(cif_file=None, lat=None, a=None, sites=None,
         Lattice angles in degrees
     user_magnetic_moments : dict, optional
         User-provided magnetic moments per element
-
+ 
     Returns
     -------
     structure_pmg : pymatgen.core.Structure
@@ -470,28 +588,36 @@ def create_emto_structure(cif_file=None, lat=None, a=None, sites=None,
         - Lattice information (lat, a, b, c, BSX, BSY, BSZ, etc.)
         - Atomic information (NQ3, NL, atom_info, etc.)
         - EMTO-specific data for input generation
-
+ 
     Raises
     ------
     ValueError
-        If neither cif_file nor (lat, a, sites) are provided
-
+        If neither cif_file, structure_pmg, nor (lat, a, sites) are provided
+ 
     Examples
     --------
     >>> # From CIF file
     >>> structure_pmg, structure_dict = create_emto_structure(cif_file='FePt.cif')
-
+ 
+    >>> # From pymatgen Structure (after substitutions)
+    >>> pmg_struct = Structure.from_file('FePt.cif')
+    >>> # ... apply substitutions to pmg_struct ...
+    >>> structure_pmg, structure_dict = create_emto_structure(structure_pmg=pmg_struct)
+ 
     >>> # From parameters (FCC Fe-Pt alloy)
     >>> sites = [{'position': [0, 0, 0], 'elements': ['Fe', 'Pt'],
     ...          'concentrations': [0.5, 0.5]}]
     >>> structure_pmg, structure_dict = create_emto_structure(lat=2, a=3.7, sites=sites)
-
+ 
     >>> # From parameters (HCP Co with defaults)
     >>> sites = [{'position': [0, 0, 0], 'elements': ['Co'], 'concentrations': [1.0]}]
     >>> structure_pmg, structure_dict = create_emto_structure(lat=4, a=2.51, sites=sites)
     """
     # Determine which workflow to use
-    if cif_file is not None:
+    if structure_pmg is not None:
+        # Pre-loaded pymatgen Structure (e.g., after substitutions)
+        structure_pmg.remove_oxidation_states()
+    elif cif_file is not None:
         # CIF workflow
         structure_pmg = Structure.from_file(cif_file)
         structure_pmg.remove_oxidation_states()
@@ -504,7 +630,8 @@ def create_emto_structure(cif_file=None, lat=None, a=None, sites=None,
         raise ValueError(
             "Must provide either:\n"
             "  1. cif_file='path/to/file.cif'\n"
-            "  2. lat=<1-14>, a=<value>, sites=<list>"
+            "  2. structure_pmg=<pymatgen Structure>\n"
+            "  3. lat=<1-14>, a=<value>, sites=<list>"
         )
 
     # Common: convert pymatgen Structure → EMTO dict

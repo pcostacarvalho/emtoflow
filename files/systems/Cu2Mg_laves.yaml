@@ -6,7 +6,7 @@ output_path: "Cu2Mg_laves"           # Output directory for all results
 job_name: "Cu2Mg"                 # Job identifier (used in file names)
 
 # Structure Input (REQUIRED - choose ONE approach)
-cif_file: 'Cu2Mg.cif'                       # Path to CIF file (set to null if using lattice params)
+cif_file: 'calphad_cifs/Cu2Mg.cif'                       # Path to CIF file (set to null if using lattice params)
 lat: null                               # EMTO lattice type (1-14)
 a: null                              # Lattice parameter a (Angstroms)
 b: null                              # Lattice parameter b (default: same as a)
@@ -17,6 +17,14 @@ gamma: null                          # Lattice angle gamma (degrees, REQUIRED fo
 #sites: [{'position': [0, 0, 0], 'elements': ['Cu'], 'concentrations': [1]}]  # Atomic sites
 # sites: [{'position': [0, 0, 0], 'elements': ['Cu', 'Mg'], 'concentrations': [0.8,0.2]}, 
 #        {'position': [0.3333, 0.6667, 0.5], 'elements': ['Cu', 'Mg'], 'concentrations': [0.8,0.2]}]  # Atomic sites
+
+substitutions:
+  'Cu':
+    elements: ['Cu', 'Mg']
+    concentrations: [0.8, 0.2]
+  'Mg':
+    elements: ['Cu', 'Mg']
+    concentrations: [0.8, 0.2]
 
 # Parameter Ranges (choose ONE option for each parameter)
 ca_ratios: null                      # Calculate from structure's c/a ratio
@@ -35,7 +43,7 @@ user_magnetic_moments: {'Cu':0.0, 'Mg': 0.0}          # Custom magnetic moments 
  
  # Optimization Settings (REQUIRED)
 optimize_ca: false                      # Enable c/a ratio optimization (Phase 1)
-optimize_sws: true                     # Enable SWS optimization (Phase 2)
+optimize_sws: false                     # Enable SWS optimization (Phase 2)
 optimize_dmax: false                   # Enable automatic DMAX cutoff optimization
 dmax_initial: 2.0                      # Initial DMAX guess for optimization
 dmax_target_vectors: 100               # Target number of k-vectors

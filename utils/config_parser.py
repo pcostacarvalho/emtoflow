@@ -401,6 +401,9 @@ def validate_config(config: Dict[str, Any]) -> None:
     if config['loop_perc'] is not None and config['loop_perc'].get('enabled') is True:
         validate_loop_perc_config(config)
 
+    # Validate substitutions configuration
+    if config.get('substitutions') is not None:
+        validate_substitutions_config(config)
 
 def validate_loop_perc_config(config: Dict[str, Any]) -> None:
     """
@@ -537,6 +540,120 @@ def validate_loop_perc_config(config: Dict[str, Any]) -> None:
                     f"percentages[{i}] must sum to 100%, got: {total}%"
                 )
 
+def validate_substitutions_config(config: Dict[str, Any]) -> None:
+    """
+    Validate substitutions configuration section.
+ 
+    Parameters
+    ----------
+    config : dict
+        Configuration dictionary containing substitutions section
+ 
+    Raises
+    ------
+    ConfigValidationError
+        If substitutions validation fails
+    """
+    substitutions = config['substitutions']
+ 
+    # Substitutions only work with CIF files
+    has_cif = config.get('cif_file') not in (False, None)
+    if not has_cif:
+        raise ConfigValidationError(
+            "substitutions is only supported with CIF files. "
+            "If using parameter-based structure (lat, a, sites), define the alloy directly in 'sites'."
+        )
+ 
+    # Validate substitutions is a dictionary
+    if not isinstance(substitutions, dict):
+        raise ConfigValidationError(
+            f"substitutions must be a dictionary, got: {type(substitutions)}"
+        )
+ 
+    if len(substitutions) == 0:
+        raise ConfigValidationError(
+            "substitutions dictionary cannot be empty"
+        )
+ 
+    # Validate each element substitution
+    for element, subst_config in substitutions.items():
+        # Check that element name is a string
+        if not isinstance(element, str):
+            raise ConfigValidationError(
+                f"Substitution key must be an element symbol (string), got: {type(element)}"
+            )
+ 
+        # Check substitution config structure
+        if not isinstance(subst_config, dict):
+            raise ConfigValidationError(
+                f"Substitution for '{element}' must be a dictionary with 'elements' and 'concentrations', "
+                f"got: {type(subst_config)}"
+            )
+ 
+        # Check for required keys
+        if 'elements' not in subst_config:
+            raise ConfigValidationError(
+                f"Substitution for '{element}' missing required key 'elements'"
+            )
+ 
+        if 'concentrations' not in subst_config:
+            raise ConfigValidationError(
+                f"Substitution for '{element}' missing required key 'concentrations'"
+            )
+ 
+        elements = subst_config['elements']
+        concentrations = subst_config['concentrations']
+ 
+        # Validate elements is a list
+        if not isinstance(elements, list):
+            raise ConfigValidationError(
+                f"Substitution for '{element}': 'elements' must be a list, got: {type(elements)}"
+            )
+ 
+        if len(elements) == 0:
+            raise ConfigValidationError(
+                f"Substitution for '{element}': 'elements' list cannot be empty"
+            )
+ 
+        # Validate all elements are strings
+        if not all(isinstance(e, str) for e in elements):
+            raise ConfigValidationError(
+                f"Substitution for '{element}': all elements must be strings"
+            )
+ 
+        # Validate concentrations is a list
+        if not isinstance(concentrations, list):
+            raise ConfigValidationError(
+                f"Substitution for '{element}': 'concentrations' must be a list, got: {type(concentrations)}"
+            )
+ 
+        # Validate lengths match
+        if len(elements) != len(concentrations):
+            raise ConfigValidationError(
+                f"Substitution for '{element}': 'elements' and 'concentrations' must have the same length. "
+                f"Got {len(elements)} elements and {len(concentrations)} concentrations"
+            )
+ 
+        # Validate all concentrations are numbers
+        if not all(isinstance(c, (int, float)) for c in concentrations):
+            raise ConfigValidationError(
+                f"Substitution for '{element}': all concentrations must be numbers"
+            )
+ 
+        # Validate all concentrations are in [0, 1]
+        for i, conc in enumerate(concentrations):
+            if conc < 0 or conc > 1:
+                raise ConfigValidationError(
+                    f"Substitution for '{element}': concentration[{i}] = {conc} is out of range [0, 1]"
+                )
+ 
+        # Validate concentrations sum to 1.0
+        total = sum(concentrations)
+        if abs(total - 1.0) > 1e-6:
+            raise ConfigValidationError(
+                f"Substitution for '{element}': concentrations must sum to 1.0, got: {total}"
+            )
+ 
 
 def load_and_validate_config(
     config_source: Union[str, Path, Dict[str, Any]]
