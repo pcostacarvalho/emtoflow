@@ -1,25 +1,27 @@
 
 
+
 # ------------------------------------------------------------------------------
-output_path: "CuMg_hcp"           # Output directory for all results
-job_name: "CuMg"                 # Job identifier (used in file names)
+output_path: "Cu2Mg_laves"           # Output directory for all results
+job_name: "Cu2Mg"                 # Job identifier (used in file names)
 
 # Structure Input (REQUIRED - choose ONE approach)
-cif_file: null                       # Path to CIF file (set to null if using lattice params)
-lat: 4                               # EMTO lattice type (1-14)
-a: 3.21                              # Lattice parameter a (Angstroms)
+cif_file: 'Cu2Mg.cif'                       # Path to CIF file (set to null if using lattice params)
+lat: null                               # EMTO lattice type (1-14)
+a: null                              # Lattice parameter a (Angstroms)
 b: null                              # Lattice parameter b (default: same as a)
-c: 5.21                             # Lattice parameter c (default: same as a)
+c: null                             # Lattice parameter c (default: same as a)
 alpha: null                          # Lattice angle alpha (degrees, REQUIRED for LAT 14 triclinic)
 beta: null                           # Lattice angle beta (degrees, REQUIRED for LAT 14 triclinic)
 gamma: null                          # Lattice angle gamma (degrees, REQUIRED for LAT 12-14 monoclinic/triclinic)
-sites: [{'position': [0, 0, 0], 'elements': ['Cu', 'Mg'], 'concentrations': [0,1]}, 
-        {'position': [0.3333, 0.6667, 0.5], 'elements': ['Cu', 'Mg'], 'concentrations': [0,1]}]  # Atomic sites
+#sites: [{'position': [0, 0, 0], 'elements': ['Cu'], 'concentrations': [1]}]  # Atomic sites
+# sites: [{'position': [0, 0, 0], 'elements': ['Cu', 'Mg'], 'concentrations': [0.8,0.2]}, 
+#        {'position': [0.3333, 0.6667, 0.5], 'elements': ['Cu', 'Mg'], 'concentrations': [0.8,0.2]}]  # Atomic sites
 
 # Parameter Ranges (choose ONE option for each parameter)
 ca_ratios: null                      # Calculate from structure's c/a ratio
 sws_values: null                     # Calculate from structure's volume
-initial_sws: [3.3]                  # SWS value(s) to use during
+initial_sws: [2.60]                  # SWS value(s) to use during
 auto_generate: true                     # Auto-generate ranges around provided values
 ca_step: 0.02                          # Step size for c/a range (default: 0.02)
 sws_step: 0.05                         # Step size for SWS range (default:
@@ -32,13 +34,12 @@ user_magnetic_moments: {'Cu':0.0, 'Mg': 0.0}          # Custom magnetic moments 
 
  
  # Optimization Settings (REQUIRED)
-optimize_ca: true                      # Enable c/a ratio optimization (Phase 1)
+optimize_ca: false                      # Enable c/a ratio optimization (Phase 1)
 optimize_sws: true                     # Enable SWS optimization (Phase 2)
 optimize_dmax: false                   # Enable automatic DMAX cutoff optimization
 dmax_initial: 2.0                      # Initial DMAX guess for optimization
 dmax_target_vectors: 100               # Target number of k-vectors
 dmax_vector_tolerance: 15              # Acceptable deviation (±N vectors)
-prepare_only: false 
 
 loop_perc:
   enabled: false
@@ -49,6 +50,11 @@ loop_perc:
   element_index: null
   phase_diagram: true             # Generate all combinations
   percentages: null
+
+
+# Input File Preparation Mode
+prepare_only: true                  # Create input files only, don't run calculations
+                                    # Set to false to run full calculations
 
 # Execution Settings (REQUIRED)
 run_mode: "local"                     # Execution mode: "sbatch" (SLURM
@@ -84,5 +90,3 @@ save_intermediate: true              # Save intermediate results to JSON files
 cleanup_temp: false                  # Remove temporary files after completion
 log_level: "INFO"                    # Logging level: DEBUG, INFO, WARNING, ERROR
 # ------------------------------------------------------------------------------
-
-

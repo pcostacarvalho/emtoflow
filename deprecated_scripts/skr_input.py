@@ -22,7 +22,7 @@ sys.path.insert(0, project_root)
 print(f"DEBUG: Project root: {project_root}")
 print(f"DEBUG: sys.path: {sys.path}")
 
-from deprecated_scripts.parse_cif import get_LatticeVectors
+from utils.parse_cif import get_LatticeVectors
 
 
 def create_kstr_input(output_folder, job_name, NL, NQ3, DMAX, LAT, A, B, C, lattice_vectors, lattice_positions):
