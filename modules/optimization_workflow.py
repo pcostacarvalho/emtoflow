@@ -226,6 +226,9 @@ class OptimizationWorkflow:
         RuntimeError
             If calculations fail or timeout
         """
+
+        if run_mode is None:
+            run_mode = self.config.get('run_mode', 'local')
  
 
         calculation_path = Path(calculation_path)

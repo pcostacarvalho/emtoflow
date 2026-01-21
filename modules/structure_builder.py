@@ -494,6 +494,7 @@ def create_emto_structure(cif_file=None, lat=None, a=None, sites=None,
     if cif_file is not None:
         # CIF workflow
         structure_pmg = Structure.from_file(cif_file)
+        structure_pmg.remove_oxidation_states()
     elif lat is not None and a is not None and sites is not None:
         # Parameter workflow
         structure_pmg = create_structure_from_params(

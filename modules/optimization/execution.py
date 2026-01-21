@@ -45,6 +45,7 @@ def run_calculations(
         If calculations fail or timeout
     """
     calculation_path = Path(calculation_path)
+    
 
     if run_mode is None:
         run_mode = config.get('run_mode', 'local')
