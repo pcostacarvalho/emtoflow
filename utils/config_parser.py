@@ -305,6 +305,12 @@ def validate_config(config: Dict[str, Any]) -> None:
                     f"{param_name.upper()} must be a positive integer, got: {value}"
                     )
 
+    # Validate rescale_k flag
+    if not isinstance(config['rescale_k'], bool):
+        raise ConfigValidationError(
+            f"rescale_k must be boolean, got: {type(config['rescale_k'])}"
+        )
+
     # Validate eos_executable for optimization workflows
     if config.get('optimize_ca') or config.get('optimize_sws'):
         if config.get('eos_executable') is None:
@@ -773,6 +779,7 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
         'nkx': 21,                       # K-mesh divisions along x (default: 21)
         'nky': 21,                       # K-mesh divisions along y (default: 21)
         'nkz': 21,                       # K-mesh divisions along z (default: 21)
+        'rescale_k': False,              # Rescale k-points based on lattice parameters
 
         # Analysis defaults
         'generate_plots': True,

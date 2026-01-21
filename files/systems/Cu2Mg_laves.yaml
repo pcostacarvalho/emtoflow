@@ -40,6 +40,9 @@ dmax: 1.8                             # Maximum distance parameter for neighbor 
 magnetic: "P"                          # Magnetic type: "P" (paramagnetic) or
 user_magnetic_moments: {'Cu':0.0, 'Mg': 0.0}          # Custom magnetic moments (optional)
 
+# K-point rescaling (optional)
+rescale_k: true                        # Enable automatic k-point rescaling based on lattice size
+
  
  # Optimization Settings (REQUIRED)
 optimize_ca: false                      # Enable c/a ratio optimization (Phase 1)
