@@ -89,3 +89,83 @@ def prepare_ranges(ca_ratios, sws_values, ca_step, sws_step, n_points, lat=None)
             raise TypeError(f"sws_values must be float, list, or None, got {type(sws_values)}")
 
         return ca_list, sws_list
+
+
+def rescale_kpoints(lattice_params: Tuple[float, float, float]) -> Tuple[int, int, int]:
+    """
+    Rescale k-points based on lattice parameters using hard-coded reference.
+
+    Maintains constant k-point density in reciprocal space when lattice parameters
+    change. Uses a reference convergence study as baseline.
+
+    Parameters
+    ----------
+    lattice_params : tuple of (float, float, float)
+        Current lattice parameters (a, b, c) in Angstroms
+
+    Returns
+    -------
+    tuple of (int, int, int)
+        Rescaled k-mesh (nkx, nky, nkz) rounded to nearest integers
+
+    Notes
+    -----
+    Hard-coded reference from convergence study:
+    - Reference lattice: (3.86 Å, 3.86 Å, 3.76 Å)
+    - Reference k-mesh: (21, 21, 21)
+    - K-point density constants: (81.06, 81.06, 78.96)
+
+    The rescaling follows the formula:
+        N'_i = (a_i × N_i) / a'_i
+
+    Where:
+    - a_i, N_i: Reference lattice parameter and k-points
+    - a'_i: New lattice parameter
+    - N'_i: New k-points (rounded to nearest integer)
+
+    Examples
+    --------
+    >>> # Structure with same lattice as reference
+    >>> rescale_kpoints((3.86, 3.86, 3.76))
+    (21, 21, 21)
+
+    >>> # Structure with doubled a-parameter
+    >>> rescale_kpoints((7.72, 3.86, 3.76))
+    (11, 21, 21)
+
+    >>> # Laves phase structure
+    >>> rescale_kpoints((5.0, 5.0, 8.0))
+    (16, 16, 10)
+    """
+    # Hard-coded reference from convergence study
+    REF_A = 3.86  # Angstroms
+    REF_B = 3.86  # Angstroms
+    REF_C = 3.76  # Angstroms
+    REF_NKX = 21
+    REF_NKY = 21
+    REF_NKZ = 21
+
+    # Calculate k-point density constants
+    DENSITY_X = REF_A * REF_NKX  # 81.06
+    DENSITY_Y = REF_B * REF_NKY  # 81.06
+    DENSITY_Z = REF_C * REF_NKZ  # 78.96
+
+    # Unpack current lattice parameters
+    a, b, c = lattice_params
+
+    # Calculate rescaled k-points
+    nkx_new = DENSITY_X / a
+    nky_new = DENSITY_Y / b
+    nkz_new = DENSITY_Z / c
+
+    # Round to nearest integer
+    nkx = round(nkx_new)
+    nky = round(nky_new)
+    nkz = round(nkz_new)
+
+    # Ensure at least 1 k-point in each direction
+    nkx = max(1, nkx)
+    nky = max(1, nky)
+    nkz = max(1, nkz)
+
+    return (nkx, nky, nkz)

@@ -389,6 +389,34 @@ def create_emto_inputs(config):
     _save_structure_to_json(structure_pmg, structure_dict, structure_file)
     print(f"  Structure saved to: {structure_file}")
 
+    # ==================== K-POINT RESCALING (OPTIONAL) ====================
+    rescale_k = cfg.get('rescale_k', False)
+    if rescale_k:
+        from utils.aux_lists import rescale_kpoints
+
+        # Get lattice parameters - use user-provided values if available,
+        # otherwise use values from CIF structure (conventional cell)
+        if cif_file is not None:
+            # CIF workflow: use lattice from CIF (conventional cell)
+            lattice_params = (
+                structure_pmg.lattice.a,
+                structure_pmg.lattice.b,
+                structure_pmg.lattice.c
+            )
+        else:
+            # Parameter workflow: use user-provided lattice parameters
+            lattice_params = (a, b, c)
+
+        # Calculate rescaled k-points
+        nkx, nky, nkz = rescale_kpoints(lattice_params)
+
+        print(f"\n  K-point rescaling enabled:")
+        print(f"    Lattice parameters: a={lattice_params[0]:.3f} Å, "
+              f"b={lattice_params[1]:.3f} Å, c={lattice_params[2]:.3f} Å")
+        print(f"    Rescaled k-mesh: {nkx} × {nky} × {nkz}")
+    else:
+        print(f"\n  Using k-mesh from config: {nkx} × {nky} × {nkz}")
+
     # Auto-determine ca_ratios and sws_values if not provided
     if ca_ratios is None:
         ca_ratios = [structure_dict['coa']]

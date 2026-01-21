@@ -188,6 +188,54 @@ def run_prepare_only_mode(
     print("=" * 80)
     print("✓ Phase 3 inputs NOT created (by design in prepare_only mode)")
 
+    # If no optimization phases were enabled, create a simple single-point calculation
+    if not config.get('optimize_ca', False) and not config.get('optimize_sws', False):
+        print("\n" + "=" * 80)
+        print("NO OPTIMIZATIONS ENABLED: Creating single-point calculation inputs")
+        print("=" * 80)
+        print("Note: Neither optimize_ca nor optimize_sws is enabled.")
+        print("Creating input files for a single calculation with provided parameters.\n")
+
+        try:
+            # Determine c/a value to use
+            if structure.get('lat') in [1, 2, 3]:  # SC, FCC, BCC
+                ca_value = 1.0
+                print(f"Cubic lattice detected (LAT={structure.get('lat')}): c/a forced to 1.0")
+            else:
+                # Prioritize actual input value from structure/CIF over auto-generated list
+                ca_value = structure.get('coa') if structure.get('coa') is not None else (ca_list[0] if ca_list else 1.0)
+
+            # Determine SWS value to use
+            sws_value = structure.get('sws') if structure.get('sws') is not None else (sws_list[0] if sws_list else None)
+            if sws_value is None:
+                # If still None, calculate from structure or use initial_sws
+                if config.get('initial_sws'):
+                    sws_value = config['initial_sws'][0] if isinstance(config['initial_sws'], list) else config['initial_sws']
+                else:
+                    raise ValueError("SWS value required but not provided")
+
+            print(f"Creating inputs for single calculation:")
+            print(f"  c/a: {ca_value:.6f}")
+            print(f"  SWS: {sws_value:.6f} Bohr")
+            print(f"  Output path: {base_path}\n")
+
+            # Create inputs in base directory
+            from modules.create_input import create_emto_inputs
+
+            single_point_config = {
+                **config,
+                'output_path': str(base_path),
+                'ca_ratios': [ca_value],
+                'sws_values': [sws_value],
+            }
+
+            create_emto_inputs(single_point_config)
+
+            print(f"\n✓ Single-point calculation input files created in: {base_path}")
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to create single-point calculation inputs: {e}")
+
     # Summary
     print("\n" + "#" * 80)
     print("# PREPARE-ONLY MODE COMPLETED")
@@ -197,7 +245,10 @@ def run_prepare_only_mode(
         print(f"  - Phase 1 (c/a optimization): {len(ca_list)} calculations")
     if config.get('optimize_sws'):
         print(f"  - Phase 2 (SWS optimization): {len(sws_list)} calculations")
-    print(f"\n✓ Phase 3 (final calculation) intentionally skipped")
+    if not config.get('optimize_ca', False) and not config.get('optimize_sws', False):
+        print(f"  - Single-point calculation: 1 calculation")
+    else:
+        print(f"\n✓ Phase 3 (final calculation) intentionally skipped")
     print(f"\n✓ All files saved in: {base_path}")
     print(f"\n✓ No calculations were executed (prepare_only=True)")
     print("#" * 80 + "\n")

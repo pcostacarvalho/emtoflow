@@ -40,6 +40,19 @@ dmax: 1.8                             # Maximum distance parameter for neighbor 
 magnetic: "P"                          # Magnetic type: "P" (paramagnetic) or
 user_magnetic_moments: {'Cu':0.0, 'Mg': 0.0}          # Custom magnetic moments (optional)
 
+# Automatic Monkhorst-Pack mesh (default)
+nkx: 21                              # K-mesh divisions along x-axis (default: 21)
+nky: 21                              # K-mesh divisions along y-axis (default: 21)
+nkz: 21                              # K-mesh divisions along z-axis (default: 21)
+
+# K-point rescaling based on lattice parameters (optional)
+rescale_k: true                     # Enable k-point rescaling (default: false)
+                                     # When enabled, automatically rescales k-points to maintain
+                                     # constant reciprocal-space density across different structures
+                                     # Uses hard-coded reference: (3.86 Å, 3.86 Å, 3.76 Å) with k-mesh (21, 21, 21)
+                                     # Formula: N'_i = (a_ref × N_ref) / a'_i, rounded to nearest integer
+                                     # Applied once at initial file creation (same k-mesh for all phases)
+
  
  # Optimization Settings (REQUIRED)
 optimize_ca: false                      # Enable c/a ratio optimization (Phase 1)

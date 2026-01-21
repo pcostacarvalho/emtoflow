@@ -242,6 +242,60 @@ def generate_phase_diagram_compositions(...):
 
 ---
 
+### 5. Template Synchronization
+
+**Rule**: Any change to YAML configuration parameters must be reflected in the configuration template file.
+
+**Rationale**:
+- Template serves as the authoritative documentation for all configuration options
+- Users rely on the template to discover available features
+- Prevents feature documentation drift
+- Ensures consistency between code and documentation
+
+**Implementation**:
+
+When adding a new configuration parameter:
+
+1. **Add to parser** (`utils/config_parser.py`):
+   ```python
+   # Add default value
+   def apply_config_defaults(config):
+       defaults = {
+           # ... existing defaults ...
+           'rescale_k': False,  # New parameter
+       }
+
+   # Add validation
+   def validate_config(config):
+       # ... existing validation ...
+       if not isinstance(config['rescale_k'], bool):
+           raise ConfigValidationError("rescale_k must be boolean")
+   ```
+
+2. **Add to template** (`refs/optimization_config_template.yaml`):
+   ```yaml
+   # K-point rescaling based on lattice parameters (optional)
+   rescale_k: false                     # Enable k-point rescaling (default: false)
+                                        # When enabled, automatically rescales k-points to maintain
+                                        # constant reciprocal-space density across different structures
+                                        # Formula: N'_i = (a_ref × N_ref) / a'_i
+   ```
+
+3. **Update example files** (optional but recommended):
+   - `files/systems/example.yaml` - Add with documentation
+   - Test-specific YAML files - Add where relevant
+
+**Location**: Template file is `refs/optimization_config_template.yaml`
+
+**Guidelines**:
+- Include the parameter with its default value
+- Add clear inline comments explaining the parameter
+- Document valid values/ranges
+- Explain the formula or behavior if non-trivial
+- Group related parameters together in logical sections
+
+---
+
 ## File Organization Best Practices
 
 ### Parser Structure
@@ -272,9 +326,10 @@ modules/
 When implementing a new feature, ensure:
 
 - [ ] All validation logic is in `utils/config_parser.py`
-- [ ] All default values are set in `set_defaults()` function
+- [ ] All default values are set in `apply_config_defaults()` function
 - [ ] Configuration checks use `is None` / `is not None` instead of `in dict`
 - [ ] YAML examples include ALL parameters (with `null` for unused ones)
+- [ ] **Template file updated** (`refs/optimization_config_template.yaml`)
 - [ ] Code is split into logical modules (no files > ~300 lines)
 - [ ] Each module has a clear, single responsibility
 - [ ] Public API is exposed through `__init__.py`
@@ -357,8 +412,9 @@ if 'loop_perc' in config:
 ## Summary
 
 1. **Validation**: Centralized in `utils/config_parser.py`
-2. **Defaults**: Only in `set_defaults()` function
+2. **Defaults**: Only in `apply_config_defaults()` function
 3. **Configuration**: Always check VALUES (`is None`), not key existence
 4. **Organization**: Split into logical modules (~300 lines max per file)
+5. **Template**: Update `refs/optimization_config_template.yaml` for all config changes
 
 Following these guidelines ensures a maintainable, consistent, and user-friendly codebase.

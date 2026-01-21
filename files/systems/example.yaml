@@ -93,6 +93,12 @@ nkx: 12                              # K-mesh divisions along x-axis (default: 2
 nky: 12                              # K-mesh divisions along y-axis (default: 21)
 nkz: 12                              # K-mesh divisions along z-axis (default: 21)
 
+# K-point rescaling based on lattice parameters (optional)
+# When enabled, rescales k-points to maintain constant reciprocal-space density
+# Uses hard-coded reference: (3.86 Å, 3.86 Å, 3.76 Å) with k-mesh (21, 21, 21)
+# Formula: N'_i = (a_ref × N_ref) / a'_i, then round to nearest integer
+rescale_k: false                     # Enable k-point rescaling (default: false)
+
 # ------------------------------------------------------------------------------
 # OPTIMIZATION FLAGS - Enable/disable optimization phases
 # ------------------------------------------------------------------------------
