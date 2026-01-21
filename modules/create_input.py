@@ -394,12 +394,18 @@ def create_emto_inputs(config):
     if rescale_k:
         from utils.aux_lists import rescale_kpoints
 
-        # Get lattice parameters from structure
-        lattice_params = (
-            structure_pmg.lattice.a,
-            structure_pmg.lattice.b,
-            structure_pmg.lattice.c
-        )
+        # Get lattice parameters - use user-provided values if available,
+        # otherwise use values from CIF structure (conventional cell)
+        if cif_file is not None:
+            # CIF workflow: use lattice from CIF (conventional cell)
+            lattice_params = (
+                structure_pmg.lattice.a,
+                structure_pmg.lattice.b,
+                structure_pmg.lattice.c
+            )
+        else:
+            # Parameter workflow: use user-provided lattice parameters
+            lattice_params = (a, b, c)
 
         # Calculate rescaled k-points
         nkx, nky, nkz = rescale_kpoints(lattice_params)
