@@ -57,10 +57,12 @@ def determine_loop_site(config: Dict[str, Any],
     site = structure_pmg.sites[site_idx]
 
     # Extract elements and concentrations from site
-    if hasattr(site.specie, 'symbol'):
+    # Check if site has single element (pure) or multiple elements (alloy)
+    if len(site.species) == 1:
         # Pure element site - cannot vary composition
+        element_symbol = list(site.species.keys())[0].symbol
         raise ValueError(
-            f"Site {site_idx} is a pure element ({site.specie.symbol}).\n"
+            f"Site {site_idx} is a pure element ({element_symbol}).\n"
             "Cannot vary composition for pure element sites.\n"
             "Use substitutions (CIF) or define alloy in sites (parameters)."
         )

@@ -25,7 +25,7 @@ from modules.generate_percentages.yaml_writer import (
 )
 from modules.alloy_loop import format_composition_name
 from modules.structure_builder import create_emto_structure
-from utils.config_parser import validate_generate_percentages_config
+from utils.config_parser import validate_generate_percentages_config, ConfigValidationError
 
 
 class TestCompositionGeneration:
@@ -350,7 +350,7 @@ class TestValidation:
         """Test validation fails if loop_perc missing."""
         config = {'output_path': 'test'}
 
-        with pytest.raises(ValueError, match="loop_perc section is missing"):
+        with pytest.raises(ConfigValidationError, match="loop_perc section is missing"):
             validate_generate_percentages_config(config)
 
     def test_validate_loop_perc_disabled(self):
@@ -359,7 +359,7 @@ class TestValidation:
             'loop_perc': {'enabled': False}
         }
 
-        with pytest.raises(ValueError, match="loop_perc.enabled must be true"):
+        with pytest.raises(ConfigValidationError, match="loop_perc.enabled must be true"):
             validate_generate_percentages_config(config)
 
     def test_validate_missing_structure_input(self):
@@ -368,7 +368,7 @@ class TestValidation:
             'loop_perc': {'enabled': True}
         }
 
-        with pytest.raises(ValueError, match="Invalid structure input"):
+        with pytest.raises(ConfigValidationError, match="Invalid structure input"):
             validate_generate_percentages_config(config)
 
     def test_validate_cif_without_substitutions(self):
@@ -378,7 +378,7 @@ class TestValidation:
             'cif_file': 'test.cif'
         }
 
-        with pytest.raises(ValueError, match="requires 'substitutions'"):
+        with pytest.raises(ConfigValidationError, match="requires 'substitutions'"):
             validate_generate_percentages_config(config)
 
 
