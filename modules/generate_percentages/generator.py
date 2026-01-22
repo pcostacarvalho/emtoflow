@@ -90,8 +90,12 @@ def generate_percentage_configs(master_config_path: str,
         )
     else:
         # Parameter method or CIF without substitutions
+        # Only pass cif_file if it's truthy (avoid passing False or None)
+        cif_file_val = master_config.get('cif_file')
+        cif_file_arg = cif_file_val if cif_file_val not in (None, False) else None
+
         structure_pmg, _ = create_emto_structure(
-            cif_file=master_config.get('cif_file'),
+            cif_file=cif_file_arg,
             lat=master_config.get('lat'),
             a=master_config.get('a'),
             b=master_config.get('b'),
@@ -209,8 +213,12 @@ def preview_compositions(master_config_path: str) -> None:
         )
     else:
         # Parameter method or CIF without substitutions
+        # Only pass cif_file if it's truthy (avoid passing False or None)
+        cif_file_val = master_config.get('cif_file')
+        cif_file_arg = cif_file_val if cif_file_val not in (None, False) else None
+
         structure_pmg, _ = create_emto_structure(
-            cif_file=master_config.get('cif_file'),
+            cif_file=cif_file_arg,
             lat=master_config.get('lat'),
             a=master_config.get('a'),
             b=master_config.get('b'),
