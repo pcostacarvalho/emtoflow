@@ -6,7 +6,7 @@ output_path: "Cu2Mg_laves"           # Output directory for all results
 job_name: "Cu2Mg"                 # Job identifier (used in file names)
 
 # Structure Input (REQUIRED - choose ONE approach)
-cif_file: 'calphad_cifs/Cu2Mg.cif'                       # Path to CIF file (set to null if using lattice params)
+cif_file: 'files/systems/calphad_cifs/Cu2Mg.cif'                       # Path to CIF file (set to null if using lattice params)
 lat: null                               # EMTO lattice type (1-14)
 a: null                              # Lattice parameter a (Angstroms)
 b: null                              # Lattice parameter b (default: same as a)
@@ -63,7 +63,7 @@ dmax_target_vectors: 100               # Target number of k-vectors
 dmax_vector_tolerance: 15              # Acceptable deviation (±N vectors)
 
 loop_perc:
-  enabled: false
+  enabled: true
   step: 10                        # Will generate: 0%, 10%, 20%, ..., 100%
   start: null
   end: null

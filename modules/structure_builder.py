@@ -360,7 +360,7 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
         EMTO structure dictionary with all required fields
     """
     # Check if user provided explicit LAT (from parameter workflow)
-    user_lat = structure_pmg.properties.get('user_lat', None) if structure_pmg.properties else None
+    user_lat = getattr(structure_pmg, 'properties', {}).get('user_lat', None)
 
     # Create SpacegroupAnalyzer (needed for symmetry analysis)
     sga = SpacegroupAnalyzer(structure_pmg)
@@ -430,7 +430,7 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
 
     # Extract all unique elements across all sites (for NL calculation)
     # Include zero-concentration elements if original_sites are available
-    original_sites = structure_pmg.properties.get('original_sites') if structure_pmg.properties else None
+    original_sites = getattr(structure_pmg, 'properties', {}).get('original_sites', None)
 
     all_elements = set()
     if original_sites:

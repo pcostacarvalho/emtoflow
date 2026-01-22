@@ -406,9 +406,9 @@ def validate_config(config: Dict[str, Any]) -> None:
                     f"{name} must be a non-empty string path, got: {config[key]}"
                 )
 
-    # Validate loop_perc configuration
-    if config['loop_perc'] is not None and config['loop_perc'].get('enabled') is True:
-        validate_loop_perc_config(config)
+    # Note: loop_perc validation is now handled by validate_generate_percentages_config()
+    # when using the generate_percentages module. The legacy validate_loop_perc_config()
+    # is no longer called since the automatic loop execution was removed from run_optimization.py
 
     # Validate substitutions configuration
     if config.get('substitutions') is not None:
