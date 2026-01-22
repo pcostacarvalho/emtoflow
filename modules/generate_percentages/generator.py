@@ -124,7 +124,8 @@ def generate_percentage_configs(master_config_path: str,
     print("-" * 70)
 
     # Determine input method (CIF vs parameters)
-    is_cif_method = master_config.get('cif_file') is not None
+    # Check for truthy value (not False, not None, not empty string)
+    is_cif_method = bool(master_config.get('cif_file'))
 
     # Generate YAML file for each composition
     generated_files = []
