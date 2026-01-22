@@ -54,10 +54,10 @@ def generate_percentage_configs(master_config_path: str,
     >>> # With custom output directory
     >>> files = generate_percentage_configs("master.yaml", "./configs/")
     """
-    # Load and validate master config
+    # Load and validate master config (includes all validation - better to catch errors early)
     master_config = load_and_validate_config(master_config_path)
 
-    # Validate that configuration is suitable for generate_percentages
+    # Additional validation specific to generate_percentages workflow
     validate_generate_percentages_config(master_config)
 
     # Determine output directory
@@ -187,7 +187,7 @@ def preview_compositions(master_config_path: str) -> None:
       3. Fe20_Pt80   (Fe=20%, Pt=80%)
       ...
     """
-    # Load config
+    # Load and validate config
     master_config = load_and_validate_config(master_config_path)
     validate_generate_percentages_config(master_config)
 
