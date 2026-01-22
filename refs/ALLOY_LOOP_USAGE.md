@@ -1,6 +1,42 @@
 # Alloy Percentage Loop - Usage Guide
 
-This document explains how to use the alloy percentage loop feature to automatically generate and run calculations for multiple alloy compositions.
+This document explains how to work with multiple alloy compositions.
+
+## ⚠️ IMPORTANT: New Workflow (Recommended)
+
+**As of this update, the recommended workflow separates file generation from execution:**
+
+### New Approach: `generate_percentages.py` (Recommended)
+
+**Step 1: Generate YAML files**
+```bash
+python bin/generate_percentages.py master_config.yaml
+```
+This creates separate YAML files for each composition (e.g., `Fe50_Pt50.yaml`, `Fe60_Pt40.yaml`).
+
+**Step 2: Submit individually**
+```bash
+python bin/run_optimization.py Fe50_Pt50.yaml
+python bin/run_optimization.py Fe60_Pt40.yaml
+# ... or submit to SLURM when ready
+```
+
+**Benefits:**
+- ✓ Review compositions before running
+- ✓ Control when to submit calculations
+- ✓ Test single compositions first
+- ✓ Better resource management
+- ✓ Easier debugging
+
+**See:** `refs/GENERATE_PERCENTAGES_PLAN.md` for complete documentation.
+
+---
+
+## Legacy Workflow (Still Available)
+
+The original automatic loop workflow described below still works but automatically runs all compositions. The new `generate_percentages.py` approach is recommended for better control.
+
+---
 
 ## Overview
 

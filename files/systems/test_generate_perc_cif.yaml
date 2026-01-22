@@ -1,0 +1,59 @@
+# Test configuration for generate_percentages with CIF + substitutions
+# This tests the CIF-based alloy workflow with element substitutions
+
+output_path: "FeCoPt_perc_test"
+job_name: "FeCoPt_test"
+
+# Structure from CIF with substitutions
+cif_file: "files/systems/FePt.cif"
+
+# Element substitutions (Fe sites will be varied)
+substitutions:
+  Fe:
+    elements: ['Fe', 'Co']
+    concentrations: [0.5, 0.5]  # Will be varied by loop_perc
+  Pt:
+    elements: ['Pt']
+    concentrations: [1.0]        # Pure Pt (unchanged)
+
+# Loop configuration (step-based sweep)
+loop_perc:
+  enabled: true
+  step: 25
+  start: 0
+  end: 100
+  site_index: 0
+  element_index: 0  # Vary Fe (first element in substitution)
+  phase_diagram: false
+  percentages: null
+
+# Optimization settings (will be copied to all generated files)
+optimize_ca: true
+optimize_sws: true
+ca_ratios: 0.95
+sws_values: 2.86
+initial_sws: [2.82]
+
+# EMTO parameters
+dmax: 1.52
+magnetic: 'F'
+NL: 3
+user_magnetic_moments:
+  Fe: 2.5
+  Co: 1.7
+  Pt: 0.4
+
+# Execution settings
+run_mode: "sbatch"
+slurm_account: "naiss2025-1-38"
+slurm_time: "02:00:00"
+slurm_partition: "main"
+prcs: 8
+
+# EOS settings
+eos_executable: "/home/user/emto/bin/eos.exe"
+eos_type: "MO88"
+
+# Analysis
+generate_plots: true
+export_csv: true

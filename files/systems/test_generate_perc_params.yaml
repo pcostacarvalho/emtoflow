@@ -1,0 +1,65 @@
+# Test configuration for generate_percentages with parameters method
+# This tests the lattice parameters + sites workflow
+
+output_path: "CuMg_perc_test"
+job_name: "CuMg_test"
+
+# Structure from parameters (FCC)
+cif_file: null
+lat: 2  # FCC
+a: 3.61
+b: null
+c: null
+alpha: null
+beta: null
+gamma: null
+
+sites:
+  - position: [0, 0, 0]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.5, 0.5]  # Will be varied by loop_perc
+
+# Loop configuration (explicit list for testing)
+loop_perc:
+  enabled: true
+  step: null
+  start: null
+  end: null
+  site_index: 0
+  element_index: null
+  phase_diagram: false
+  percentages:
+    - [0, 100]      # Pure Mg (Cu0_Mg100)
+    - [25, 75]      # Cu25Mg75
+    - [50, 50]      # Cu50Mg50
+    - [75, 25]      # Cu75Mg25
+    - [100, 0]      # Pure Cu (Cu100_Mg0)
+
+# Optimization settings (will be copied to all generated files)
+optimize_ca: false
+optimize_sws: true
+ca_ratios: null
+sws_values: null
+initial_sws: [2.67]
+
+# EMTO parameters
+dmax: 1.5
+magnetic: 'F'
+NL: 3
+NQ3: null
+user_magnetic_moments:
+  Cu: 0.6
+  Mg: 0.0
+
+# Execution settings
+run_mode: "local"
+prcs: 4
+job_script_name: "run_calc.sh"
+
+# EOS settings
+eos_executable: "/home/user/emto/bin/eos.exe"
+eos_type: "MO88"
+
+# Analysis
+generate_plots: true
+export_csv: true
