@@ -661,6 +661,178 @@ def validate_substitutions_config(config: Dict[str, Any]) -> None:
             )
  
 
+def validate_generate_percentages_config(config: Dict[str, Any]) -> None:
+    """
+    Validate configuration for generate_percentages workflow.
+
+    This is specifically for the generate_percentages module which creates
+    separate YAML files for different compositions. Unlike the legacy
+    loop_perc workflow, this supports both CIF + substitutions and
+    parameter-based structures.
+
+    Parameters
+    ----------
+    config : dict
+        Configuration dictionary with loop_perc enabled
+
+    Raises
+    ------
+    ConfigValidationError
+        If configuration is invalid for percentage generation
+
+    Notes
+    -----
+    This validation is called by modules/generate_percentages.py to check
+    that the master config is valid before generating YAML files.
+
+    Requirements:
+    - loop_perc.enabled must be true
+    - Either (cif_file + substitutions) OR (lat + a + sites)
+    - Site to vary must have multiple elements (is an alloy)
+    - All standard loop_perc validation (step, percentages, etc.)
+    """
+    # Check loop_perc is enabled
+    if not config.get('loop_perc'):
+        raise ConfigValidationError(
+            "loop_perc section is missing in master config.\n"
+            "Add loop_perc configuration to enable percentage generation."
+        )
+
+    if not config['loop_perc'].get('enabled'):
+        raise ConfigValidationError(
+            "loop_perc.enabled must be true in master config.\n"
+            "Set loop_perc.enabled: true to generate percentage files."
+        )
+
+    # Check structure input is valid
+    has_cif = config.get('cif_file') not in (False, None)
+    has_params = all([
+        config.get('lat') is not None,
+        config.get('a') is not None,
+        config.get('sites') is not None
+    ])
+
+    if not (has_cif or has_params):
+        raise ConfigValidationError(
+            "Invalid structure input.\n"
+            "Must provide either:\n"
+            "  1. cif_file + substitutions (for CIF-based alloys)\n"
+            "  2. lat, a, sites (for parameter-based alloys)"
+        )
+
+    # For CIF method, require substitutions if loop is enabled
+    if has_cif and not config.get('substitutions'):
+        raise ConfigValidationError(
+            "CIF input requires 'substitutions' section when using loop_perc.\n"
+            "Substitutions define which elements to vary in the composition loop."
+        )
+
+    # Standard loop_perc validation will be done by validate_loop_perc_config
+    # if it's called for the legacy workflow. For generate_percentages, we need
+    # to validate the loop_perc parameters are valid.
+
+    loop_config = config['loop_perc']
+
+    # Validate step if provided
+    if loop_config.get('step') is not None:
+        step = loop_config['step']
+        if not isinstance(step, (int, float)):
+            raise ConfigValidationError(
+                f"loop_perc.step must be a number, got: {type(step)}"
+            )
+        if step <= 0 or step > 100:
+            raise ConfigValidationError(
+                f"loop_perc.step must be between 0 and 100, got: {step}"
+            )
+
+    # Validate start/end if provided
+    if loop_config.get('start') is not None:
+        start = loop_config['start']
+        if not isinstance(start, (int, float)):
+            raise ConfigValidationError(
+                f"loop_perc.start must be a number, got: {type(start)}"
+            )
+        if start < 0 or start > 100:
+            raise ConfigValidationError(
+                f"loop_perc.start must be between 0 and 100, got: {start}"
+            )
+
+    if loop_config.get('end') is not None:
+        end = loop_config['end']
+        if not isinstance(end, (int, float)):
+            raise ConfigValidationError(
+                f"loop_perc.end must be a number, got: {type(end)}"
+            )
+        if end < 0 or end > 100:
+            raise ConfigValidationError(
+                f"loop_perc.end must be between 0 and 100, got: {end}"
+            )
+
+    if (loop_config.get('start') is not None and loop_config.get('end') is not None
+        and loop_config['start'] > loop_config['end']):
+        raise ConfigValidationError(
+            f"loop_perc.start ({loop_config['start']}) must be <= end ({loop_config['end']})"
+        )
+
+    # Validate percentages list if provided (explicit mode)
+    if loop_config.get('percentages') is not None:
+        percentages = loop_config['percentages']
+        if not isinstance(percentages, list):
+            raise ConfigValidationError(
+                f"loop_perc.percentages must be a list, got: {type(percentages)}"
+            )
+        if len(percentages) == 0:
+            raise ConfigValidationError(
+                "loop_perc.percentages list cannot be empty"
+            )
+
+        for i, comp in enumerate(percentages):
+            if not isinstance(comp, list):
+                raise ConfigValidationError(
+                    f"loop_perc.percentages[{i}] must be a list, got: {type(comp)}"
+                )
+
+            # Check all are numbers
+            if not all(isinstance(p, (int, float)) for p in comp):
+                raise ConfigValidationError(
+                    f"loop_perc.percentages[{i}] must contain only numbers"
+                )
+
+            # Check all non-negative
+            if any(p < 0 for p in comp):
+                raise ConfigValidationError(
+                    f"loop_perc.percentages[{i}] contains negative values"
+                )
+
+            # Check sum is 100
+            total = sum(comp)
+            if abs(total - 100.0) > 0.01:
+                raise ConfigValidationError(
+                    f"loop_perc.percentages[{i}] must sum to 100%, got: {total}%"
+                )
+
+    # Validate site_index if provided
+    if loop_config.get('site_index') is not None:
+        site_idx = loop_config['site_index']
+        if not isinstance(site_idx, int):
+            raise ConfigValidationError(
+                f"loop_perc.site_index must be an integer, got: {type(site_idx)}"
+            )
+        # Note: We can't validate the range here without loading the structure,
+        # which is done in generate_percentages module
+
+    # Validate element_index if provided
+    if loop_config.get('element_index') is not None:
+        elem_idx = loop_config['element_index']
+        if not isinstance(elem_idx, int):
+            raise ConfigValidationError(
+                f"loop_perc.element_index must be an integer, got: {type(elem_idx)}"
+            )
+        # Note: Range validation requires structure, done in generate_percentages
+
+
+
+
 def load_and_validate_config(
     config_source: Union[str, Path, Dict[str, Any]]
 ) -> Dict[str, Any]:

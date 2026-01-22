@@ -16,17 +16,16 @@ import yaml
 import tempfile
 from pathlib import Path
 
-from modules.generate_percentages import (
-    generate_percentage_configs,
-    validate_master_config,
-    determine_loop_site,
-    generate_compositions,
+from modules.generate_percentages import generate_percentage_configs
+from modules.generate_percentages.composition import determine_loop_site, generate_compositions
+from modules.generate_percentages.yaml_writer import (
     create_yaml_for_composition,
     update_substitutions,
-    write_yaml_file,
-    format_composition_name
+    write_yaml_file
 )
+from modules.alloy_loop import format_composition_name
 from modules.structure_builder import create_emto_structure
+from utils.config_parser import validate_generate_percentages_config
 
 
 class TestCompositionGeneration:
@@ -352,7 +351,7 @@ class TestValidation:
         config = {'output_path': 'test'}
 
         with pytest.raises(ValueError, match="loop_perc section is missing"):
-            validate_master_config(config)
+            validate_generate_percentages_config(config)
 
     def test_validate_loop_perc_disabled(self):
         """Test validation fails if loop_perc disabled."""
@@ -361,7 +360,7 @@ class TestValidation:
         }
 
         with pytest.raises(ValueError, match="loop_perc.enabled must be true"):
-            validate_master_config(config)
+            validate_generate_percentages_config(config)
 
     def test_validate_missing_structure_input(self):
         """Test validation fails if no structure input."""
@@ -370,7 +369,7 @@ class TestValidation:
         }
 
         with pytest.raises(ValueError, match="Invalid structure input"):
-            validate_master_config(config)
+            validate_generate_percentages_config(config)
 
     def test_validate_cif_without_substitutions(self):
         """Test validation fails if CIF without substitutions."""
@@ -380,7 +379,7 @@ class TestValidation:
         }
 
         with pytest.raises(ValueError, match="requires 'substitutions'"):
-            validate_master_config(config)
+            validate_generate_percentages_config(config)
 
 
 class TestCompositionNaming:
