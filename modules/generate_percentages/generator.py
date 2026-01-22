@@ -107,6 +107,8 @@ def generate_percentage_configs(master_config_path: str,
             user_magnetic_moments=master_config.get('user_magnetic_moments')
         )
 
+    print(structure_pmg)
+
     # Determine which site to vary and get element information
     site_idx, elements, base_concentrations = determine_loop_site(
         master_config, structure_pmg
