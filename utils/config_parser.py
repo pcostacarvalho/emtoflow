@@ -204,10 +204,10 @@ def validate_config(config: Dict[str, Any]) -> None:
     # Check for cubic lattices - c/a must be 1.0 (cannot optimize)
     if config.get('lat') in CUBIC_LATTICES:
         if config['optimize_ca']:
-            raise ConfigValidationError(
-                f"optimize_ca cannot be True for cubic lattices (lat={config['lat']}). "
-                "Cubic lattices (SC=1, FCC=2, BCC=3) have c/a = 1.0 by definition."
-            )
+            # Auto-disable optimize_ca for cubic lattices instead of raising error
+            config['optimize_ca'] = False
+            # Note: We silently fix this rather than raising an error
+            # This makes the workflow more user-friendly
         # Warn if c/a is provided and not 1.0 for cubic
         if config.get('ca_ratios') is not None:
             ca_list = config['ca_ratios'] if isinstance(config['ca_ratios'], list) else [config['ca_ratios']]
@@ -236,10 +236,13 @@ def validate_config(config: Dict[str, Any]) -> None:
                 )
 
     # Validate initial_sws for c/a optimization
-    if config['optimize_ca']:
+    # Only required if optimize_ca is True and auto_generate is False
+    # When auto_generate is True, initial_sws can be calculated from structure
+    if config['optimize_ca'] and not config.get('auto_generate'):
         if config.get('initial_sws') is None:
             raise ConfigValidationError(
-                "initial_sws is required when optimize_ca is True"
+                "initial_sws is required when optimize_ca is True and auto_generate is False. "
+                "Either provide initial_sws or set auto_generate=True to calculate from structure."
             )
 
     # Validate dmax
