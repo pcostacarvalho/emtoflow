@@ -445,7 +445,12 @@ def generate_dos_analysis(
         ax.set_xlim(dos_plot_range[0], dos_plot_range[1])
         fig.savefig(total_plot, dpi=300, bbox_inches='tight')
         plt.close(fig)
-        print(f"✓ Total DOS plot saved: {total_plot}")
+        
+        # Verify file was actually created
+        if total_plot.exists():
+            print(f"✓ Total DOS plot saved: {total_plot}")
+        else:
+            raise RuntimeError(f"Failed to save total DOS plot: {total_plot} (file does not exist after savefig)")
 
         # Sublattice DOS (if available)
         if parser.atom_info:
@@ -463,8 +468,13 @@ def generate_dos_analysis(
                 ax.set_xlim(dos_plot_range[0], dos_plot_range[1])
                 fig.savefig(sublat_plot, dpi=300, bbox_inches='tight')
                 plt.close(fig)
-                sublattice_plots.append(str(sublat_plot))
-                print(f"✓ Sublattice {sublat} DOS plot saved")
+                
+                # Verify file was actually created
+                if sublat_plot.exists():
+                    sublattice_plots.append(str(sublat_plot))
+                    print(f"✓ Sublattice {sublat} DOS plot saved: {sublat_plot}")
+                else:
+                    raise RuntimeError(f"Failed to save sublattice {sublat} DOS plot: {sublat_plot} (file does not exist after savefig)")
         else:
             print("Note: No atom info found, skipping sublattice DOS plots")
 
@@ -614,7 +624,11 @@ def generate_summary_report(
             report.append("\n" + "-" * 80)
             report.append("DOS ANALYSIS")
             report.append("-" * 80)
-            report.append(f"DOS plots generated: {len(dos.get('sublattice_plots', [])) + 1}")
+            # Count actual plots that exist
+            total_plot_path = dos.get('total_plot')
+            sublattice_plots = dos.get('sublattice_plots', [])
+            plot_count = (1 if total_plot_path and Path(total_plot_path).exists() else 0) + len([p for p in sublattice_plots if Path(p).exists()])
+            report.append(f"DOS plots generated: {plot_count}")
             report.append(f"Plot range: {dos.get('plot_range')} eV")
 
     report.append("\n" + "=" * 80)
