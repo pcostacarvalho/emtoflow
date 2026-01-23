@@ -11,10 +11,16 @@ Tests cover:
 - Validation
 """
 
+import sys
+import os
+from pathlib import Path
+
+# Add project root to Python path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import pytest
 import yaml
 import tempfile
-from pathlib import Path
 
 from modules.generate_percentages import generate_percentage_configs
 from modules.generate_percentages.composition import determine_loop_site, generate_compositions
@@ -247,14 +253,15 @@ class TestYAMLGeneration:
             structure_pmg=structure_pmg,
             site_idx=0,
             elements=['Cu', 'Mg'],
-            is_cif_method=False
+            is_cif_method=False,
+            base_folder='CuMg_study'
         )
 
         # Check concentrations updated
         assert new_config['sites'][0]['concentrations'] == [0.75, 0.25]
 
-        # Check output_path updated
-        assert new_config['output_path'] == 'CuMg_study/Cu75_Mg25'
+        # Check output_path updated (now just composition name)
+        assert new_config['output_path'] == 'Cu75_Mg25'
 
         # Check loop_perc disabled
         assert new_config['loop_perc']['enabled'] is False
@@ -297,14 +304,15 @@ class TestYAMLGeneration:
             structure_pmg=structure_pmg,
             site_idx=0,
             elements=['Fe', 'Co'],
-            is_cif_method=True
+            is_cif_method=True,
+            base_folder='FePt_study'
         )
 
         # Check substitutions updated
         assert new_config['substitutions']['Fe']['concentrations'] == [0.25, 0.75]
 
-        # Check output_path updated
-        assert new_config['output_path'] == 'FePt_study/Fe25_Co75'
+        # Check output_path updated (now just composition name)
+        assert new_config['output_path'] == 'Fe25_Co75'
 
         # Check loop_perc disabled
         assert new_config['loop_perc']['enabled'] is False

@@ -101,10 +101,19 @@ def generate_percentage_configs(master_config_path: str,
     # Generate compositions based on loop_perc mode
     compositions = generate_compositions(master_config['loop_perc'], n_elements)
 
+    # Extract base folder from master config's output_path
+    base_output = master_config.get('output_path', 'output')
+    base_folder = base_output
+
+    # Create base folder structure inside output_dir
+    base_folder_path = output_dir / base_folder
+    base_folder_path.mkdir(parents=True, exist_ok=True)
+
     print(f"\nGenerating YAML files for {len(compositions)} compositions")
     print(f"Elements: {elements}")
     print(f"Site index: {site_idx}")
-    print(f"Output directory: {output_dir}")
+    print(f"Base folder: {base_folder}")
+    print(f"Output directory: {base_folder_path}")
     print("-" * 70)
 
     # Determine input method (CIF vs parameters)
@@ -126,12 +135,13 @@ def generate_percentage_configs(master_config_path: str,
             structure_pmg=structure_pmg,
             site_idx=site_idx,
             elements=elements,
-            is_cif_method=is_cif_method
+            is_cif_method=is_cif_method,
+            base_folder=base_folder
         )
 
         # Generate filename with composition
         yaml_filename = f"{composition_name}.yaml"
-        yaml_path = output_dir / yaml_filename
+        yaml_path = base_folder_path / yaml_filename
 
         # Write YAML file
         write_yaml_file(composition_config, str(yaml_path))
@@ -144,7 +154,7 @@ def generate_percentage_configs(master_config_path: str,
         print(f"  [{i:3d}/{len(compositions)}] {yaml_filename:30s} ({comp_str})")
 
     print("-" * 70)
-    print(f"✓ Generated {len(generated_files)} YAML files in {output_dir}\n")
+    print(f"✓ Generated {len(generated_files)} YAML files in {base_folder_path}\n")
 
     return generated_files
 

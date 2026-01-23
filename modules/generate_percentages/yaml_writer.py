@@ -20,14 +20,15 @@ def create_yaml_for_composition(base_config: Dict[str, Any],
                                 structure_pmg,
                                 site_idx: int,
                                 elements: List[str],
-                                is_cif_method: bool) -> Dict[str, Any]:
+                                is_cif_method: bool,
+                                base_folder: str) -> Dict[str, Any]:
     """
     Create modified config for a specific composition.
 
     Steps:
     1. Deep copy base config
     2. Update concentrations (in substitutions or sites)
-    3. Update output_path with composition subdirectory
+    3. Update output_path to just composition name (base_folder is handled by directory structure)
     4. Disable loop_perc
     5. Preserve all other settings
 
@@ -47,6 +48,8 @@ def create_yaml_for_composition(base_config: Dict[str, Any],
         Element symbols at varied site
     is_cif_method : bool
         True if using CIF + substitutions, False if using parameters
+    base_folder : str
+        Base folder name from master config's output_path (e.g., "CuMg_fcc")
 
     Returns
     -------
@@ -67,9 +70,10 @@ def create_yaml_for_composition(base_config: Dict[str, Any],
         # Parameter method (lat, a, sites)
         new_config['sites'][site_idx]['concentrations'] = concentrations
 
-    # Update output_path with composition subdirectory
-    base_output = base_config.get('output_path', 'output')
-    new_config['output_path'] = f"{base_output}/{composition_name}"
+    # Set output_path to just the composition name
+    # The base_folder directory structure is created by generate_percentage_configs
+    # and YAML files are placed inside it, so output_path should be relative
+    new_config['output_path'] = composition_name
 
     # Disable loop_perc in generated config
     if new_config.get('loop_perc'):

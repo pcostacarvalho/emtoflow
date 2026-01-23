@@ -11,10 +11,26 @@ The `modules/generate_percentages/` module creates multiple YAML configuration f
 python bin/generate_percentages.py master_config.yaml
 ```
 
+This creates a folder (matching `output_path` from master config) containing all YAML files:
+```
+CuMg_fcc/
+├── Cu0_Mg100.yaml
+├── Cu10_Mg90.yaml
+├── Cu50_Mg50.yaml
+└── ...
+```
+
 **Step 2: Submit individually**
 ```bash
-python bin/run_optimization.py Fe50_Pt50.yaml
-python bin/run_optimization.py Fe60_Pt40.yaml
+cd CuMg_fcc
+python ../bin/run_optimization.py Cu50_Mg50.yaml
+python ../bin/run_optimization.py Cu60_Mg40.yaml
+```
+
+Or from the parent directory:
+```bash
+python bin/run_optimization.py CuMg_fcc/Cu50_Mg50.yaml
+python bin/run_optimization.py CuMg_fcc/Cu60_Mg40.yaml
 ```
 
 ## Key Features
@@ -76,18 +92,41 @@ loop_perc:
 
 ## Output
 
-Generated files:
-- `Fe0_Pt100.yaml`
-- `Fe25_Pt75.yaml`
-- `Fe50_Pt50.yaml`
-- `Fe75_Pt25.yaml`
-- `Fe100_Pt0.yaml`
+### Folder Structure
 
-Each file:
+YAML files are created inside a folder matching the master config's `output_path`:
+
+**Master config:**
+```yaml
+output_path: CuMg_fcc
+```
+
+**Generated structure:**
+```
+Current directory/
+└── CuMg_fcc/
+    ├── Cu0_Mg100.yaml
+    ├── Cu10_Mg90.yaml
+    ├── Cu50_Mg50.yaml
+    ├── Cu90_Mg10.yaml
+    └── Cu100_Mg0.yaml
+```
+
+### Generated Files
+
+Each YAML file:
 - Copies entire original YAML
 - Updates concentrations (in `substitutions` for CIF or `sites` for parameters)
 - Disables `loop_perc` (set `enabled: false`)
-- Updates `output_path` with composition subdirectory
+- Sets `output_path` to just the composition name (e.g., `Cu100_Mg0`)
+  - The base folder structure is created by `generate_percentages`
+  - When running the workflow, calculations will be created in `{base_folder}/{composition_name}/`
+
+**Example:**
+- Master config: `output_path: CuMg_fcc`
+- Generated file location: `CuMg_fcc/Cu100_Mg0.yaml`
+- File contents: `output_path: Cu100_Mg0`
+- When run: Creates `CuMg_fcc/Cu100_Mg0/` for calculations
 
 ## Implementation Details
 
