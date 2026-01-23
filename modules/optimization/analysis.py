@@ -387,16 +387,22 @@ def generate_dos_analysis(
 
     Notes
     -----
-    Looks for DOS files in phase_path/pot/{file_id}.dos
+    Looks for DOS files in phase_path/{file_id}.dos
     Generates plots and saves to phase_path/dos_analysis/
     """
     from modules.dos import DOSParser, DOSPlotter
 
     phase_path = Path(phase_path)
-    dos_file = phase_path / "pot" / f"{file_id}.dos"
+    dos_file = phase_path / f"{file_id}.dos"
 
     if not dos_file.exists():
+        # List available DOS files for debugging
+        dos_files = list(phase_path.glob("*.dos"))
         print(f"Warning: DOS file not found: {dos_file}")
+        if dos_files:
+            print(f"  Found {len(dos_files)} DOS file(s) in phase directory:")
+            for f in dos_files:
+                print(f"    - {f}")
         return {'status': 'not_found', 'file': str(dos_file)}
 
     print(f"\n{'='*70}")
