@@ -429,6 +429,9 @@ def generate_dos_analysis(
         raise ValueError(f"dos_plot_range must be [E_min, E_max], got: {dos_plot_range}")
 
     # Generate plots
+    total_plot = None
+    sublattice_plots = []
+    
     try:
         plotter = DOSPlotter(parser)
 
@@ -445,7 +448,6 @@ def generate_dos_analysis(
         print(f"✓ Total DOS plot saved: {total_plot}")
 
         # Sublattice DOS (if available)
-        sublattice_plots = []
         if parser.atom_info:
             # Get unique sublattices
             sublattices = sorted(set(info[2] for info in parser.atom_info))
@@ -463,9 +465,16 @@ def generate_dos_analysis(
                 plt.close(fig)
                 sublattice_plots.append(str(sublat_plot))
                 print(f"✓ Sublattice {sublat} DOS plot saved")
+        else:
+            print("Note: No atom info found, skipping sublattice DOS plots")
 
     except Exception as e:
-        print(f"Warning: Failed to generate some DOS plots: {e}")
+        import traceback
+        print(f"\n✗ Error generating DOS plots: {e}")
+        print("Full traceback:")
+        traceback.print_exc()
+        print(f"\nDOS file was parsed successfully, but plotting failed.")
+        print(f"Please check the DOS file format and try again.")
 
     results = {
         'status': 'success',
