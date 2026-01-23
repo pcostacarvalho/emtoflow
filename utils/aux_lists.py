@@ -93,15 +93,16 @@ def prepare_ranges(ca_ratios, sws_values, ca_step, sws_step, n_points, lat=None)
 
 def rescale_kpoints(lattice_params: Tuple[float, float, float]) -> Tuple[int, int, int]:
     """
-    Rescale k-points based on lattice parameters using hard-coded reference.
+    Rescale k-points based on primitive cell lattice parameters using hard-coded reference.
 
     Maintains constant k-point density in reciprocal space when lattice parameters
-    change. Uses a reference convergence study as baseline.
+    change. Uses a reference convergence study (lat=5, Simple Tetragonal) as baseline.
 
     Parameters
     ----------
     lattice_params : tuple of (float, float, float)
-        Current lattice parameters (a, b, c) in Angstroms
+        Current primitive cell lattice parameters (a, b, c) in Angstroms.
+        Should be obtained from structure_pmg.lattice.a/b/c.
 
     Returns
     -------
@@ -110,17 +111,20 @@ def rescale_kpoints(lattice_params: Tuple[float, float, float]) -> Tuple[int, in
 
     Notes
     -----
-    Hard-coded reference from convergence study:
-    - Reference lattice: (3.86 Å, 3.86 Å, 3.76 Å)
+    Hard-coded reference from convergence study (primitive cell parameters):
+    - Reference lattice: lat=5 (Simple Tetragonal), a=b=3.86 Å, c=3.76 Å
     - Reference k-mesh: (21, 21, 21)
     - K-point density constants: (81.06, 81.06, 78.96)
+    
+    IMPORTANT: lattice_params should be primitive cell parameters from
+    structure_pmg.lattice.a/b/c, not conventional cell parameters.
 
     The rescaling follows the formula:
         N'_i = (a_i × N_i) / a'_i
 
     Where:
-    - a_i, N_i: Reference lattice parameter and k-points
-    - a'_i: New lattice parameter
+    - a_i, N_i: Reference primitive cell parameter and k-points
+    - a'_i: New primitive cell parameter
     - N'_i: New k-points (rounded to nearest integer)
 
     Examples

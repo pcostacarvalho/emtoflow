@@ -10,16 +10,16 @@ The `lat` parameter in EMTO specifies the Bravais lattice type. Values range fro
 | 2 | FCC | Cubic | Face-centered cubic |
 | 3 | BCC | Cubic | Body-centered cubic |
 | 4 | HCP | Hexagonal | Hexagonal close-packed |
-| 5 | BCT | Tetragonal | Body-centered tetragonal |
-| 6 | ST | Tetragonal | Simple tetragonal |
-| 7 | ORC | Orthorhombic | C-centered orthorhombic |
-| 8 | ORCF | Orthorhombic | Face-centered orthorhombic |
-| 9 | ORCI | Orthorhombic | Body-centered orthorhombic |
-| 10 | ORCC | Orthorhombic | Base-centered orthorhombic |
-| 11 | HEX | Hexagonal | Simple hexagonal |
-| 12 | RHL | Rhombohedral | Rhombohedral |
-| 13 | MCL | Monoclinic | Base-centered monoclinic |
-| 14 | MCLC | Monoclinic | C-centered monoclinic |
+| 5 | ST | Tetragonal | Simple tetragonal |
+| 6 | BCT | Tetragonal | Body-centered tetragonal |
+| 7 | RHL | Trigonal | Trigonal/Rhombohedral |
+| 8 | ORC | Orthorhombic | Simple orthorhombic |
+| 9 | ORCC | Orthorhombic | Base-centered orthorhombic |
+| 10 | ORCI | Orthorhombic | Body-centered orthorhombic |
+| 11 | ORCF | Orthorhombic | Face-centered orthorhombic |
+| 12 | MCL | Monoclinic | Simple monoclinic |
+| 13 | MCLC | Monoclinic | Base-centered monoclinic |
+| 14 | TRI | Triclinic | Simple triclinic |
 
 ## Primitive Vectors
 
@@ -41,9 +41,9 @@ v3 = (0.5, 0, 0.5)
 
 ### LAT 3: Body-Centered Cubic (BCC)
 ```
-v1 = (-0.5, 0.5, 0.5)
-v2 = (0.5, -0.5, 0.5)
-v3 = (0.5, 0.5, -0.5)
+v1 = (0.5, 0.5, -0.5)
+v2 = (-0.5, 0.5, 0.5)
+v3 = (0.5, -0.5, 0.5)
 ```
 
 ### LAT 4: Hexagonal Close-Packed (HCP)
@@ -56,79 +56,80 @@ Basis: 2 atoms
   atom2 = (0.333333, 0.666667, 0.5)
 ```
 
-### LAT 5: Body-Centered Tetragonal (BCT)
-```
-v1 = (-0.5, 0.5, 0.5*c/a)
-v2 = (0.5, -0.5, 0.5*c/a)
-v3 = (0.5, 0.5, -0.5*c/a)
-```
-
-### LAT 6: Simple Tetragonal (ST)
+### LAT 5: Simple Tetragonal (ST)
 ```
 v1 = (1, 0, 0)
 v2 = (0, 1, 0)
 v3 = (0, 0, c/a)
 ```
 
-### LAT 7: C-Centered Orthorhombic (ORC)
-```
-v1 = (0.5*b/a, 0.5, 0)
-v2 = (-0.5*b/a, 0.5, 0)
-v3 = (0, 0, c/a)
-```
-
-### LAT 8: Face-Centered Orthorhombic (ORCF)
-```
-v1 = (0, 0.5*b/a, 0.5*c/a)
-v2 = (0.5, 0, 0.5*c/a)
-v3 = (0.5, 0.5*b/a, 0)
-```
-
-### LAT 9: Body-Centered Orthorhombic (ORCI)
-```
-v1 = (-0.5, 0.5*b/a, 0.5*c/a)
-v2 = (0.5, -0.5*b/a, 0.5*c/a)
-v3 = (0.5, 0.5*b/a, -0.5*c/a)
-```
-
-### LAT 10: Base-Centered Orthorhombic (ORCC)
+### LAT 6: Body-Centered Tetragonal (BCT)
 ```
 v1 = (1, 0, 0)
-v2 = (0, 1*b/a, 0)
-v3 = (0, 0, c/a)
+v2 = (0, 1, 0)
+v3 = (0.5, 0.5, c/a/2)
 ```
 
-### LAT 11: Simple Hexagonal (HEX)
+### LAT 7: Trigonal/Rhombohedral (RHL)
 ```
-v1 = (1, 0, 0)
-v2 = (-0.5, 0.866025, 0)      # sqrt(3)/2 ≈ 0.866025
-v3 = (0, 0, c/a)
-Basis: 1 atom
-  atom1 = (0, 0, 0)
-```
-
-### LAT 12: Rhombohedral (RHL)
-```
-v1 = (1, 0, 0)
-v2 = (cos(alpha), sin(alpha), 0)
-v3 = (cos(alpha), cos(alpha)*(1-cos(alpha))/sin(alpha), sqrt(1-3*cos²(alpha)+2*cos³(alpha))/sin(alpha))
+v1 = (0, 1, c/a)
+v2 = (-sqrt(3)/2, -0.5, c/a)      # sqrt(3)/2 ≈ 0.866025
+v3 = (sqrt(3)/2, -0.5, c/a)
 Note: All three angles are equal (alpha = beta = gamma)
+Special case: If bsz(1) < 1e-7, then boa = -1.0
 ```
 
-### LAT 13: Base-Centered Monoclinic (MCL)
+### LAT 8: Simple Orthorhombic (ORC)
 ```
 v1 = (1, 0, 0)
 v2 = (0, b/a, 0)
-v3 = (0, (c/a)*cos(beta), (c/a)*sin(beta))
-Note: beta ≠ 90°, alpha = gamma = 90°
+v3 = (0, 0, c/a)
 ```
 
-### LAT 14: C-Centered Monoclinic (MCLC)
+### LAT 9: Base-Centered Orthorhombic (ORCC)
 ```
-v1 = (0.5, -0.5*b/a, 0)
-v2 = (0.5, 0.5*b/a, 0)
-v3 = (0, (c/a)*cos(beta), (c/a)*sin(beta))
-Note: beta ≠ 90°, alpha = gamma = 90°
+v1 = (0.5, -b/a/2, 0)
+v2 = (0.5, b/a/2, 0)
+v3 = (0, 0, c/a)
+```
+
+### LAT 10: Body-Centered Orthorhombic (ORCI)
+```
+v1 = (0.5, -b/a/2, c/a/2)
+v2 = (0.5, b/a/2, -c/a/2)
+v3 = (-0.5, b/a/2, c/a/2)
+```
+
+### LAT 11: Face-Centered Orthorhombic (ORCF)
+```
+v1 = (0.5, 0, c/a/2)
+v2 = (0.5, b/a/2, 0)
+v3 = (0, b/a/2, c/a/2)
+```
+
+### LAT 12: Simple Monoclinic (MCL)
+```
+v1 = (1, 0, 0)
+v2 = (b/a*cos(gamma), b/a*sin(gamma), 0)
+v3 = (0, 0, c/a)
+Note: gamma ≠ 90°, alpha = beta = 90°
+```
+
+### LAT 13: Base-Centered Monoclinic (MCLC)
+```
+v1 = (0, -b/a, 0)
+v2 = (0.5*sin(gamma), -0.5*cos(gamma), -0.5*c/a)
+v3 = (0.5*sin(gamma), -0.5*cos(gamma), 0.5*c/a)
+Note: gamma ≠ 90°, alpha = beta = 90°
+```
+
+### LAT 14: Simple Triclinic (TRI)
+```
+v1 = (1, 0, 0)
+v2 = (b/a*cos(gamma), b/a*sin(gamma), 0)
+v3 = (c/a*cos(beta), c/a*(cos(alpha)-cos(beta)*cos(gamma))/sin(gamma), 
+      c/a*sqrt(1-cos²(gamma)-cos²(alpha)-cos²(beta)+2*cos(alpha)*cos(beta)*cos(gamma))/sin(gamma))
+Note: All angles may differ from 90°
 ```
 
 ### Notes on Vectors
@@ -147,16 +148,16 @@ Note: beta ≠ 90°, alpha = gamma = 90°
 - **BCC (3)**: Fe, Cr, Mo, W, V
 
 ### Tetragonal Systems
-- **BCT (5)**: In, Sn (white tin)
-- **ST (6)**: TiO₂ (rutile)
+- **ST (5)**: TiO₂ (rutile)
+- **BCT (6)**: In, Sn (white tin)
 
 ### Hexagonal Systems
 - **HCP (4)**: Mg, Ti, Co, Zn, Cd
-- **HEX (11)**: Graphite structure
 
 ### Others
-- **RHL (12)**: Bi, Sb, As
-- **ORCF (8)**: α-U (uranium)
+- **RHL (7)**: Bi, Sb, As
+- **ORCF (11)**: α-U (uranium)
+- **TRI (14)**: K₂Cr₂O₇
 
 ## Auto-Detection
 
@@ -203,20 +204,24 @@ create_emto_inputs(
 |----------------|---------------------|----------|
 | Cubic (1-3) | `a` | - |
 | Tetragonal (5-6) | `a`, `c` | - |
-| Hexagonal (4, 11) | `a`, `c` | - |
-| Orthorhombic (7-10) | `a`, `b`, `c` | - |
-| Rhombohedral (12) | `a` | `alpha` |
-| Monoclinic (13-14) | `a`, `b`, `c` | `beta` |
+| Hexagonal (4) | `a`, `c` | - |
+| Trigonal (7) | `a`, `c` | `alpha` (all angles equal) |
+| Orthorhombic (8-11) | `a`, `b`, `c` | - |
+| Monoclinic (12-13) | `a`, `b`, `c` | `gamma` (for LAT 12), `beta` (for LAT 13) |
+| Triclinic (14) | `a`, `b`, `c` | `alpha`, `beta`, `gamma` |
 
 ### Notes
 
 - For cubic systems: `b=a`, `c=a` (automatically set)
-- For HCP (LAT=4): `c/a` ratio typically ~1.633
+- For HCP (LAT=4): `c/a` ratio typically ~1.633, gamma=120°
 - For tetragonal: `c/a` ratio defines distortion from cubic
+- For trigonal (LAT=7): All three angles are equal (alpha = beta = gamma)
 - All angles default to 90° except:
-  - HCP: gamma=120°
-  - Rhombohedral: alpha≠90° (all angles equal)
-  - Monoclinic: beta≠90°
+  - HCP (LAT=4): gamma=120°
+  - Trigonal (LAT=7): alpha=beta=gamma≠90° (all angles equal)
+  - Simple monoclinic (LAT=12): gamma≠90°
+  - Base-centered monoclinic (LAT=13): beta≠90°
+  - Triclinic (LAT=14): All angles may differ from 90°
 
 ## Quick Reference
 
@@ -226,12 +231,12 @@ create_emto_inputs(
 - LAT 1, 2, 3: One parameter (a)
 
 **Medium symmetry:**
-- LAT 4, 5, 6, 11: Two parameters (a, c)
-- LAT 7-10: Three parameters (a, b, c)
+- LAT 4, 5, 6, 7: Two parameters (a, c)
+- LAT 8-11: Three parameters (a, b, c)
 
 **Lower symmetry:**
-- LAT 12: One parameter + angle (a, alpha)
-- LAT 13-14: Three parameters + angle (a, b, c, beta)
+- LAT 12-13: Three parameters + angle (a, b, c, gamma/beta)
+- LAT 14: Three parameters + three angles (a, b, c, alpha, beta, gamma)
 
 ## Validation
 

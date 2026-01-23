@@ -1,0 +1,85 @@
+output_path: CuMg_fcc/Cu100_Mg0
+job_name: CuMg
+cif_file: null
+lat: 2
+a: 3.61
+b: null
+c: null
+alpha: 90
+beta: 90
+gamma: 90
+sites:
+- position:
+  - 0
+  - 0
+  - 0
+  elements:
+  - Cu
+  - Mg
+  concentrations:
+  - 1.0
+  - 0.0
+substitutions: null
+ca_ratios: null
+sws_values: null
+auto_generate: true
+ca_step: 0.02
+sws_step: 0.05
+n_points: 7
+initial_sws: null
+dmax: 1.8
+magnetic: P
+user_magnetic_moments:
+  Cu: 0.0
+  Mg: 0.0
+functional: GGA
+nkx: 21
+nky: 21
+nkz: 21
+rescale_k: true
+optimize_ca: false
+optimize_sws: true
+optimize_dmax: false
+dmax_initial: 2.0
+dmax_target_vectors: 100
+dmax_vector_tolerance: 15
+kstr_executable: /path/to/kstr.exe
+run_mode: local
+prcs: 8
+slurm_account: naiss2025-1-38
+slurm_partition: main
+slurm_time: 02:00:00
+create_job_script: true
+job_mode: serial
+shape_executable: /path/to/shape.exe
+kgrn_executable: /path/to/kgrn_mpi.x
+kfcd_executable: /path/to/kfcd.exe
+eos_executable: /path/to/eos.exe
+eos_type: MO88
+generate_plots: true
+export_csv: true
+plot_format: png
+generate_dos: false
+dos_plot_range:
+- -0.8
+- 0.15
+reference_ca: null
+reference_sws: null
+reference_volume: null
+poll_interval: 30
+max_wait_time: 7200
+timeout_action: stop
+skip_existing: false
+save_intermediate: true
+cleanup_temp: false
+log_level: INFO
+prepare_only: false
+loop_perc:
+  enabled: false
+  start: 0
+  end: 100
+  step: 10
+  site_index: 0
+  element_index: 0
+  phase_diagram: false
+  percentages: null
