@@ -154,22 +154,40 @@ class OptimizationWorkflow:
 
         # Process SWS values
         if sws_values is None:
-            # Calculate from structure
-            if structure is None:
-                raise ValueError("structure is required when sws_values is None")
+            # Check if initial_sws should override structure sws
+            initial_sws = self.config.get('initial_sws')
+            if initial_sws is not None:
+                # Use initial_sws instead of calculating from structure
+                if isinstance(initial_sws, (int, float)):
+                    sws_center = float(initial_sws)
+                elif isinstance(initial_sws, list) and len(initial_sws) > 0:
+                    sws_center = float(initial_sws[0])
+                else:
+                    raise TypeError(f"initial_sws must be float or list of float, got {type(initial_sws)}")
+                
+                # Generate range
+                sws_min = sws_center - 3 * sws_step
+                sws_max = sws_center + 3 * sws_step
+                sws_list = list(np.linspace(sws_min, sws_max, n_points))
+                
+                print(f"Auto-generated SWS values around initial_sws={sws_center:.4f}: {sws_list}")
+            else:
+                # Calculate from structure
+                if structure is None:
+                    raise ValueError("structure is required when sws_values is None")
 
-            # Get pymatgen structure to calculate SWS
-            structure_pmg = structure['structure_pmg']
+                # Get pymatgen structure to calculate SWS
+                structure_pmg = structure['structure_pmg']
 
-            # Calculate SWS
-            sws_center = lattice_param_to_sws(structure_pmg)
+                # Calculate SWS
+                sws_center = lattice_param_to_sws(structure_pmg)
 
-            # Generate range
-            sws_min = sws_center - 3 * sws_step
-            sws_max = sws_center + 3 * sws_step
-            sws_list = list(np.linspace(sws_min, sws_max, n_points))
+                # Generate range
+                sws_min = sws_center - 3 * sws_step
+                sws_max = sws_center + 3 * sws_step
+                sws_list = list(np.linspace(sws_min, sws_max, n_points))
 
-            print(f"Auto-generated SWS values around {sws_center:.4f}: {sws_list}")
+                print(f"Auto-generated SWS values around {sws_center:.4f}: {sws_list}")
 
         elif isinstance(sws_values, (int, float)):
             # Single value → generate range
