@@ -296,6 +296,20 @@ def run_eos_fit(
         r_or_v_final = [r_or_v_data[i] for i in selected_indices]
         energy_final = [energy_data[i] for i in selected_indices]
         
+        # Verify we have enough points and they're sorted
+        if len(r_or_v_final) < 3:
+            raise RuntimeError(
+                f"Not enough points selected for final fit: {len(r_or_v_final)}. "
+                f"Need at least 3 points for EOS fitting."
+            )
+        
+        # Ensure points are sorted (should be, but double-check)
+        sorted_pairs = sorted(zip(r_or_v_final, energy_final))
+        r_or_v_final = [r for r, e in sorted_pairs]
+        energy_final = [e for r, e in sorted_pairs]
+        
+        print(f"  Selected SWS values: {[f'{r:.4f}' for r in r_or_v_final]}")
+        
         metadata['symmetric_selection_used'] = True
         metadata['final_points'] = len(selected_indices)
 
@@ -385,8 +399,9 @@ def _run_single_eos_fit(
         If EOS executable fails or parsing fails
     """
     output_path = Path(output_path)
-    eos_input_file = output_path / "eos.dat"
-    eos_stdout_file = output_path / "eos.out"
+    # Use unique filenames based on job_name to avoid conflicts when running multiple fits
+    eos_input_file = output_path / f"eos_{job_name}.dat"
+    eos_stdout_file = output_path / f"eos_{job_name}.out"
 
     # Step 1: Create EOS input file
     try:
@@ -433,11 +448,34 @@ def _run_single_eos_fit(
     # Step 3: Parse EOS output
     filename_eos_results = output_path / f"{job_name}.out"
     if not filename_eos_results.exists():
-        raise RuntimeError(
+        # Check what .out files were actually created
+        created_files = list(output_path.glob("*.out"))
+        created_files_str = "\n".join([f"  - {f.name}" for f in created_files])
+        
+        # Read stdout log for error messages
+        stdout_content = ""
+        if eos_stdout_file.exists():
+            try:
+                with open(eos_stdout_file, 'r') as f:
+                    stdout_content = f.read()
+                    # Show last 20 lines if file is long
+                    lines = stdout_content.split('\n')
+                    if len(lines) > 20:
+                        stdout_content = '\n'.join(lines[-20:])
+            except Exception:
+                pass
+        
+        error_msg = (
             "EOS executable completed but did not produce the expected results file.\n"
             f"Expected: {filename_eos_results}\n"
-            f"Stdout log: {eos_stdout_file}"
+            f"Files created in output directory:\n{created_files_str if created_files_str else '  (none)'}\n"
         )
+        if stdout_content:
+            error_msg += f"\nLast lines from stdout log ({eos_stdout_file}):\n{stdout_content}"
+        else:
+            error_msg += f"\nStdout log: {eos_stdout_file}"
+        
+        raise RuntimeError(error_msg)
     try:
         results = parse_eos_output(filename_eos_results)
 
