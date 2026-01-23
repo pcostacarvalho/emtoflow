@@ -1,0 +1,42 @@
+KGRN      HP..= 0   !                              xx xxx xx
+JOBNAM...=CuMg_1.00_2.63
+MSGL.=1 STRT.=A FUNC.=SCA EXPAN=1 FCD.=Y GPM.=N FSM.=N
+FOR001=./smx/CuMg_1.00.tfh
+FOR002=./smx/CuMg_1.00.mdl
+DIR003=./pot/
+DIR006=
+DIR010=./chd/
+DIR011=./tmp
+DIR021=CuMg_1.00_2.63.gpm.dat
+DIR022=./shp/CuMg_1.00.shp
+FOR098=/home/x_pamca/postdoc_proj/emto/jij_EMTO/kgrn_new2020/ATOM.cfg
+Self-consistent KKR calculation
+**********************************************************************
+SCFP:  information for self-consistency procedure:                   *
+**********************************************************************
+NITER.= 99 NLIN.= 31 NCPA.=  7 NPRN....=000000000
+FRC...=  N DOS..=  Y OPS..=  N AFM..=  P CRT..=  M STMP..= A
+Lmaxh.=  8 Lmaxt=  4 NFI..= 31 FIXG.=  2 SHF..=  0 SOFC.=  Y
+KMSH...= S IBZ..=  2 NKX..= 32 NKY..= 32 NKZ..= 31 FBZ..=  N
+ZMSH...= E NZ1..= 16 NZ2..= 16 NZ3..= 16 NRES.=  4 NZD..=999
+DEPTH..=  1.100 IMAGZ.=  0.005 EPS...=  0.200 ELIM..= -1.000
+AMIX...=  0.010 VMIX..=   0.70 EFMIX.=  0.900 VMTZ..=  0.000
+TOLE...= 1.d-07 TOLEF.= 1.d-08 TOLCPA= 1.d-06 TFERMI=  300.0 (K)
+SWS....=   2.63 MMOM..=  0.000
+EFGS...=  0.000 HX....=  0.101 NX...=  5 NZ0..= 16 KPOLE=  0
+**********************************************************************
+Sort:  information for alloy:                                        *
+******************************SS-screeining*|***Magnetic structure ***
+Symb  IQ  IT ITA NRM  CONC      a_scr b_scr |Teta    Phi    FXM  m(split)
+Cu     1   1   1   1  1.000000  0.750 1.100  0.0000  0.0000  N   0.0000
+Mg     1   1   2   1  0.000000  0.750 1.100  0.0000  0.0000  N   0.0000
+**********************************************************************
+Spin-spiral wave vector:
+qx....= 0.000000 qy....= 0.000000 qz....= 0.000000
+**********************************************************************
+Atom:  information for atomic calculation:                           *
+**********************************************************************
+IEX...=  4 NES..= 15 NITER= 50 IWAT.=  0 NPRNA=  0
+VMIXATM..=  0.300000 RWAT....=  3.500000 RMAX....= 20.000000
+DX.......=  0.030000 DR1.....=  0.001000 TEST....=  1.00E-12
+TESTE....=  1.00E-07 TESTY...=  1.00E-08 TESTV...=  1.00E-07

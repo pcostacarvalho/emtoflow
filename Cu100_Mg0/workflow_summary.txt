@@ -17,16 +17,16 @@ EOS type: MO88
 --------------------------------------------------------------------------------
 PHASE 2: SWS OPTIMIZATION
 --------------------------------------------------------------------------------
-Optimal SWS: 2.698157 Bohr
-Number of SWS points: 7
+Optimal SWS: 2.703351 Bohr
+Number of SWS points: 14
 SWS range: [2.5160, 2.8160] Bohr
-Energy range: [-3310.060364, -3310.039987] Ry
+Energy range: [-3310.060502, -3310.039987] Ry
 
   Derived lattice parameters:
-    a = 2.301607 Å
-    c = 2.301607 Å
+    a = 2.306038 Å
+    c = 2.306038 Å
     c/a = 1.000000
-    Volume = 12.192528 Å³
+    Volume = 12.263068 Å³
     Lattice: Face-centered cubic (type 2)
 
   EOS plot: phase2_sws_optimization/eos_plot_morse.png
@@ -35,13 +35,13 @@ Energy range: [-3310.060364, -3310.039987] Ry
 PHASE 3: OPTIMIZED STRUCTURE CALCULATION
 --------------------------------------------------------------------------------
 Optimal c/a: 1.000000
-Optimal SWS: 2.698157 Bohr
+Optimal SWS: 2.703351 Bohr
 KFCD total energy: -3310.060502 Ry
 
 --------------------------------------------------------------------------------
 DOS ANALYSIS
 --------------------------------------------------------------------------------
-DOS plots generated: 0
+DOS plots generated: 2
 Plot range: [-0.8, 0.15] eV
 
 ================================================================================

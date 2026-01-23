@@ -1,0 +1,896 @@
+ Fhndlr:   Program: KGRN, Version: 11 May 2020                       TM: 14:02
+                                                                     23-Jan-26
+           JOB:    CuMg_1.00_2.68      
+           FOR001: ./smx/CuMg_1.00.tfh                                                                                                     
+           FOR002: ./smx/CuMg_1.00.mdl                                                                                                     
+           FOR003: ./pot/CuMg_1.00_2.68.pot                                                                                                
+           FOR006: CuMg_1.00_2.68.prn                                                                                                      
+           FOR008: CuMg_1.00_2.68.gpm                                                                                                      
+           FOR009: CuMg_1.00_2.68.jxc                                                                                                      
+           FOR010: ./chd/CuMg_1.00_2.68.chd                                                                                                
+           FOR011:                                                                                                                         
+           FOR013: CuMg_1.00_2.68.dos                                                                                                      
+           FOR021: CuMg_1.00_2.68.gpm.dat                                                                                                  
+           FOR098: /home/x_pamca/postdoc_proj/emto/jij_EMTO/kgrn_new2020/ATOM.cfg                                                          
+
+           MSGL = 1 STRT =A FUNC = SCA EXPAN = 1 FCD = Y GPM = N
+
+ Trnsfm:   Single Taylor expansion for the slope matrix
+
+           Slope & Madelung matrices, Lat= fcc, Job=CuMg_1.00  11:25/23-Jan-26  
+
+           Shape function for IQ =  1
+
+           ITRANS =  3 (kappa0*w)^2 =   0.000 NDER =  6
+
+           Higher tails included in the charge density Lmaxt =  4
+
+           Full charge density is calculated for       Lmaxh =  8
+
+           Soft core approximation
+
+           Density of states (DOS) is calculatated
+
+ Setup:    Non-overlapping values are used for f and g
+
+           TOLE   = 0.100E-06 TOLEF = 0.100E-07 TOLCPA= 0.100E-05
+           DEPTH  = 1.1000000 IMAGZ = 0.0050000 EPS   = 0.2000000
+           AMIX   = 0.0100000 VMIX  = 0.7000000 EFMIX = 0.9000000
+
+           NQ     =  1 NT    =  1 NL    =  3 NS    =  1 MNTA  =  2
+           KMSH   =  S IBZ   =  2 NKX   = 32 NKY   = 32 NKZ   = 31
+           ZMSH   =  E NZ1   = 16 NZ2   = 16 NZ3   = 16 NRES  =  4
+           NITER  = 99 NLIN  = 31 NCPA  =  7 AFM   =  P CRT   =  M
+           KPOLE  =  0 NPRN  =00000000000000000000
+
+ Atomcr:   Default atomic data for: Cu  
+
+ Atomcr:   Default atomic data for: Mg  
+
+ Setctr:   KKR-CPA-SCA   
+
+ Mgaunt:   NGAUNT =   162
+
+ Set3di:   Angular integration mesh generated with NTH =  31 NFI =  31
+
+ Rotm3d:   Set up the 3D rotation matrices for IBZ=  2
+
+           Rotation matrices generated, NPRPRT= 48
+
+ Setsym:   Set up the site-group symmetry elements for IQ=  1
+
+           E     sigb  C31+  C31-  sigf  sige  C4z+  C4z-
+           C2z   sigx  C2d   C4y-  S64-  S62+  sigy  C4x+
+           C2c   S62-  S63+  siga  C33+  C34-  S4x+  S4y-
+           I     C2b   S61-  S61+  C2f   C2e   S4z-  S4z+
+           sigz  C2x   sigd  S4y+  C34+  C32-  C2y   S4x-
+           sigc  C32+  C33-  C2a   S63-  S64+  C4x-  C4y+
+
+
+ Madmtr:   Slope & Madelung matrices, Lat= fcc, Job=CuMg_1.00  11:25/23-Jan-26  
+
+           NLMAD  =  7
+
+ Scaws:    IQ IT ITA  WS     S      Si     Sc     hard spheres (s,p,...)
+
+            1  1  1 2.6800 2.6800 2.4246 3.4289 1.8760 1.8760 1.8760
+            1  1  2 2.6800 2.6800 2.4246 3.4289 1.8760 1.8760 1.8760
+
+ Setrms:   Dimension for potential spheres     : 379
+
+           Dimension for circumscribed spheres : 386
+
+           IT ITA    Si      w       Sc      S
+
+            1  1     373     377     386     377
+                   2.4246  2.6800  3.4289  2.6800
+            1  2     343     347     356     347
+                   2.4246  2.6800  3.4289  2.6800
+
+ Atomcfg:  Exchange-correlation: P-W
+
+ Atomi:    Atomic calculation for Cu   WSATM =  2.680000
+
+           NITER = 50 IEX   =  4 IWAT  =  0 IZ    = 29 ION   =  0
+
+           Precision on energy, wavefunction, and potential:
+
+           TESTE =  1.00E-07 TESTY =  1.00E-08 TESTV =  1.00E-07
+           VMIXATM  =  0.300000
+
+           Precision on energy and number of iterations in DIRACA:
+
+           TEST  =  1.00E-12 NES   = 15
+
+           Radial mesh given by (R(1)=DR1/IZ) : 
+
+           JWSA  = 377   JRIA  = 379   NP    = 443
+           DR1   =  0.001000 DX    =  0.030000 RMAX  = 20.000000
+           R(1)  =  0.3382930E-04         R(NP) =  0.1941055E+02
+
+           Exchange-correlation: Perdew-Wang 96 LDA  
+
+           Valence orbital Nodes
+
+                 4s       3
+                 4p       2
+                 3d       0
+
+ Atomc:    Cu     3d10_4s1               Perdew-Wang 96 LDA  
+
+           Orbital   Occup.   Valence       Final energy (Ry)
+
+            1s1/2      2         0         -6.4918486E+02
+            2s1/2      2         0         -7.8021579E+01
+            2p1/2      2         0         -6.8450530E+01
+            2p3/2      4         0         -6.6947537E+01
+            3s1/2      2         0         -8.4936050E+00
+            3p1/2      2         0         -5.5261772E+00
+            3p3/2      4         0         -5.3352584E+00
+            3d3/2      4         1         -5.0413681E-01
+            3d5/2      6         1         -4.8419887E-01
+            4s1/2      1         1         -4.9075735E-01
+
+ Atome:    (Rydberg)
+
+           EONE =  -1913.897185 VINT =  -5274.006246 EKIN =   3360.109061
+           ENUC =  -7967.886424 ECOR =   2865.897932 EXCT =   -129.790336
+           ETOT =  -3304.618733
+
+           Atomic total energy cwcomponents  (Rydbergs)
+
+           Kinetic energy      3360.109061
+           El-ion energy      -7967.886424
+           El-el energy        1432.948966
+           Exc energy          -129.790336
+
+           Total energy       -3304.618733
+
+ Atomr:    Number of core electrons  17.99913600
+
+ Atomi:    Atomic calculation for Mg   WSATM =  2.680000
+
+           NITER = 50 IEX   =  4 IWAT  =  0 IZ    = 12 ION   =  0
+
+           Precision on energy, wavefunction, and potential:
+
+           TESTE =  1.00E-07 TESTY =  1.00E-08 TESTV =  1.00E-07
+           VMIXATM  =  0.300000
+
+           Precision on energy and number of iterations in DIRACA:
+
+           TEST  =  1.00E-12 NES   = 15
+
+           Radial mesh given by (R(1)=DR1/IZ) : 
+
+           JWSA  = 347   JRIA  = 349   NP    = 413
+           DR1   =  0.001000 DX    =  0.030000 RMAX  = 20.000000
+           R(1)  =  0.8320666E-04         R(NP) =  0.1941055E+02
+
+           Exchange-correlation: Perdew-Wang 96 LDA  
+
+           Valence orbital Nodes
+
+                 3s       2
+                 3p       1
+
+ Atomc:    Mg     3s2                    Perdew-Wang 96 LDA  
+
+           Orbital   Occup.   Valence       Final energy (Ry)
+
+            1s1/2      2         0         -9.2218326E+01
+            2s1/2      2         0         -5.9210307E+00
+            2p1/2      2         0         -3.5408432E+00
+            2p3/2      4         0         -3.5196055E+00
+            3s1/2      2         1         -4.5269982E-01
+
+ Atome:    (Rydberg)
+
+           EONE =   -218.344220 VINT =   -617.072860 EKIN =    398.728640
+           ENUC =   -957.329649 ECOR =    381.186613 EXCT =    -30.893394
+           ETOT =   -398.901096
+
+           Atomic total energy cwcomponents  (Rydbergs)
+
+           Kinetic energy       398.728640
+           El-ion energy       -957.329649
+           El-el energy         190.593306
+           Exc energy           -30.893394
+
+           Total energy        -398.901096
+
+ Atomr:    Number of core electrons   9.99619741
+
+ Setngb:   Madelung correction for each site and sort
+
+            0.412440  0.412440
+
+ Nxtsws:   IQ IT ITA MMT Type  NZ ION  ELN   QTR  SPLIT   Conc
+
+            1  1  1   1   Cu   29  0  11.0  0.000  0.00 1.0000
+            1  1  2   1   Mg   12  0   2.0  0.000  0.00 0.0000
+
+           SWS =    2.6800 Alat =  6.8578 Bohr   3.6290 AA
+           VOL =   80.6293 ELT  = 11.0000
+
+ Ovrlps:   Set up the overlapping spheres for IQ =  1
+
+           Number of different overlapping spheres NOV =  1
+
+            jt  wov   ovt jrov   tov(Bohr)   tov(a)      okac     omega
+
+             1   12    1  370   4.849191    0.707107    0.043216  10.53 %
+
+           Number of different overlapping spheres NOV =  1
+
+            jt  wov   ovt jrov   tov(Bohr)   tov(a)      okac     omega
+
+             1   12    1  340   4.849191    0.707107    0.043216  10.53 %
+
+ Ovrlps:   VOL =   80.629319 VOLS =   80.629319 VOLI =    0.000000
+
+ Renorm:   IT ITA         CWS            ZWS
+            1   1      18.000000      28.035850
+            1   2      10.000000      10.699955
+
+           VMTZ(Up,Dwn) =      -0.640060
+
+ Ebtop:      Bot       Top
+
+            -0.701985  3.979451
+
+ KMESHMP : Monkhorst-Pack k-mesh parameters, NKX,NKY,NKZ= 32 32 31
+
+           Primitive vectors of reciprocal space
+           in units of 2*pi/a
+
+           (   1.00000,   1.00000,  -1.00000  )
+           (  -1.00000,   1.00000,   1.00000  )
+           (   1.00000,  -1.00000,   1.00000  )
+
+ Setibz:   dimension of the point group:
+           IMSYMM:   1 IBZR:  48 IBZROT:  48
+
+ Setkms:   Integration performed over IBZ, NKVEC =    8193
+
+ Zmesh:    Semi-elliptic contour
+
+           ELT  = 11.000000 EB   = -1.372047 EFX=  0.000000
+           DEPTH=  1.100000 b/a  =  0.909091 EPS=  0.200000
+
+           LZ     Re(z)     Im(z)    Weight
+
+            1  -1.099185 -0.027205  0.004141 -0.069082
+            2  -1.079373 -0.135649  0.043897 -0.141576
+            3  -0.997535 -0.290643  0.122666 -0.156101
+            4  -0.839241 -0.425275  0.186975 -0.105097
+            5  -0.639960 -0.493266  0.203854 -0.030726
+            6  -0.443964 -0.490620  0.183462  0.032770
+            7  -0.279711 -0.435457  0.142957  0.073334
+            8  -0.159805 -0.352381  0.097122  0.088879
+            9  -0.083129 -0.264312  0.058048  0.084739
+           10  -0.039591 -0.186269  0.031098  0.070425
+           11  -0.017230 -0.124169  0.015186  0.053848
+           12  -0.006726 -0.077955  0.006776  0.039028
+           13  -0.002246 -0.045139  0.002701  0.027087
+           14  -0.000577 -0.022898  0.000897  0.017782
+           15  -0.000088 -0.008927  0.000205  0.010422
+           16  -0.000003 -0.001654  0.000016  0.004268
+
+           LX     Re(z)     Im(z)
+
+            1  -0.202003 -0.001654
+            2  -0.101003 -0.001654
+            3  -0.000003 -0.001654
+            4   0.100997 -0.001654
+            5   0.201997 -0.001654
+
+ Blochs:   Bloch sum of slope matrix => array
+  1  1  -1.10  1.2292 -1.0314  0.1604 -0.0301  0.0058 -0.0011  0.0002
+
+ WARNING:  Taylor expansion might not be converged:
+
+ LZ exp   E     S00     S00_Dots(1,2,...) avmtz= -0.640060
+
+  2  1  -1.08  1.1662 -0.9869  0.1469 -0.0264  0.0049 -0.0009  0.0001
+  3  1  -1.00  0.9172 -0.8030  0.0973 -0.0142  0.0021 -0.0003  0.0000
+  4  1  -0.84  0.4805 -0.4474  0.0302 -0.0025  0.0002 -0.0000  0.0000
+  5  1  -0.64  0.0005  0.0002  0.0000  0.0000  0.0000  0.0000  0.0000
+  6  1  -0.44  0.4726  0.4405  0.0293  0.0023  0.0002  0.0000  0.0000
+  7  1  -0.28  0.9257  0.8095  0.0988  0.0146  0.0022  0.0003  0.0000
+  8  1  -0.16  1.2976  1.0788  0.1755  0.0345  0.0070  0.0014  0.0002
+  9  1  -0.08  1.5571  1.2511  0.2361  0.0538  0.0126  0.0029  0.0006
+ 10  1  -0.04  1.7129  1.3489  0.2744  0.0674  0.0170  0.0042  0.0009
+ 11  1  -0.02  1.7955  1.3991  0.2952  0.0752  0.0197  0.0050  0.0011
+ 12  1  -0.01  1.8350  1.4227  0.3053  0.0791  0.0210  0.0054  0.0012
+ 13  1  -0.00  1.8519  1.4328  0.3096  0.0808  0.0216  0.0056  0.0012
+ 14  1  -0.00  1.8582  1.4365  0.3112  0.0814  0.0219  0.0057  0.0013
+ 15  1  -0.00  1.8601  1.4376  0.3117  0.0816  0.0219  0.0057  0.0013
+ 16  1  -0.00  1.8604  1.4378  0.3118  0.0816  0.0219  0.0057  0.0013
+
+ Slfcns:   Start LDA iterations by KKR, XC = Perdew-Wang 96 LDA, Soft-core-A 
+
+           VMTZ(Up,Dwn) =      -0.665746
+
+ Wmsg: Iteration     1 Etot =   -3304.860141 err =  9.78571724
+       Dyson loops  31 EF   =      -0.004382 err =  0.08525600 DOS(E_F)=   35.22 hx = 0.10100
+       QSCA =  0.0175
+       QCPA =  0.0000 -0.0428
+
+           VMTZ(Up,Dwn) =      -0.682442
+
+ Wmsg: Iteration     2 Etot =   -3304.962624 err =  0.10248271
+       Dyson loops  31 EF   =      -0.036513 err =  0.11280148 DOS(E_F)=    4.06 hx = 0.11280
+       QSCA =  0.0238
+       QCPA =  0.0000 -0.1712
+
+           VMTZ(Up,Dwn) =      -0.693357
+
+ Wmsg: Iteration     3 Etot =   -3304.967733 err =  0.00510935
+       Dyson loops  31 EF   =      -0.041990 err =  0.01002121 DOS(E_F)=    3.94 hx = 0.09024
+       QSCA =  0.0278
+       QCPA =  0.0000 -0.2590
+
+           VMTZ(Up,Dwn) =      -0.700852
+
+ Wmsg: Iteration     4 Etot =   -3304.965923 err =  0.00180980
+       Dyson loops  31 EF   =      -0.081000 err =  0.03985121 DOS(E_F)=    3.58 hx = 0.07219
+       QSCA =  0.0306
+       QCPA =  0.0000 -0.3149
+
+           VMTZ(Up,Dwn) =      -0.705706
+
+ Wmsg: Iteration     5 Etot =   -3304.978330 err =  0.01240715
+       Dyson loops  31 EF   =      -0.080808 err =  0.00275248 DOS(E_F)=    4.07 hx = 0.05775
+       QSCA =  0.0322
+       QCPA =  0.0000 -0.3576
+
+           VMTZ(Up,Dwn) =      -0.709083
+
+ Wmsg: Iteration     6 Etot =   -3304.977349 err =  0.00098157
+       Dyson loops  31 EF   =      -0.094330 err =  0.00027837 DOS(E_F)=    3.80 hx = 0.02888
+       QSCA =  0.0335
+       QCPA =  0.0000 -0.3845
+
+           VMTZ(Up,Dwn) =      -0.711513
+
+ Wmsg: Iteration     7 Etot =   -3304.977443 err =  0.00009444
+       Dyson loops  31 EF   =      -0.089554 err =  0.00815601 DOS(E_F)=    4.67 hx = 0.01444
+       QSCA =  0.0343
+       QCPA =  0.0000 -0.4012
+
+ Potential parameters, charge densities, and potential stored on:    23-Jan-26
+
+           VMTZ(Up,Dwn) =      -0.713224
+
+ Wmsg: Iteration     8 Etot =   -3304.978206 err =  0.00076294
+       Dyson loops  31 EF   =      -0.087117 err =  0.00192583 DOS(E_F)=    4.31 hx = 0.00722
+       QSCA =  0.0349
+       QCPA =  0.0000 -0.4127
+
+           VMTZ(Up,Dwn) =      -0.714456
+
+ Wmsg: Iteration     9 Etot =   -3304.978310 err =  0.00010362
+       Dyson loops  31 EF   =      -0.086434 err =  0.00057143 DOS(E_F)=    4.09 hx = 0.00361
+       QSCA =  0.0354
+       QCPA =  0.0000 -0.4202
+
+           VMTZ(Up,Dwn) =      -0.715348
+
+ Wmsg: Iteration    10 Etot =   -3304.978418 err =  0.00010856
+       Dyson loops  31 EF   =      -0.086147 err =  0.00025003 DOS(E_F)=    3.79 hx = 0.00180
+       QSCA =  0.0357
+       QCPA =  0.0000 -0.4251
+
+           VMTZ(Up,Dwn) =      -0.715996
+
+ Wmsg: Iteration    11 Etot =   -3304.978502 err =  0.00008393
+       Dyson loops  31 EF   =      -0.086119 err =  0.00005332 DOS(E_F)=    3.81 hx = 0.00100
+       QSCA =  0.0359
+       QCPA =  0.0000 -0.4282
+
+           VMTZ(Up,Dwn) =      -0.716467
+
+ Wmsg: Iteration    12 Etot =   -3304.978569 err =  0.00006723
+       Dyson loops  31 EF   =      -0.086941 err =  0.00016246 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0361
+       QCPA =  0.0000 -0.4303
+
+           VMTZ(Up,Dwn) =      -0.716811
+
+ Wmsg: Iteration    13 Etot =   -3304.978662 err =  0.00009296
+       Dyson loops  31 EF   =      -0.086778 err =  0.00059981 DOS(E_F)=    3.79 hx = 0.00100
+       QSCA =  0.0362
+       QCPA =  0.0000 -0.4316
+
+           VMTZ(Up,Dwn) =      -0.717061
+
+ Wmsg: Iteration    14 Etot =   -3304.978695 err =  0.00003290
+       Dyson loops  31 EF   =      -0.086700 err =  0.00004565 DOS(E_F)=    3.83 hx = 0.00100
+       QSCA =  0.0363
+       QCPA =  0.0000 -0.4324
+
+ Potential parameters, charge densities, and potential stored on:    23-Jan-26
+
+           VMTZ(Up,Dwn) =      -0.717244
+
+ Wmsg: Iteration    15 Etot =   -3304.978723 err =  0.00002779
+       Dyson loops  31 EF   =      -0.086702 err =  0.00002320 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0363
+       QCPA =  0.0000 -0.4330
+
+           VMTZ(Up,Dwn) =      -0.717378
+
+ Wmsg: Iteration    16 Etot =   -3304.978746 err =  0.00002262
+       Dyson loops  31 EF   =      -0.086735 err =  0.00004707 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4334
+
+           VMTZ(Up,Dwn) =      -0.717476
+
+ Wmsg: Iteration    17 Etot =   -3304.978764 err =  0.00001848
+       Dyson loops  31 EF   =      -0.086775 err =  0.00005007 DOS(E_F)=    3.86 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4336
+
+           VMTZ(Up,Dwn) =      -0.717548
+
+ Wmsg: Iteration    18 Etot =   -3304.978779 err =  0.00001465
+       Dyson loops  31 EF   =      -0.086812 err =  0.00004428 DOS(E_F)=    3.86 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4338
+
+           VMTZ(Up,Dwn) =      -0.717600
+
+ Wmsg: Iteration    19 Etot =   -3304.978790 err =  0.00001134
+       Dyson loops  31 EF   =      -0.086842 err =  0.00003603 DOS(E_F)=    3.86 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4339
+
+           VMTZ(Up,Dwn) =      -0.717639
+
+ Wmsg: Iteration    20 Etot =   -3304.978799 err =  0.00000864
+       Dyson loops  31 EF   =      -0.086867 err =  0.00002810 DOS(E_F)=    3.86 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4339
+
+           VMTZ(Up,Dwn) =      -0.717668
+
+ Wmsg: Iteration    21 Etot =   -3304.978805 err =  0.00000652
+       Dyson loops  31 EF   =      -0.086885 err =  0.00002140 DOS(E_F)=    3.86 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+ Potential parameters, charge densities, and potential stored on:    23-Jan-26
+
+           VMTZ(Up,Dwn) =      -0.717689
+
+ Wmsg: Iteration    22 Etot =   -3304.978810 err =  0.00000489
+       Dyson loops  31 EF   =      -0.086899 err =  0.00001607 DOS(E_F)=    3.86 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717704
+
+ Wmsg: Iteration    23 Etot =   -3304.978814 err =  0.00000364
+       Dyson loops  31 EF   =      -0.086910 err =  0.00001197 DOS(E_F)=    3.86 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717715
+
+ Wmsg: Iteration    24 Etot =   -3304.978817 err =  0.00000271
+       Dyson loops  31 EF   =      -0.086917 err =  0.00000887 DOS(E_F)=    3.86 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717724
+
+ Wmsg: Iteration    25 Etot =   -3304.978819 err =  0.00000201
+       Dyson loops  31 EF   =      -0.086923 err =  0.00000655 DOS(E_F)=    3.86 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717730
+
+ Wmsg: Iteration    26 Etot =   -3304.978820 err =  0.00000149
+       Dyson loops  31 EF   =      -0.086927 err =  0.00000484 DOS(E_F)=    3.86 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717734
+
+ Wmsg: Iteration    27 Etot =   -3304.978821 err =  0.00000111
+       Dyson loops  31 EF   =      -0.086931 err =  0.00000357 DOS(E_F)=    3.86 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717738
+
+ Wmsg: Iteration    28 Etot =   -3304.978822 err =  0.00000081
+       Dyson loops  31 EF   =      -0.086933 err =  0.00000263 DOS(E_F)=    3.86 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+ Potential parameters, charge densities, and potential stored on:    23-Jan-26
+
+           VMTZ(Up,Dwn) =      -0.717740
+
+ Wmsg: Iteration    29 Etot =   -3304.978823 err =  0.00000060
+       Dyson loops  31 EF   =      -0.086935 err =  0.00000195 DOS(E_F)=    3.86 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717742
+
+ Wmsg: Iteration    30 Etot =   -3304.978823 err =  0.00000044
+       Dyson loops  31 EF   =      -0.086936 err =  0.00000144 DOS(E_F)=    3.86 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717743
+
+ Wmsg: Iteration    31 Etot =   -3304.978823 err =  0.00000033
+       Dyson loops  31 EF   =      -0.086937 err =  0.00000106 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717744
+
+ Wmsg: Iteration    32 Etot =   -3304.978824 err =  0.00000024
+       Dyson loops  31 EF   =      -0.086938 err =  0.00000079 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717745
+
+ Wmsg: Iteration    33 Etot =   -3304.978824 err =  0.00000018
+       Dyson loops  31 EF   =      -0.086938 err =  0.00000058 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717745
+
+ Wmsg: Iteration    34 Etot =   -3304.978824 err =  0.00000013
+       Dyson loops  31 EF   =      -0.086938 err =  0.00000043 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717746
+
+ Wmsg: Iteration    35 Etot =   -3304.978824 err =  0.00000010
+       Dyson loops  31 EF   =      -0.086939 err =  0.00000032 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+ Potential parameters, charge densities, and potential stored on:    23-Jan-26
+
+           VMTZ(Up,Dwn) =      -0.717746
+
+ Wmsg: Iteration    36 Etot =   -3304.978824 err =  0.00000007
+       Dyson loops  31 EF   =      -0.086939 err =  0.00000023 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717746
+
+ Wmsg: Iteration    37 Etot =   -3304.978824 err =  0.00000005
+       Dyson loops  31 EF   =      -0.086939 err =  0.00000017 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717746
+
+ Wmsg: Iteration    38 Etot =   -3304.978824 err =  0.00000004
+       Dyson loops  31 EF   =      -0.086939 err =  0.00000013 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717747
+
+ Wmsg: Iteration    39 Etot =   -3304.978824 err =  0.00000003
+       Dyson loops  31 EF   =      -0.086939 err =  0.00000009 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717747
+
+ Wmsg: Iteration    40 Etot =   -3304.978824 err =  0.00000002
+       Dyson loops  31 EF   =      -0.086939 err =  0.00000007 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717747
+
+ Wmsg: Iteration    41 Etot =   -3304.978824 err =  0.00000002
+       Dyson loops  31 EF   =      -0.086939 err =  0.00000005 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717747
+
+ Wmsg: Iteration    42 Etot =   -3304.978824 err =  0.00000001
+       Dyson loops  31 EF   =      -0.086939 err =  0.00000004 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+ Potential parameters, charge densities, and potential stored on:    23-Jan-26
+
+           VMTZ(Up,Dwn) =      -0.717747
+
+ Wmsg: Iteration    43 Etot =   -3304.978824 err =  0.00000001
+       Dyson loops  31 EF   =      -0.086939 err =  0.00000003 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717747
+
+ Wmsg: Iteration    44 Etot =   -3304.978824 err =  0.00000001
+       Dyson loops  31 EF   =      -0.086939 err =  0.00000002 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717747
+
+ Wmsg: Iteration    45 Etot =   -3304.978824 err =  0.00000000
+       Dyson loops  31 EF   =      -0.086939 err =  0.00000002 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717747
+
+ Wmsg: Iteration    46 Etot =   -3304.978824 err =  0.00000000
+       Dyson loops  31 EF   =      -0.086939 err =  0.00000001 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+           VMTZ(Up,Dwn) =      -0.717747
+
+ Wmsg: Iteration    47 Etot =   -3304.978824 err =  0.00000000
+       Dyson loops  31 EF   =      -0.086939 err =  0.00000001 DOS(E_F)=    3.85 hx = 0.00100
+       QSCA =  0.0364
+       QCPA =  0.0000 -0.4340
+
+ Ebtop:      Bot       Top
+
+            -0.781104  3.448928
+
+
+       Core states :
+
+ it=  1 ita=  1 Atom: Cu  
+
+           Orbital   Occup.   Valence       Final energy (Ry)
+
+            1s1/2      2         0         -6.4897832E+02
+            2s1/2      2         0         -7.7844798E+01
+            2p1/2      2         0         -6.8270420E+01
+            2p3/2      4         0         -6.6767762E+01
+            3s1/2      2         0         -8.2938433E+00
+            3p1/2      2         0         -5.3235010E+00
+            3p3/2      4         0         -5.1316506E+00
+
+ it=  1 ita=  2 Atom: Mg  
+
+           Orbital   Occup.   Valence       Final energy (Ry)
+
+            1s1/2      2         0         -9.1803655E+01
+            2s1/2      2         0         -5.5327610E+00
+            2p1/2      2         0         -3.1529258E+00
+            2p3/2      4         0         -3.1318445E+00
+
+
+   Potentail parameters :
+
+ Atom:Cu              S =    2.680000        SWS =    2.680000
+ Exch:P-W                              Date : 23-Jan-26
+
+ Panel	    =  1   s -1/2      p -1/2      d -1/2
+
+ E-nu       =   -0.486498   -0.344780   -0.289514
+ D-nu       =   -0.722061    0.262712   -2.478723
+ Dnud       =    5.410279    7.103703    1.845989
+ Omega-     =    0.095711    0.942921    0.010208
+ S*Phisq-   =   -0.329428    0.313146    0.017476
+ Phi-/Phi+  =    0.844001    0.670464   -0.031781
+
+ Mu         =    0.845278    0.889229   15.933749
+ Tau        =    0.903184    0.999319    0.056328
+ A          =    1.720941    3.448928   -0.194618
+ C          =   -0.390787    0.598140   -0.279306
+ B          =   -0.781104   -0.204480   -0.416937
+ V          =   -0.781104   -0.803036    2.470118
+
+ Bot, Top   =   -0.781104    3.448928
+ V-Madelung =   -0.014941
+ V(S) Up,Dwn=   -0.717747
+ V(W) Up,Dwn=   -0.717747
+
+ Atom:Mg              S =    2.680000        SWS =    2.680000
+ Exch:P-W                              Date : 23-Jan-26
+
+ Panel	    =  1   s -1/2      p -1/2      d -1/2
+
+ E-nu       =   -0.481013   -0.344584   -0.337576
+ D-nu       =   -0.448231    0.321877    1.324847
+ Dnud       =    5.938895    7.277540    8.631964
+ Omega-     =    0.214285    0.985281    2.102239
+ S*Phisq-   =    0.357478   -0.318146    0.305355
+ Phi-/Phi+  =    0.855885    0.676638    0.570150
+
+ Mu         =    0.778953    0.875253    0.911918
+ Tau        =    0.855920    1.001814    1.037534
+ A          =    2.213772    3.592310    5.316536
+ C          =   -0.266728    0.640697    1.764663
+ B          =   -0.684398   -0.170460    0.530226
+ V          =   -0.684398   -0.769862   -0.913181
+
+ Bot, Top   =   -0.781104    3.448928
+ V-Madelung =    0.227979
+ V(S) Up,Dwn=   -0.765867
+ V(W) Up,Dwn=   -0.765867
+
+ EF, DOS(E_F)=   -0.086939    3.854891
+
+ VMTZ Up,Dwn=   -0.717747
+
+ Atom:Cu  
+
+ Panel	    =  1   s -1/2      p -1/2      d -1/2
+ 
+ Nos(Ef)    =    0.722207    0.689745    9.588048   11.000000
+
+ Atom:Mg  
+
+ Panel	    =  1   s -1/2      p -1/2      d -1/2
+ 
+ Nos(Ef)    =    0.657614    0.682281    0.948021    2.287916
+
+ Prprm :   EONE =   -1908.384447 VINT =   -5268.837522 EKIN =    3360.453076
+           ECOR =    1336.580792 ENUC =   -7973.432100 EMADL=       0.000001
+           EVAL =     101.467071 EXCT =    -130.047664 EXCC =       0.000000
+           ETOT =   -3304.978824 OKAE =       0.000000 E[n] =   -3304.978824
+            T*S =       0.000000 E-TS =   -3304.978824
+
+ Prprm :   EONE =    -214.377515 VINT =    -613.765218 EKIN =     399.387703
+           ECOR =     190.814610 ENUC =    -958.928203 EMADL=      -0.057987
+           EVAL =       1.046009 EXCT =     -31.137376 EXCC =       0.000000
+           ETOT =    -398.875244 OKAE =       0.000000 E[n] =    -398.875244
+            T*S =       0.000000 E-TS =    -398.875244
+
+           Total energies in the soft core approximation (Rydbergs)
+           calculated from output charge density:
+
+           Kinetic energy      3360.45307565
+           Madelung energy        0.00000083
+           El-ion energy      -7973.43209950
+           El-el energy        1438.04786226
+           Exc energy          -130.04766356
+                              ------------
+           Total              -3304.97882432
+           Free energy       -3304.97882432
+           Total+OKAE         -3304.97882432
+           Total+Ewald        -3304.958191 4pi SS n(S)=  2.897589
+
+           Kinetic energy       399.38770254
+           Madelung energy       -0.05798653
+           El-ion energy       -958.92820302
+           El-el energy         191.86061944
+           Exc energy           -31.13737611
+                              ------------
+           Total               -398.87524369
+           Free energy        -398.87524369
+           Total+OKAE          -398.87524369
+           Total+Ewald         -398.859981 4pi SS n(S)=  2.492121
+
+           Total energy       -3304.97882432
+
+           Free  energy       -3304.97882432
+
+           Total energy+OKA   -3304.97882432
+
+           Total+Ewald        -3304.95819117
+
+           Total +MT_corr(GGA)    -3310.05291789
+
+           Free E+MT_corr(GGA)    -3310.05291789
+
+           MT_corr                0.02063315
+                              ============
+
+ Potential parameters, charge densities, and potential stored on:    23-Jan-26
+
+ Zmesh:    Horizontal mesh for the DOS
+
+ Dospth: CPA equation for IS =  1 converged in  1- 1 iterations
+
+ Trnsfm:   Single Taylor expansion for the slope matrix
+
+           Slope & Madelung matrices, Lat= fcc, Job=CuMg_1.00  11:25/23-Jan-26  
+
+           ITRANS =  3 (kappa0*w)^2 =   0.000 NDER =  6
+
+ KGRN:    Calculation of the full charge density, lmaxh =  8
+
+
+ Zmesh:    Semi-elliptic contour
+
+           ELT  = 11.000000 EB   = -1.458986 EFX= -0.086939
+           DEPTH=  1.100000 b/a  =  0.909091 EPS=  0.200000
+
+           LZ     Re(z)     Im(z)    Weight
+
+            1  -1.186125 -0.027205  0.004141 -0.069082
+            2  -1.166312 -0.135649  0.043897 -0.141576
+            3  -1.084474 -0.290643  0.122666 -0.156101
+            4  -0.926181 -0.425275  0.186975 -0.105097
+            5  -0.726899 -0.493266  0.203854 -0.030726
+            6  -0.530903 -0.490620  0.183462  0.032770
+            7  -0.366651 -0.435457  0.142957  0.073334
+            8  -0.246745 -0.352381  0.097122  0.088879
+            9  -0.170069 -0.264312  0.058048  0.084739
+           10  -0.126530 -0.186269  0.031098  0.070425
+           11  -0.104169 -0.124169  0.015186  0.053848
+           12  -0.093665 -0.077955  0.006776  0.039028
+           13  -0.089185 -0.045139  0.002701  0.027087
+           14  -0.087517 -0.022898  0.000897  0.017782
+           15  -0.087027 -0.008927  0.000205  0.010422
+           16  -0.086943 -0.001654  0.000016  0.004268
+
+           LX     Re(z)     Im(z)
+
+            1  -0.088943 -0.001654
+            2  -0.087943 -0.001654
+            3  -0.086943 -0.001654
+            4  -0.085943 -0.001654
+            5  -0.084943 -0.001654
+
+ Kkrfcd:   NOS(Ef) = 10.999977 ELT = 11.000000
+
+ Mgaunt:   NGAUNT = 23621
+
+ Grnfcd:   Construct the full charge density
+
+ Eldens:   delQ = -0.000023 QTI = -0.000023  0.287904
+
+ Rotchd:   Perform the 3D rotations
+
+ Eldens:   Calculate multipole moments
+
+  IQ     s     spin    y      z      x      xy     yz   3zz-1    xz   xx-yy
+   1 29.0477 0.0000-0.0000-0.0000 0.0000-0.0000 0.0000 0.0000 0.0000 0.0000
+   1 11.6137 0.0000 0.0000-0.0000 0.0000-0.0000 0.0000 0.0000 0.0000-0.0000
+
+  IQ   3xx y   xyz   5zz y  5zz z  5zz x  xx  z  3yy x
+   1 -0.0000 0.0000 0.0000-0.0000 0.0000-0.0000-0.0000
+   1  0.0000-0.0000 0.0000-0.0000-0.0000 0.0000 0.0000
+
+ Tot 29.0477
+
+ Eldens:   Non vanishing higher moments for IQ =  1 ITA = 1
+
+            21 -0.003329
+            25 -0.002813
+            43 -0.000974
+            47  0.002578
+            73  0.000243
+            77  0.000129
+            81  0.000197
+
+ Eldens:   Non vanishing higher moments for IQ =  1 ITA = 2
+
+            21 -0.003190
+            25 -0.002696
+            43 -0.001108
+            47  0.002931
+            73  0.000290
+            77  0.000154
+            81  0.000235
+
+ Fcdupd:   Full charge density stored on:23-Jan-26
+
+ KGRN: Calculation finished at 14:03 on 23-Jan-26
+ 
+  Total time for the self-consistency loop:      35.930
+  Total linear iterations time :      16.876
+ KGRN: OK  Finished at: 14:03 23-Jan-26
