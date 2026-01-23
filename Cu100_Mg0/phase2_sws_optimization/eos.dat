@@ -1,0 +1,16 @@
+DIR_NAME.=
+JOB_NAME.=CuMg_sws
+COMMENT..: SWS optimization for CuMg at c/a=1.0000
+FIT_TYPE.=MO88       ! Use MO88, MU37, POLN, SPLN, ALL
+N_of_Rws..=  7  Natm_in_uc..=   1 Polinoms_order..=  3 N_spline..=  5
+R_or_V....=  R  R_or_V_in...= au. Energy_units....= Ry
+  2.515979     -3310.039987  1
+  2.565979     -3310.050533  1
+  2.615979     -3310.056942  1
+  2.665979     -3310.059999  1
+  2.715979     -3310.060364  1
+  2.765979     -3310.058583  1
+  2.815979     -3310.055092  1
+PLOT.....=N
+X_axis...=P X_min..=  -100.000 X_max..=  2000.000 N_Xpts.=  40
+Y_axes...=V H
