@@ -1,0 +1,100 @@
+#! /bin/bash -l
+#SBATCH -A naiss2025-1-38
+#SBATCH --exclusive
+#SBATCH -n 8
+#SBATCH -t 02:00:00
+#SBATCH -J run_CuMg
+
+module load buildenv-intel/2023a-eb
+
+id_ratio="CuMg"
+
+for r in 1.00; do
+
+    echo "c/a ratio: $r"
+
+    cd smx
+
+    # Check if KSTR output already exists and is complete
+    if [ -f CuMg_${r}.prn ] && [ -s CuMg_${r}.prn ] && grep -q "KSTR:     Finished at:" CuMg_${r}.prn 2>/dev/null; then
+        echo "Skipping KSTR for c/a=$r (output already exists and is complete)"
+    else
+        echo "Running KSTR:"
+        /home/x_pamca/postdoc_proj/emto/bin/kstr.exe < CuMg_${r}.dat > smx_${r}.log
+
+        # Check KSTR completion via .prn content
+        if [ ! -f CuMg_${r}.prn ] || ! grep -q "KSTR:     Finished at:" CuMg_${r}.prn 2>/dev/null; then
+            echo "KSTR failed: .prn file missing or incomplete!"
+            grep "Try DMAX" smx_${r}.log
+            exit 1
+        else
+            echo "DONE!"
+        fi
+    fi
+
+    echo "Info about DMAX:"
+    grep -A1 "Primv" smx_${r}.log
+
+    cd ../shp
+
+    # Check if SHAPE output already exists and is complete
+    if [ -f shp_${r}.log ] && [ -s shp_${r}.log ] && grep -q "Shape function completed" shp_${r}.log 2>/dev/null; then
+        echo "Skipping SHAPE for c/a=$r (output already exists and is complete)"
+    else
+        echo "Running SHAPE:"
+        /home/x_pamca/postdoc_proj/emto/bin/shape.exe < ${id_ratio}_${r}.dat > shp_${r}.log
+
+        # Check SHAPE completion via log content
+        if [ ! -f shp_${r}.log ] || ! grep -q "Shape function completed" shp_${r}.log 2>/dev/null; then
+            echo "SHAPE failed!"
+            exit 1
+        else
+            echo "DONE!"
+        fi
+    fi
+
+    cd ../
+
+    for v in 2.52 2.54 2.56 2.59 2.61 2.63 2.65 2.68 2.70 2.72 2.75 2.77 2.79 2.82; do
+
+        echo "WSW: $v"
+
+        # Check if KGRN output already exists and is complete
+        if [ -f CuMg_${r}_${v}.prn ] && [ -s CuMg_${r}_${v}.prn ] && grep -q "KGRN: OK  Finished at:" CuMg_${r}_${v}.prn 2>/dev/null; then
+            echo "Skipping KGRN for c/a=$r, SWS=$v (output already exists and is complete)"
+        else
+            echo "Running KGRN:"
+            mpirun -n 8  /home/x_pamca/postdoc_proj/emto/bin/kgrn_mpi.x < CuMg_${r}_${v}.dat > kgrn_${r}_${v}.log
+
+            # Check KGRN completion via .prn content
+            if [ ! -f CuMg_${r}_${v}.prn ] || ! grep -q "KGRN: OK  Finished at:" CuMg_${r}_${v}.prn 2>/dev/null; then
+                echo "KGRN failed!"
+                exit 1
+            else
+                echo "DONE!"
+            fi
+        fi
+
+        cd fcd/
+
+        # Check if KFCD output already exists and is complete
+        if [ -f CuMg_${r}_${v}.prn ] && [ -s CuMg_${r}_${v}.prn ] && grep -q "KFCD: OK  Finished at:" CuMg_${r}_${v}.prn 2>/dev/null; then
+            echo "Skipping KFCD for c/a=$r, SWS=$v (output already exists and is complete)"
+        else
+            echo "Running KFCD:"
+            /home/x_pamca/postdoc_proj/emto/bin/kfcd.exe < CuMg_${r}_${v}.dat > kfcd_${r}_${v}.log
+
+            # Check KFCD completion via .prn content
+            if [ ! -f CuMg_${r}_${v}.prn ] || ! grep -q "KFCD: OK  Finished at:" CuMg_${r}_${v}.prn 2>/dev/null; then
+                echo "KFCD failed!"
+                exit 1
+            else
+                echo "DONE!"
+            fi
+        fi
+
+        cd ../
+        
+    done
+
+done

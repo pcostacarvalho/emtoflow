@@ -1,0 +1,327 @@
+
+ KGRN: job = CuMg_1.00_2.82 isno =   0 Func = SCA
+
+           Shape function for IQ =  1
+
+ Mgaunt:   Generate real Gaunt numbers
+
+ Setsym:   Set up the site-group symmetry elements for IQ=  1
+
+           E     sigb  C31+  C31-  sigf  sige  C4z+  C4z-
+           C2z   sigx  C2d   C4y-  S64-  S62+  sigy  C4x+
+           C2c   S62-  S63+  siga  C33+  C34-  S4x+  S4y-
+           I     C2b   S61-  S61+  C2f   C2e   S4z-  S4z+
+           sigz  C2x   sigd  S4y+  C34+  C32-  C2y   S4x-
+           sigc  C32+  C33-  C2a   S63-  S64+  C4x-  C4y+
+
+ Atomc:    Atomic calculations for: Cu  
+
+ Atomc:    Atomic calculations converged
+
+           Number of core electrons  17.99953965
+ Atomc:    Atomic calculations for: Mg  
+
+ Atomc:    Atomic calculations converged
+
+           Number of core electrons   9.99769608
+
+ KMESHMP : Monkhorst-Pack k-mesh parameters, NKX,NKY,NKZ= 32 32 31
+
+ Setkms:   NKVEC =     8193
+
+ Blochs:   Bloch sum of slope matrix => array
+  1  1  -1.10  1.4514 -1.1824  0.2108 -0.0454  0.0100 -0.0022  0.0004
+  2  1  -1.08  1.3774 -1.1331  0.1936 -0.0400  0.0085 -0.0017  0.0003
+  3  1  -1.00  1.0867 -0.9296  0.1303 -0.0221  0.0038 -0.0006  0.0001
+  4  1  -0.84  0.5841 -0.5358  0.0433 -0.0042  0.0004 -0.0000  0.0000
+  5  1  -0.64  0.0407 -0.0402  0.0002 -0.0000  0.0000 -0.0000  0.0000
+  6  1  -0.44  0.4804  0.4473  0.0302  0.0025  0.0002  0.0000  0.0000
+  7  1  -0.28  0.9870  0.8558  0.1105  0.0172  0.0028  0.0004  0.0001
+  8  1  -0.16  1.4087  1.1540  0.2009  0.0422  0.0091  0.0019  0.0003
+  9  1  -0.08  1.7062  1.3448  0.2727  0.0668  0.0168  0.0041  0.0009
+ 10  1  -0.04  1.8862  1.4530  0.3184  0.0843  0.0229  0.0060  0.0014
+ 11  1  -0.02  1.9820  1.5087  0.3433  0.0943  0.0266  0.0073  0.0017
+ 12  1  -0.01  2.0279  1.5348  0.3553  0.0993  0.0285  0.0079  0.0019
+ 13  1  -0.00  2.0476  1.5459  0.3604  0.1015  0.0293  0.0082  0.0020
+ 14  1  -0.00  2.0550  1.5501  0.3624  0.1023  0.0296  0.0083  0.0020
+ 15  1  -0.00  2.0571  1.5513  0.3630  0.1025  0.0297  0.0084  0.0020
+ 16  1  -0.00  2.0575  1.5515  0.3630  0.1026  0.0297  0.0084  0.0020
+
+ Slfcns:   Start LDA iterations by KKR, XC = Perdew-Wang 96 LDA, Soft-core-A 
+
+ Wmsg: Iteration     1 Etot =    -398.981133 err =  6.46664543
+       Dyson loops  31 EF   =       0.048811 err =  0.05473675 DOS(E_F)=    3.91 hx = 0.10100
+       QSCA = -0.0057
+       QCPA =  0.1695  0.0000
+
+ Wmsg: Iteration     2 Etot =    -398.981622 err =  0.00048885
+       Dyson loops  31 EF   =       0.072291 err =  0.02188250 DOS(E_F)=    3.60 hx = 0.08080
+       QSCA = -0.0088
+       QCPA =  0.2876  0.0000
+
+ Wmsg: Iteration     3 Etot =    -398.989674 err =  0.00805170
+       Dyson loops  31 EF   =       0.078123 err =  0.00389899 DOS(E_F)=    4.41 hx = 0.06464
+       QSCA = -0.0106
+       QCPA =  0.3568  0.0000
+
+ Wmsg: Iteration     4 Etot =    -398.995575 err =  0.00590151
+       Dyson loops  31 EF   =       0.079138 err =  0.00034132 DOS(E_F)=    4.07 hx = 0.05171
+       QSCA = -0.0120
+       QCPA =  0.4043  0.0000
+
+ Wmsg: Iteration     5 Etot =    -398.998087 err =  0.00251136
+       Dyson loops  31 EF   =       0.066009 err =  0.00173063 DOS(E_F)=    4.37 hx = 0.04137
+       QSCA = -0.0130
+       QCPA =  0.4351  0.0000
+
+ Wmsg: Iteration     6 Etot =    -398.999265 err =  0.00117883
+       Dyson loops  31 EF   =       0.068709 err =  0.00931234 DOS(E_F)=    4.17 hx = 0.02068
+       QSCA = -0.0138
+       QCPA =  0.4530  0.0000
+
+ Wmsg: Iteration     7 Etot =    -399.000974 err =  0.00170892
+       Dyson loops  31 EF   =       0.069872 err =  0.00081077 DOS(E_F)=    4.20 hx = 0.01034
+       QSCA = -0.0143
+       QCPA =  0.4644  0.0000
+
+ Update:   Potential etc. stored on FOR002
+
+ Wmsg: Iteration     8 Etot =    -399.001957 err =  0.00098277
+       Dyson loops  31 EF   =       0.060411 err =  0.00038157 DOS(E_F)=    4.35 hx = 0.00517
+       QSCA = -0.0145
+       QCPA =  0.4715  0.0000
+
+ Wmsg: Iteration     9 Etot =    -399.002450 err =  0.00049284
+       Dyson loops  31 EF   =       0.063719 err =  0.00614122 DOS(E_F)=    3.93 hx = 0.00614
+       QSCA = -0.0147
+       QCPA =  0.4727  0.0000
+
+ Wmsg: Iteration    10 Etot =    -399.002904 err =  0.00045380
+       Dyson loops  31 EF   =       0.065591 err =  0.00175008 DOS(E_F)=    4.28 hx = 0.00307
+       QSCA = -0.0149
+       QCPA =  0.4764  0.0000
+
+ Wmsg: Iteration    11 Etot =    -399.003199 err =  0.00029547
+       Dyson loops  31 EF   =       0.066365 err =  0.00069803 DOS(E_F)=    4.34 hx = 0.00154
+       QSCA = -0.0149
+       QCPA =  0.4792  0.0000
+
+ Wmsg: Iteration    12 Etot =    -399.003419 err =  0.00022008
+       Dyson loops  31 EF   =       0.066530 err =  0.00011367 DOS(E_F)=    4.35 hx = 0.00100
+       QSCA = -0.0150
+       QCPA =  0.4813  0.0000
+
+ Wmsg: Iteration    13 Etot =    -399.003570 err =  0.00015073
+       Dyson loops  31 EF   =       0.065997 err =  0.00008808 DOS(E_F)=    4.39 hx = 0.00100
+       QSCA = -0.0151
+       QCPA =  0.4827  0.0000
+
+ Wmsg: Iteration    14 Etot =    -399.003677 err =  0.00010652
+       Dyson loops  31 EF   =       0.066066 err =  0.00043990 DOS(E_F)=    4.36 hx = 0.00100
+       QSCA = -0.0151
+       QCPA =  0.4833  0.0000
+
+ Update:   Potential etc. stored on FOR002
+
+ Wmsg: Iteration    15 Etot =    -399.003755 err =  0.00007860
+       Dyson loops  31 EF   =       0.066055 err =  0.00003038 DOS(E_F)=    4.39 hx = 0.00100
+       QSCA = -0.0151
+       QCPA =  0.4839  0.0000
+
+ Wmsg: Iteration    16 Etot =    -399.003812 err =  0.00005660
+       Dyson loops  31 EF   =       0.065992 err =  0.00007680 DOS(E_F)=    4.41 hx = 0.00100
+       QSCA = -0.0151
+       QCPA =  0.4843  0.0000
+
+ Wmsg: Iteration    17 Etot =    -399.003853 err =  0.00004116
+       Dyson loops  31 EF   =       0.065918 err =  0.00008509 DOS(E_F)=    4.41 hx = 0.00100
+       QSCA = -0.0151
+       QCPA =  0.4845  0.0000
+
+ Wmsg: Iteration    18 Etot =    -399.003883 err =  0.00002990
+       Dyson loops  31 EF   =       0.065849 err =  0.00007636 DOS(E_F)=    4.41 hx = 0.00100
+       QSCA = -0.0151
+       QCPA =  0.4847  0.0000
+
+ Wmsg: Iteration    19 Etot =    -399.003905 err =  0.00002174
+       Dyson loops  31 EF   =       0.065792 err =  0.00006284 DOS(E_F)=    4.41 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4847  0.0000
+
+ Wmsg: Iteration    20 Etot =    -399.003920 err =  0.00001582
+       Dyson loops  31 EF   =       0.065747 err =  0.00004943 DOS(E_F)=    4.41 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4848  0.0000
+
+ Wmsg: Iteration    21 Etot =    -399.003932 err =  0.00001152
+       Dyson loops  31 EF   =       0.065712 err =  0.00003787 DOS(E_F)=    4.41 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4848  0.0000
+
+ Update:   Potential etc. stored on FOR002
+
+ Wmsg: Iteration    22 Etot =    -399.003940 err =  0.00000840
+       Dyson loops  31 EF   =       0.065685 err =  0.00002855 DOS(E_F)=    4.41 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    23 Etot =    -399.003946 err =  0.00000612
+       Dyson loops  31 EF   =       0.065665 err =  0.00002131 DOS(E_F)=    4.41 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    24 Etot =    -399.003951 err =  0.00000446
+       Dyson loops  31 EF   =       0.065651 err =  0.00001580 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    25 Etot =    -399.003954 err =  0.00000326
+       Dyson loops  31 EF   =       0.065640 err =  0.00001166 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    26 Etot =    -399.003957 err =  0.00000238
+       Dyson loops  31 EF   =       0.065632 err =  0.00000858 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    27 Etot =    -399.003958 err =  0.00000174
+       Dyson loops  31 EF   =       0.065626 err =  0.00000630 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    28 Etot =    -399.003960 err =  0.00000127
+       Dyson loops  31 EF   =       0.065622 err =  0.00000463 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Update:   Potential etc. stored on FOR002
+
+ Wmsg: Iteration    29 Etot =    -399.003960 err =  0.00000093
+       Dyson loops  31 EF   =       0.065619 err =  0.00000340 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    30 Etot =    -399.003961 err =  0.00000067
+       Dyson loops  31 EF   =       0.065616 err =  0.00000250 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    31 Etot =    -399.003962 err =  0.00000049
+       Dyson loops  31 EF   =       0.065615 err =  0.00000183 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    32 Etot =    -399.003962 err =  0.00000036
+       Dyson loops  31 EF   =       0.065613 err =  0.00000135 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    33 Etot =    -399.003962 err =  0.00000026
+       Dyson loops  31 EF   =       0.065613 err =  0.00000099 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    34 Etot =    -399.003962 err =  0.00000019
+       Dyson loops  31 EF   =       0.065612 err =  0.00000073 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    35 Etot =    -399.003963 err =  0.00000014
+       Dyson loops  31 EF   =       0.065611 err =  0.00000053 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Update:   Potential etc. stored on FOR002
+
+ Wmsg: Iteration    36 Etot =    -399.003963 err =  0.00000010
+       Dyson loops  31 EF   =       0.065611 err =  0.00000039 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    37 Etot =    -399.003963 err =  0.00000008
+       Dyson loops  31 EF   =       0.065611 err =  0.00000029 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    38 Etot =    -399.003963 err =  0.00000006
+       Dyson loops  31 EF   =       0.065611 err =  0.00000021 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    39 Etot =    -399.003963 err =  0.00000004
+       Dyson loops  31 EF   =       0.065610 err =  0.00000015 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    40 Etot =    -399.003963 err =  0.00000003
+       Dyson loops  31 EF   =       0.065610 err =  0.00000011 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    41 Etot =    -399.003963 err =  0.00000002
+       Dyson loops  31 EF   =       0.065610 err =  0.00000008 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    42 Etot =    -399.003963 err =  0.00000002
+       Dyson loops  31 EF   =       0.065610 err =  0.00000006 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Update:   Potential etc. stored on FOR002
+
+ Wmsg: Iteration    43 Etot =    -399.003963 err =  0.00000001
+       Dyson loops  31 EF   =       0.065610 err =  0.00000004 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    44 Etot =    -399.003963 err =  0.00000001
+       Dyson loops  31 EF   =       0.065610 err =  0.00000003 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    45 Etot =    -399.003963 err =  0.00000001
+       Dyson loops  31 EF   =       0.065610 err =  0.00000002 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    46 Etot =    -399.003963 err =  0.00000000
+       Dyson loops  31 EF   =       0.065610 err =  0.00000002 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    47 Etot =    -399.003963 err =  0.00000000
+       Dyson loops  31 EF   =       0.065610 err =  0.00000001 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Wmsg: Iteration    48 Etot =    -399.003963 err =  0.00000000
+       Dyson loops  31 EF   =       0.065610 err =  0.00000001 DOS(E_F)=    4.40 hx = 0.00100
+       QSCA = -0.0152
+       QCPA =  0.4849  0.0000
+
+ Update:   Potential etc. stored on FOR002
+
+ Dospth: CPA equation for IS =  1 converged in  1- 1 iterations
+
+ KGRN:     Calculation of the full charge density, lmaxh =  8
+
+ Kkrfcd:   NOS(Ef) =  1.999973 ELT =  2.000000
+
+ Mgaunt:   Generate real Gaunt numbers
+
+ Grnfcd:   Construct the full charge density
+
+ Eldens:   Calculate multipole moments
+
+ Eldens:   delQ = -0.000027 QTI = -0.149814 -0.000027
+
+ Rotchd:   Perform the 3D rotations
+
+ Fcdupd:   Full charge density stored on FOR010
+
+ KGRN: Calculation finished at 14:33 on 23-Jan-26
+ 
+  Total time for the self-consistency loop:      38.179
+  Total linear iterations time :      18.073
