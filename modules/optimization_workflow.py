@@ -769,6 +769,12 @@ class OptimizationWorkflow:
             try:
                 file_id = final_results['file_id']
                 phase_path = self.base_path / "phase3_optimized_calculation"
+                
+                print(f"\n{'='*70}")
+                print("DOS ANALYSIS")
+                print(f"{'='*70}")
+                print(f"File ID: {file_id}")
+                print(f"Phase path: {phase_path}")
 
                 dos_results = self.generate_dos_analysis(
                     phase_path=phase_path,
@@ -777,9 +783,25 @@ class OptimizationWorkflow:
                 )
 
                 self.results['dos_analysis'] = dos_results
+                
+                # Verify plots were actually created
+                if dos_results.get('status') == 'success':
+                    total_plot = dos_results.get('total_plot')
+                    if total_plot and Path(total_plot).exists():
+                        print(f"✓ DOS analysis completed successfully")
+                        print(f"  Total plot: {total_plot}")
+                        print(f"  Sublattice plots: {len(dos_results.get('sublattice_plots', []))}")
+                    else:
+                        print(f"⚠ Warning: DOS analysis reported success but plots not found")
+                        print(f"  Expected total plot: {total_plot}")
+                else:
+                    print(f"⚠ DOS analysis status: {dos_results.get('status')}")
 
             except Exception as e:
-                print(f"Warning: DOS analysis failed: {e}")
+                import traceback
+                print(f"\n✗ DOS analysis failed: {e}")
+                print("Full traceback:")
+                traceback.print_exc()
 
         # Step 7: Generate summary report
         try:

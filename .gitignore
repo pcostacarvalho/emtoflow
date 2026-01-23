@@ -1,9 +1,0 @@
-testing/fetch_database/theoretical_experimental_structures.json
-testing/test_outputs/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-.DS_Store
-.DS_Store

@@ -6,9 +6,12 @@ Handles EOS fitting, DOS analysis, and report generation.
 """
 
 import subprocess
+import os
 from pathlib import Path
 from typing import Union, List, Dict, Any, Optional, Tuple
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend for headless environments
 import matplotlib.pyplot as plt
 
 from modules.inputs.eos_emto import create_eos_input
@@ -409,17 +412,28 @@ def generate_dos_analysis(
     print("DOS ANALYSIS")
     print(f"{'='*70}")
     print(f"DOS file: {dos_file}")
+    print(f"DOS file exists: {dos_file.exists()}")
+    if dos_file.exists():
+        print(f"DOS file size: {dos_file.stat().st_size} bytes")
 
     # Create DOS analysis directory
     dos_output_dir = phase_path / "dos_analysis"
     dos_output_dir.mkdir(parents=True, exist_ok=True)
+    print(f"DOS output directory: {dos_output_dir}")
+    print(f"DOS output directory exists: {dos_output_dir.exists()}")
+    print(f"DOS output directory is writable: {os.access(dos_output_dir, os.W_OK)}")
 
     # Parse DOS
     try:
         parser = DOSParser(str(dos_file))
         print(f"✓ DOS file parsed successfully")
+        print(f"  Atom info count: {len(parser.atom_info)}")
+        print(f"  Has total_down: {parser.data.get('total_down') is not None}")
+        print(f"  Has total_up: {parser.data.get('total_up') is not None}")
     except Exception as e:
+        import traceback
         print(f"✗ Failed to parse DOS file: {e}")
+        traceback.print_exc()
         return {'status': 'parse_error', 'error': str(e)}
 
     # Get plot range
@@ -434,21 +448,33 @@ def generate_dos_analysis(
     
     try:
         plotter = DOSPlotter(parser)
+        print(f"✓ DOSPlotter created successfully")
 
         # Total DOS
         total_plot = dos_output_dir / "dos_total.png"
+        print(f"Attempting to create total DOS plot: {total_plot}")
+        print(f"  Output directory exists: {dos_output_dir.exists()}")
+        print(f"  Output directory is writable: {os.access(dos_output_dir, os.W_OK)}")
+        
         fig, ax = plotter.plot_total(
             spin_polarized=True,
             save=None,
             show=False,
         )
+        print(f"✓ plot_total() returned figure and axes")
+        
         ax.set_xlim(dos_plot_range[0], dos_plot_range[1])
+        print(f"  Setting xlim to: {dos_plot_range}")
+        
+        print(f"  Calling fig.savefig({total_plot})...")
         fig.savefig(total_plot, dpi=300, bbox_inches='tight')
         plt.close(fig)
+        print(f"  savefig() completed, figure closed")
         
         # Verify file was actually created
         if total_plot.exists():
-            print(f"✓ Total DOS plot saved: {total_plot}")
+            file_size = total_plot.stat().st_size
+            print(f"✓ Total DOS plot saved: {total_plot} ({file_size} bytes)")
         else:
             raise RuntimeError(f"Failed to save total DOS plot: {total_plot} (file does not exist after savefig)")
 
