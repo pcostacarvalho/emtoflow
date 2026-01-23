@@ -70,7 +70,9 @@ sws_values: null                     # List of SWS values: [2.60, 2.65, 2.70]
                                      # If null: calculates from structure volume
 
 # Auto-generation from single values (creates range around provided value)
-auto_generate: true                  # Auto-generate ranges if single value provided
+auto_generate: false                 # Auto-generate ranges if single value provided (default: false)
+                                     # When true: single values automatically generate ranges (±3×step, n_points)
+                                     # When false: use provided lists as-is or calculate from structure
 ca_step: 0.02                        # Step size for c/a range (default: 0.02)
 sws_step: 0.05                       # Step size for SWS range (default: 0.05)
 n_points: 7                          # Number of points in auto-generated range (default: 7)
@@ -90,7 +92,7 @@ dmax: null                           # Maximum distance parameter for neighbor s
 magnetic: "P"                        # Magnetic configuration:
                                      # "P" = Paramagnetic (default)
                                      # "F" = Ferromagnetic
-                                     # "A" = Antiferromagnetic
+                                     # Note: "A" (Antiferromagnetic) is not currently supported
 
 user_magnetic_moments: null          # Custom magnetic moments per element
                                      # Example: {'Fe': 2.2, 'Co': 1.7, 'Ni': 0.6}
@@ -130,11 +132,23 @@ optimize_sws: false                  # Enable SWS (volume) optimization (Phase 2
 # ------------------------------------------------------------------------------
 # DMAX OPTIMIZATION - Automatic cutoff distance optimization
 # ------------------------------------------------------------------------------
+# DMAX optimization finds optimal cutoff distances for each c/a ratio to maintain
+# consistent neighbor shell counts. This ensures comparable k-point density.
+#
+# REQUIREMENTS:
+#   - Requires at least 2 c/a ratios (or set auto_generate=true)
+#   - Requires kstr_executable path
+#   - Processes ratios sequentially (not in parallel)
+#   - Uses early termination for ~300-600x speedup
 
-optimize_dmax: false                 # Enable automatic DMAX optimization
+optimize_dmax: false                 # Enable automatic DMAX optimization (default: false)
 dmax_initial: 2.0                    # Initial DMAX guess (default: 2.0)
+                                     # Should be large enough for the LARGEST c/a ratio
+                                     # Tip: Start with 2.5-3.0 for complex structures
 dmax_target_vectors: 100             # Target number of k-vectors (default: 100)
 dmax_vector_tolerance: 15            # Acceptable deviation ±N vectors (default: 15)
+kstr_executable: null                # Path to KSTR executable (REQUIRED if optimize_dmax=true)
+                                     # Example: "/path/to/kstr.exe"
 
 
 # ------------------------------------------------------------------------------
@@ -162,12 +176,14 @@ job_mode: "serial"                   # Job execution mode:
 # ------------------------------------------------------------------------------
 # EXECUTABLE PATHS - Paths to EMTO binaries
 # ------------------------------------------------------------------------------
+# Update these paths to point to your EMTO installation
+# Required if optimize_dmax=true or create_job_script=true
 
-kstr_executable: "/home/x_pamca/postdoc_proj/emto/bin/kstr.exe"
-shape_executable: "/home/x_pamca/postdoc_proj/emto/bin/shape.exe"
-kgrn_executable: "/home/x_pamca/postdoc_proj/emto/bin/kgrn_mpi.x"
-kfcd_executable: "/home/x_pamca/postdoc_proj/emto/bin/kfcd.exe"
-eos_executable: "/home/x_pamca/postdoc_proj/emto/bin/eos.exe"
+kstr_executable: "/path/to/kstr.exe"           # KSTR executable (required for DMAX optimization)
+shape_executable: "/path/to/shape.exe"         # SHAPE executable (required for job scripts)
+kgrn_executable: "/path/to/kgrn_mpi.x"         # KGRN executable (required for job scripts)
+kfcd_executable: "/path/to/kfcd.exe"           # KFCD executable (required for job scripts)
+eos_executable: "/path/to/eos.exe"             # EOS executable (required for optimization workflows)
 
 
 # ------------------------------------------------------------------------------
@@ -179,7 +195,6 @@ eos_type: "MO88"                     # EOS fitting type:
                                      # "POLN" = Polynomial
                                      # "SPLN" = Spline
                                      # "MU37" = Murnaghan
-                                     # "BM35" = Birch-Murnaghan
                                      # "ALL" = Fit all types
 
 
@@ -210,21 +225,24 @@ reference_volume: null               # Reference volume for % deviation calculat
 
 poll_interval: 30                    # Check job status every N seconds (default: 30)
 max_wait_time: 7200                  # Maximum wait time in seconds (default: 7200 = 2 hours)
-timeout_action: "stop"               # Action on timeout:
-                                     # "stop" = Stop workflow (default)
-                                     # "continue" = Continue to next phase
-                                     # "retry" = Retry the timed-out phase
+timeout_action: "stop"               # Action on timeout (default: "stop")
+                                     # Currently always stops workflow on timeout
+                                     # Other options reserved for future implementation
 
 
 # ------------------------------------------------------------------------------
 # ADVANCED SETTINGS
 # ------------------------------------------------------------------------------
+# Note: Some of these parameters are reserved for future features
 
 skip_existing: false                 # Skip calculations if output files exist (default: false)
+                                     # Reserved for future implementation
 save_intermediate: true              # Save intermediate results to JSON (default: true)
 cleanup_temp: false                  # Remove temporary files after completion (default: false)
-log_level: "INFO"                    # Logging verbosity:
-                                     # "DEBUG", "INFO", "WARNING", "ERROR" (default: "INFO")
+                                     # Reserved for future implementation
+log_level: "INFO"                    # Logging verbosity (default: "INFO")
+                                     # Reserved for future logging configuration
+                                     # Valid values: "DEBUG", "INFO", "WARNING", "ERROR"
 
 
 # ------------------------------------------------------------------------------
@@ -238,11 +256,14 @@ prepare_only: false                  # Prepare input files only, don't run calcu
 # ------------------------------------------------------------------------------
 # ALLOY PERCENTAGE LOOP - Systematic composition variation
 # ------------------------------------------------------------------------------
-# Enables automatic looping over different alloy compositions
-# See ALLOY_LOOP_USAGE.md for detailed documentation
+# NOTE: The recommended workflow is to use generate_percentages.py to create
+# separate YAML files for each composition, then run them individually.
+# This loop_perc feature is still available but generates files automatically.
+# See ALLOY_COMPOSITION_LOOPS.md for detailed documentation
 
 loop_perc: null                      # Set to a dictionary to enable alloy composition loop
                                      # If null: single composition calculation (default)
+                                     # Recommended: Use bin/generate_percentages.py instead
 
 # Example configuration for alloy percentage loop:
 # loop_perc:

@@ -14,6 +14,16 @@ This is MUCH faster than waiting for the entire KSTR calculation to finish.
 import sys
 import os
 import time
+import pytest
+
+# NOTE:
+# This file is an integration/demo script that depends on external EMTO binaries.
+# It should not hard-fail the repo's unit test suite during pytest collection.
+if os.environ.get("RUN_EMTO_INTEGRATION_TESTS") != "1":
+    pytest.skip(
+        "Skipping EMTO integration/demo script. Set RUN_EMTO_INTEGRATION_TESTS=1 to run.",
+        allow_module_level=True,
+    )
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -40,12 +50,11 @@ print()
 
 # Check if KSTR executable exists
 if not os.path.exists(KSTR_EXECUTABLE):
-    print(f"❌ ERROR: KSTR executable not found at: {KSTR_EXECUTABLE}")
-    print("\n📝 Please update KSTR_EXECUTABLE in this script to match your system.")
-    print("   Example paths:")
-    print("   - Linux: /home/username/emto/bin/kstr.exe")
-    print("   - HPC: /proj/your_project/bin/kstr.exe")
-    sys.exit(1)
+    pytest.skip(
+        f"KSTR executable not found at: {KSTR_EXECUTABLE}. "
+        "Update KSTR_EXECUTABLE to run this integration test.",
+        allow_module_level=True,
+    )
 
 # Clean up previous test output
 import shutil

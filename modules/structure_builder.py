@@ -16,6 +16,7 @@ EMTO input generation.
 import numpy as np
 from pymatgen.core import Structure, Lattice, Species
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+from typing import Optional, Dict, Any, Tuple
 
 from modules.lat_detector import (
     get_inequivalent_atoms,
@@ -23,6 +24,67 @@ from modules.lat_detector import (
     generate_emto_primitive_vectors
 )
 from modules.element_database import get_default_moment
+
+# ==================== CANONICAL (PRIMITIVE) STRUCTURE ====================
+
+def _get_canonical_structure(structure_pmg: Structure) -> Structure:
+    """
+    Return the canonical structure representation used by the EMTO pipeline.
+
+    - Parameter workflow: if user provided explicit LAT (stored as user_lat),
+      do NOT convert to primitive.
+    - CIF workflow: standardize to primitive cell to reduce atoms and keep
+      downstream behavior consistent (important for alloy workflows too).
+    """
+    user_lat = structure_pmg.properties.get('user_lat', None) if structure_pmg.properties else None
+    if user_lat is not None:
+        return structure_pmg
+
+    sga = SpacegroupAnalyzer(structure_pmg)
+    return sga.get_primitive_standard_structure()
+
+
+def _apply_substitutions_to_site_composition(
+    site_composition: Dict[str, float],
+    substitutions: Dict[str, Any]
+) -> Dict[str, float]:
+    """
+    Apply substitutions to a single site's composition in a deterministic way.
+
+    This supports:
+    - Pure sites: {'Fe': 1.0}
+    - Mixed-occupancy CIF sites: {'Fe': 0.7, 'Co': 0.3}
+
+    Substitution format:
+      substitutions = {
+        'Fe': {'elements': ['Fe', 'Co'], 'concentrations': [0.5, 0.5]},
+        ...
+      }
+
+    Behavior:
+    - For each element in the site's composition:
+      - If it has a substitution, replace its contribution by scaling the substitution mixture.
+      - Otherwise, keep it.
+    - Preserves explicit zero-concentration components from substitution definitions
+      (keys are created even if the resulting concentration is 0.0).
+    """
+    if not substitutions:
+        return dict(site_composition)
+
+    out: Dict[str, float] = {}
+    for elem, frac in site_composition.items():
+        if elem in substitutions:
+            subst = substitutions[elem]
+            subst_elems = subst.get('elements', [])
+            subst_concs = subst.get('concentrations', [])
+            for sub_elem, sub_frac in zip(subst_elems, subst_concs):
+                # Create key even if frac*sub_frac == 0.0 (zero-preservation)
+                out[sub_elem] = out.get(sub_elem, 0.0) + float(frac) * float(sub_frac)
+        else:
+            out[elem] = out.get(elem, 0.0) + float(frac)
+
+    return out
+
 
 # ==================== ELEMENT SUBSTITUTIONS ====================
  
@@ -359,20 +421,20 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     dict
         EMTO structure dictionary with all required fields
     """
+    # Canonicalize structure (primitive is important for CIF workflows)
+    work_structure = _get_canonical_structure(structure_pmg)
+
+    # Create SpacegroupAnalyzer for the canonical structure
+    sga = SpacegroupAnalyzer(work_structure)
+
+    # Optional: substitutions (used to define alloys in EMTO dict without
+    # requiring pymatgen to carry zero-occupancy species)
+    substitutions = (
+        structure_pmg.properties.get('substitutions')
+        if structure_pmg.properties else None
+    )
     # Check if user provided explicit LAT (from parameter workflow)
     user_lat = structure_pmg.properties.get('user_lat', None) if structure_pmg.properties else None
-
-    # Create SpacegroupAnalyzer (needed for symmetry analysis)
-    sga = SpacegroupAnalyzer(structure_pmg)
-
-    # Decide whether to use as-is or convert to primitive
-    if user_lat is not None:
-        # User explicitly provided LAT and structure - respect their choice
-        # Do NOT convert to primitive cell
-        work_structure = structure_pmg
-    else:
-        # CIF workflow - standardize to primitive cell to reduce atoms
-        work_structure = sga.get_primitive_standard_structure()
 
     # Extract lattice parameters
     a = work_structure.lattice.a
@@ -429,7 +491,7 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     site_to_it = get_inequivalent_atoms(work_structure)
 
     # Extract all unique elements across all sites (for NL calculation)
-    # Include zero-concentration elements if original_sites are available
+    # Include zero-concentration elements if original_sites or substitutions are available
     original_sites = structure_pmg.properties.get('original_sites') if structure_pmg.properties else None
 
     all_elements = set()
@@ -438,12 +500,16 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
         for site_spec in original_sites:
             for elem in site_spec['elements']:
                 all_elements.add(elem)
-    else:
-        # Fall back to pymatgen composition
-        for site in work_structure.sites:
-            # site.species is a Composition object containing all elements at that site
-            for elem in site.species.elements:
-                all_elements.add(str(elem))
+    # Include substitution elements (even if 0%); this is important for CPA/ITA consistency
+    if substitutions:
+        for _, subst in substitutions.items():
+            for elem in subst.get('elements', []):
+                all_elements.add(elem)
+
+    # Fall back to pymatgen composition (canonical structure)
+    for site in work_structure.sites:
+        for elem in site.species.elements:
+            all_elements.add(str(elem))
 
     unique_elements = sorted(all_elements)
     NQ3 = len(work_structure.sites)
@@ -476,19 +542,19 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     for iq, site in enumerate(work_structure.sites):
         it = site_to_it[iq]
 
-        # If original sites are available, use them to get ALL elements (including 0% concentration)
-        # Otherwise, fall back to pymatgen's composition (which filters out zeros)
-        if original_sites and iq < len(original_sites):
-            # Use original site specification - preserves zero-concentration elements
+        # Prefer explicit parameter-site specification for per-site CPA components,
+        # because it may include zero-concentration elements that pymatgen drops.
+        if user_lat is not None and original_sites and iq < len(original_sites):
             elements = original_sites[iq]['elements']
             concentrations = original_sites[iq]['concentrations']
             sorted_elements = sorted(zip(elements, concentrations), key=lambda x: x[0])
         else:
-            # Fall back to pymatgen composition (CIF workflow or no original sites)
-            # site.species is a Composition: {'Fe': 0.5, 'Pt': 0.5} for alloys
-            # or {'Cu': 1.0} for pure elements
-            site_composition = site.species.as_dict()
-            sorted_elements = sorted(site_composition.items())
+            # CIF or generic structure path:
+            # - derive composition from canonical structure
+            # - apply substitutions deterministically to define alloys (CPA/ITA)
+            site_comp = site.species.as_dict()
+            site_comp = _apply_substitutions_to_site_composition(site_comp, substitutions or {})
+            sorted_elements = sorted(site_comp.items())
 
         # For the atoms list, store comma-separated elements for this site
         site_elements = ','.join([elem for elem, _ in sorted_elements])
@@ -547,9 +613,20 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
     }
 
 
-def create_emto_structure(cif_file=None, structure_pmg=None, lat=None, a=None, sites=None,
-                         b=None, c=None, alpha=90, beta=90, gamma=90,
-                         user_magnetic_moments=None):
+def create_emto_structure(
+    cif_file: Optional[str] = None,
+    structure_pmg: Optional[Structure] = None,
+    substitutions: Optional[Dict[str, Any]] = None,
+    lat: Optional[int] = None,
+    a: Optional[float] = None,
+    sites: Optional[list] = None,
+    b: Optional[float] = None,
+    c: Optional[float] = None,
+    alpha: float = 90,
+    beta: float = 90,
+    gamma: float = 90,
+    user_magnetic_moments: Optional[Dict[str, float]] = None
+) -> Tuple[Structure, Dict[str, Any]]:
     """
     Create EMTO structure dictionary from CIF file, pymatgen Structure, or input parameters.
  
@@ -617,9 +694,9 @@ def create_emto_structure(cif_file=None, structure_pmg=None, lat=None, a=None, s
     if structure_pmg is not None:
         # Pre-loaded pymatgen Structure (e.g., after substitutions)
         structure_pmg.remove_oxidation_states()
-    elif cif_file is not None:
+    elif cif_file not in (None, False, ""):
         # CIF workflow
-        structure_pmg = Structure.from_file(cif_file)
+        structure_pmg = Structure.from_file(str(cif_file))
         structure_pmg.remove_oxidation_states()
     elif lat is not None and a is not None and sites is not None:
         # Parameter workflow
@@ -634,5 +711,16 @@ def create_emto_structure(cif_file=None, structure_pmg=None, lat=None, a=None, s
             "  3. lat=<1-14>, a=<value>, sites=<list>"
         )
 
+    # Store substitutions on the base structure (used during EMTO conversion).
+    # This allows us to define CPA alloys without requiring pymatgen to keep
+    # zero-occupancy species in the Structure itself.
+    if substitutions:
+        if structure_pmg.properties is None:
+            structure_pmg.properties = {}
+        structure_pmg.properties['substitutions'] = substitutions
+
     # Common: convert pymatgen Structure → EMTO dict
-    return structure_pmg, _structure_to_emto_dict(structure_pmg, user_magnetic_moments)
+    structure_dict = _structure_to_emto_dict(structure_pmg, user_magnetic_moments)
+
+    # Return the canonical structure actually used for EMTO downstream (primitive for CIF)
+    return structure_dict['structure'], structure_dict

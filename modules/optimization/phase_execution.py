@@ -166,18 +166,18 @@ def optimize_ca_ratio(
     try:
         from modules.optimization.analysis import plot_eos_fit
 
-        # Determine which EOS type to plot (default to morse)
+        # Determine which EOS fit to plot (default to morse).
+        # Supported EOS fit flags from eos.exe: MO88, MU37, POLN, SPLN, ALL.
         eos_type_map = {
             'MO88': 'morse',
             'POLN': 'polynomial',
             'SPLN': 'spline',
             'MU37': 'murnaghan',
-            'BM52': 'birch_murnaghan',
             'ALL': 'morse'  # Default to morse if ALL was used
         }
         plot_eos_type = eos_type_map.get(config.get('eos_type', 'MO88'), 'morse')
 
-        eos_output_file = phase_path / f"eos_{config['job_name']}_ca.out"
+        eos_output_file = phase_path / f"{config['job_name']}_ca.out"
         plot_eos_fit(
             eos_output_file=eos_output_file,
             output_path=phase_path,
@@ -352,18 +352,18 @@ def optimize_sws(
     try:
         from modules.optimization.analysis import plot_eos_fit
 
-        # Determine which EOS type to plot (default to morse)
+        # Determine which EOS fit to plot (default to morse).
+        # Supported EOS fit flags from eos.exe: MO88, MU37, POLN, SPLN, ALL.
         eos_type_map = {
             'MO88': 'morse',
             'POLN': 'polynomial',
             'SPLN': 'spline',
             'MU37': 'murnaghan',
-            'BM52': 'birch_murnaghan',
             'ALL': 'morse'  # Default to morse if ALL was used
         }
         plot_eos_type = eos_type_map.get(config.get('eos_type', 'MO88'), 'morse')
 
-        eos_output_file = phase_path / f"eos_{config['job_name']}_sws.out"
+        eos_output_file = phase_path / f"{config['job_name']}_sws.out"
         plot_eos_fit(
             eos_output_file=eos_output_file,
             output_path=phase_path,

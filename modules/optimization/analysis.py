@@ -67,7 +67,10 @@ def run_eos_fit(
     output_path.mkdir(parents=True, exist_ok=True)
 
     eos_input_file = output_path / "eos.dat"
-    eos_output_file = output_path / "eos.out"
+    # Note: the authoritative EOS results are written by eos.exe to
+    # `filename_eos_results` (derived from JOB_NAME in the eos.dat input).
+    # We still capture stdout to a separate file for debugging/logging.
+    eos_stdout_file = output_path / "eos.out"
 
     print(f"\n{'='*70}")
     print(f"RUNNING EOS FIT")
@@ -95,7 +98,7 @@ def run_eos_fit(
         print(f"Running EOS executable: {eos_executable}")
 
         with open(eos_input_file, 'r') as f_in:
-            with open(eos_output_file, 'w') as f_out:
+            with open(eos_stdout_file, 'w') as f_out:
                 result = subprocess.run(
                     [eos_executable],
                     stdin=f_in,
@@ -120,8 +123,13 @@ def run_eos_fit(
         raise RuntimeError(f"Failed to run EOS executable: {e}")
 
     # Step 3: Parse EOS output
-
     filename_eos_results = output_path / f"{job_name}.out"
+    if not filename_eos_results.exists():
+        raise RuntimeError(
+            "EOS executable completed but did not produce the expected results file.\n"
+            f"Expected: {filename_eos_results}\n"
+            f"Stdout log: {eos_stdout_file}"
+        )
     try:
         results = parse_eos_output(filename_eos_results)
 
@@ -178,7 +186,7 @@ def plot_eos_fit(
     Parameters
     ----------
     eos_output_file : str or Path
-        Path to EOS output file (e.g., 'eos.out')
+        Path to EOS results file written by `eos.exe` (e.g., '<job_name>.out')
     output_path : str or Path
         Directory where plot will be saved
     variable_name : str, optional
@@ -220,7 +228,7 @@ def plot_eos_fit(
     --------
     >>> # Plot c/a optimization
     >>> plot_eos_fit(
-    ...     'phase1_ca_optimization/eos.out',
+    ...     'phase1_ca_optimization/myjob_ca.out',
     ...     'phase1_ca_optimization',
     ...     variable_name='c/a',
     ...     variable_units='',
@@ -229,7 +237,7 @@ def plot_eos_fit(
 
     >>> # Plot SWS optimization
     >>> plot_eos_fit(
-    ...     'phase2_sws_optimization/eos.out',
+    ...     'phase2_sws_optimization/myjob_sws.out',
     ...     'phase2_sws_optimization',
     ...     variable_name='R_WS',
     ...     variable_units='Bohr',
@@ -369,7 +377,7 @@ def generate_dos_analysis(
     file_id : str
         File identifier for DOS files
     dos_plot_range : list of float, optional
-        Energy range for DOS plots [E_min, E_max] in eV
+        Energy range for DOS plots [E_min, E_max] in Ry
         If None, uses default [-0.8, 0.15]
 
     Returns
@@ -382,7 +390,7 @@ def generate_dos_analysis(
     Looks for DOS files in phase_path/pot/{file_id}.dos
     Generates plots and saves to phase_path/dos_analysis/
     """
-    from modules.dos import DOSParser
+    from modules.dos import DOSParser, DOSPlotter
 
     phase_path = Path(phase_path)
     dos_file = phase_path / "pot" / f"{file_id}.dos"
@@ -411,16 +419,23 @@ def generate_dos_analysis(
     # Get plot range
     if dos_plot_range is None:
         dos_plot_range = [-0.8, 0.15]
+    if len(dos_plot_range) != 2:
+        raise ValueError(f"dos_plot_range must be [E_min, E_max], got: {dos_plot_range}")
 
     # Generate plots
     try:
+        plotter = DOSPlotter(parser)
+
         # Total DOS
         total_plot = dos_output_dir / "dos_total.png"
-        parser.plot_total(
+        fig, ax = plotter.plot_total(
             spin_polarized=True,
-            save=str(total_plot),
-            show=False
+            save=None,
+            show=False,
         )
+        ax.set_xlim(dos_plot_range[0], dos_plot_range[1])
+        fig.savefig(total_plot, dpi=300, bbox_inches='tight')
+        plt.close(fig)
         print(f"✓ Total DOS plot saved: {total_plot}")
 
         # Sublattice DOS (if available)
@@ -431,12 +446,15 @@ def generate_dos_analysis(
 
             for sublat in sublattices:
                 sublat_plot = dos_output_dir / f"dos_sublattice_{sublat}.png"
-                parser.plot_sublattice(
+                fig, ax = plotter.plot_sublattice(
                     sublattice=sublat,
                     spin_polarized=True,
-                    save=str(sublat_plot),
-                    show=False
+                    save=None,
+                    show=False,
                 )
+                ax.set_xlim(dos_plot_range[0], dos_plot_range[1])
+                fig.savefig(sublat_plot, dpi=300, bbox_inches='tight')
+                plt.close(fig)
                 sublattice_plots.append(str(sublat_plot))
                 print(f"✓ Sublattice {sublat} DOS plot saved")
 

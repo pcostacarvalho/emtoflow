@@ -148,7 +148,7 @@ plot_format: "png"                     # Plot format: png, pdf, svg
 # Alloy Percentage Loop (OPTIONAL)
 # ------------------------------------------------------------------------------
 # Enables systematic variation of alloy composition
-# See ALLOY_LOOP_USAGE.md for detailed documentation
+# See ALLOY_COMPOSITION_LOOPS.md for detailed documentation
 # loop_perc:
 #   enabled: true                      # Enable composition loop
 #   start: 0                           # Starting percentage (default: 0)

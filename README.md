@@ -197,7 +197,7 @@ job_mode: "serial"                   # "serial" or "parallel"
 
 ```yaml
 # Equation of state
-eos_type: "MO88"                     # MO88, POLN, SPLN, MU37, BM35, ALL
+eos_type: "MO88"                     # MO88, POLN, SPLN, MU37, ALL
 
 # DOS analysis
 generate_dos: false                  # Generate DOS files
@@ -294,20 +294,46 @@ sites:
 ```
 EMTO_input_automation/
 ├── bin/
-│   └── run_optimization.py          # Main CLI tool
+│   ├── run_optimization.py          # Main CLI tool for optimization workflow
+│   └── generate_percentages.py      # Generate YAML files for composition loops
 ├── modules/
-│   ├── optimization_workflow.py     # Optimization workflow
-│   ├── create_input.py              # Input file generation
-│   ├── structure_builder.py         # Structure creation
-│   └── inputs/                      # Input generators (KSTR, KGRN, etc.)
+│   ├── optimization_workflow.py     # Main optimization workflow orchestrator
+│   ├── optimization/                # Optimization submodules
+│   │   ├── execution.py              # Calculation execution
+│   │   ├── phase_execution.py       # Phase 1-3 execution
+│   │   ├── analysis.py               # EOS fitting, DOS analysis
+│   │   └── prepare_only.py          # Input generation only
+│   ├── structure_builder.py         # Unified structure creation (CIF/parameters)
+│   ├── create_input.py              # EMTO input file generation
+│   ├── dmax_optimizer.py            # DMAX cutoff optimization
+│   ├── dos.py                       # DOS parsing and plotting
+│   ├── extract_results.py           # Results parsing (KGRN/KFCD)
+│   ├── alloy_loop.py                # Legacy composition loop (automatic)
+│   ├── generate_percentages/        # Composition YAML generation
+│   │   ├── generator.py
+│   │   ├── composition.py
+│   │   └── yaml_writer.py
+│   ├── inputs/                      # Input file generators
+│   │   ├── kstr.py                  # KSTR (structure)
+│   │   ├── kgrn.py                  # KGRN (Green's function)
+│   │   ├── shape.py                 # SHAPE (shape functions)
+│   │   ├── kfcd.py                  # KFCD (charge density)
+│   │   ├── eos_emto.py              # EOS input/output
+│   │   └── jobs_tetralith.py        # SLURM script generation
+│   ├── lat_detector.py              # Lattice type detection
+│   └── element_database.py          # Element properties
 ├── utils/
-│   ├── config_parser.py             # Configuration validation
-│   └── aux_lists.py                 # K-point rescaling
+│   ├── config_parser.py             # Configuration validation and defaults
+│   ├── aux_lists.py                 # K-point rescaling
+│   ├── file_io.py                   # File utilities
+│   └── running_bash.py               # Job execution (SLURM/local)
 ├── refs/
-│   ├── optimization_config_template.yaml
-│   ├── DEVELOPMENT_GUIDELINES.md
-│   └── OPTIMIZATION_WORKFLOW.md
-└── files/systems/                   # Example configurations
+│   ├── optimization_config_template.yaml  # Complete config template
+│   ├── DEVELOPMENT_GUIDELINES.md          # Development guidelines
+│   ├── LATTICE_TYPES.md                    # Lattice type reference
+│   └── [module summaries]                  # Brief summaries of each module
+├── files/systems/                   # Example configurations
+└── code-tests/                     # Test suite
 ```
 
 ---
@@ -364,12 +390,25 @@ sws_values: [2.6]
 
 ## Documentation
 
-- **`OPTIMIZATION_WORKFLOW.md`** - Complete optimization workflow guide
-- **`LATTICE_TYPES.md`** - EMTO lattice type reference (LAT 1-14)
-- **`ALLOY_WORKFLOW_GUIDE.md`** - Alloy structure creation guide
-- **`DMAX_OPTIMIZATION.md`** - Cutoff distance optimization
-- **`DEVELOPMENT_GUIDELINES.md`** - Contributing guidelines
-- **`refs/optimization_config_template.yaml`** - Full configuration template
+All documentation is in the `refs/` directory:
+
+- **`optimization_config_template.yaml`** - Complete configuration template with all options
+- **`DEVELOPMENT_GUIDELINES.md`** - Code development guidelines and best practices
+- **`LATTICE_TYPES.md`** - EMTO lattice type reference (LAT 1-14) with primitive vectors
+- **`WORKFLOW_DIAGRAMS.md`** - Visual workflow diagrams showing module connections
+
+### Module Summaries
+
+- **`OPTIMIZATION_WORKFLOW.md`** - Optimization workflow module (`modules/optimization_workflow.py`)
+- **`STRUCTURE_BUILDER.md`** - Structure builder module (`modules/structure_builder.py`)
+- **`INPUT_GENERATION.md`** - Input file generation (`modules/create_input.py`)
+- **`DMAX_OPTIMIZATION.md`** - DMAX optimizer module (`modules/dmax_optimizer.py`)
+- **`DOS.md`** - DOS module (`modules/dos.py`)
+- **`EOS.md`** - EOS module (`modules/inputs/eos_emto.py`)
+- **`ALLOY_COMPOSITION_LOOPS.md`** - Alloy composition loops (`modules/alloy_loop.py`, `modules/generate_percentages/`)
+- **`GENERATE_PERCENTAGES.md`** - Generate percentages module
+- **`CIF_SUBSTITUTIONS.md`** - CIF element substitutions feature
+- **`OPTIMIZATION_REFACTORING.md`** - Optimization module refactoring notes
 
 ---
 

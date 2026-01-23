@@ -764,6 +764,7 @@ class OptimizationWorkflow:
             raise RuntimeError(f"Optimized calculation failed: {e}")
 
         # Step 6: DOS analysis (optional)
+        # Runs after Phase 3, but writes plots into phase3_optimized_calculation/.
         if self.config.get('generate_dos', False):
             try:
                 file_id = final_results['file_id']

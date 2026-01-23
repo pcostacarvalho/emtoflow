@@ -13,8 +13,7 @@ from modules.inputs import (
 )
 from modules.structure_builder import (
     create_emto_structure,
-    lattice_param_to_sws,
-    apply_substitutions_to_structure
+    lattice_param_to_sws
 )
 from modules.dmax_optimizer import _run_dmax_optimization
 from utils.config_parser import load_and_validate_config
@@ -333,15 +332,13 @@ def create_emto_inputs(config):
     # ==================== BUILD STRUCTURE ====================
 
     # Determine which workflow to use
-    if cif_file is not None:
+    # Note: config default sets cif_file=False, so we must check for a truthy path.
+    has_cif = cif_file not in (None, False, "")
+    if has_cif:
         # CIF workflow
         print(f"\nParsing CIF file: {cif_file}")
-             
-            # Load CIF as pymatgen Structure
-        from pymatgen.core import Structure as PMGStructure
-        structure_pmg_original = PMGStructure.from_file(cif_file)
 
-        # Apply substitutions if provided
+        # Print substitutions if provided (alloy definition is handled in structure_builder)
         if substitutions is not None:
             print("  Applying element substitutions:")
             for element, subst in substitutions.items():
@@ -349,19 +346,14 @@ def create_emto_inputs(config):
                 conc_str = ", ".join([f"{c:.3f}" for c in subst['concentrations']])
                 print(f"    {element} → [{elements_str}] with concentrations [{conc_str}]")
 
-            structure_pmg_to_parse = apply_substitutions_to_structure(
-                structure_pmg_original, substitutions
-            )
-        else:
-            structure_pmg_to_parse = structure_pmg_original
-
         # Parse structure to EMTO format
         structure_pmg, structure_dict = create_emto_structure(
-            structure_pmg=structure_pmg_to_parse,
+            cif_file=str(cif_file),
+            substitutions=substitutions,
             user_magnetic_moments=user_magnetic_moments
         )
 
-    if lat is not None:
+    elif lat is not None:
         # Parameter workflow (alloy or ordered structure)
         print(f"\nCreating structure from parameters...")
         print(f"  Lattice type: LAT={lat}")
@@ -396,8 +388,8 @@ def create_emto_inputs(config):
 
         # Get lattice parameters - use user-provided values if available,
         # otherwise use values from CIF structure (conventional cell)
-        if cif_file is not None:
-            # CIF workflow: use lattice from CIF (conventional cell)
+        if has_cif:
+            # CIF workflow: use canonical lattice (primitive standardized)
             lattice_params = (
                 structure_pmg.lattice.a,
                 structure_pmg.lattice.b,

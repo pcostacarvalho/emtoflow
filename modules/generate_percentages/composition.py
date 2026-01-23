@@ -47,32 +47,64 @@ def determine_loop_site(config: Dict[str, Any],
     loop_config = config['loop_perc']
     site_idx = loop_config.get('site_index', 0)
 
-    # Check site_idx is valid
-    if site_idx >= len(structure_pmg.sites):
+    # Prefer using the YAML-defined alloy specification (sites/substitutions) rather than
+    # inspecting pymatgen occupancies. This keeps behavior consistent even when the
+    # canonical structure is a primitive standardized cell.
+
+    # Parameter method: sites[] defines the alloy directly
+    if config.get('sites') is not None:
+        sites = config['sites']
+        if site_idx >= len(sites):
+            raise ValueError(
+                f"site_index {site_idx} is out of range for config['sites'].\n"
+                f"sites has length {len(sites)} (0-indexed)."
+            )
+        site_spec = sites[site_idx]
+        elements = site_spec.get('elements', [])
+        concentrations = site_spec.get('concentrations', [])
+
+    # CIF method: substitutions define which element(s) are variable; use the structure
+    # only to identify which base element sits on the selected site.
+    elif config.get('substitutions') is not None:
+        if site_idx >= len(structure_pmg.sites):
+            raise ValueError(
+                f"site_index {site_idx} is out of range for the canonical structure.\n"
+                f"Structure has {len(structure_pmg.sites)} sites (0-indexed)."
+            )
+
+        site = structure_pmg.sites[site_idx]
+        # Determine base element for this site
+        if len(site.species) == 1:
+            base_element = list(site.species.keys())[0].symbol
+        else:
+            # Mixed occupancy CIF: choose dominant component as base element for lookup
+            base_element = max(site.species.items(), key=lambda kv: kv[1])[0].symbol
+
+        subst = config['substitutions'].get(base_element)
+        if subst is None:
+            raise ValueError(
+                f"Selected site_index {site_idx} corresponds to base element '{base_element}', "
+                f"but no substitutions entry was found for it.\n"
+                f"Available substitutions: {list(config['substitutions'].keys())}"
+            )
+
+        elements = subst.get('elements', [])
+        concentrations = subst.get('concentrations', [])
+
+    else:
         raise ValueError(
-            f"site_index {site_idx} is out of range.\n"
-            f"Structure has {len(structure_pmg.sites)} sites (0-indexed)."
+            "Cannot determine loop site: config must contain either 'sites' (parameter method) "
+            "or 'substitutions' (CIF method)."
         )
 
-    site = structure_pmg.sites[site_idx]
-
-    # Extract elements and concentrations from site
-    # Check if site has single element (pure) or multiple elements (alloy)
-    if len(site.species) == 1:
-        # Pure element site - cannot vary composition
-        element_symbol = list(site.species.keys())[0].symbol
+    # Verify at least 2 elements
+    if len(elements) == 1:
+        element_symbol = elements[0]
         raise ValueError(
             f"Site {site_idx} is a pure element ({element_symbol}).\n"
             "Cannot vary composition for pure element sites.\n"
             "Use substitutions (CIF) or define alloy in sites (parameters)."
         )
-    else:
-        # Alloy site with partial occupancy
-        species_dict = site.species.as_dict()
-        elements = [elem for elem in species_dict.keys()]
-        concentrations = [species_dict[elem] for elem in elements]
-
-    # Verify at least 2 elements
     if len(elements) < 2:
         raise ValueError(
             f"Site {site_idx} must have at least 2 elements for composition loop.\n"

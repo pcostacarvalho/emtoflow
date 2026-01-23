@@ -159,7 +159,6 @@ eos_type: "MO88"                     # EOS fitting type:
                                      # "POLN" = Polynomial
                                      # "SPLN" = Spline
                                      # "MU37" = Murnaghan
-                                     # "BM35" = Birch-Murnaghan
                                      # "ALL" = Fit all types
 
 
@@ -219,7 +218,7 @@ prepare_only: true                  # Prepare input files only, don't run calcul
 # ALLOY PERCENTAGE LOOP - Systematic composition variation
 # ------------------------------------------------------------------------------
 # Enables automatic looping over different alloy compositions
-# See ALLOY_LOOP_USAGE.md for detailed documentation
+# See ALLOY_COMPOSITION_LOOPS.md for detailed documentation
 
 loop_perc: null                      # Set to a dictionary to enable alloy composition loop
                                      # If null: single composition calculation (default)

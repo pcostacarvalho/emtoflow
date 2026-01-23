@@ -67,35 +67,19 @@ def generate_percentage_configs(master_config_path: str,
         output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create structure to analyze (structure-agnostic approach)
-    # For CIF + substitutions, we need to apply substitutions first
-    if master_config.get('cif_file') and master_config.get('substitutions'):
-        from pymatgen.core import Structure
-        from modules.structure_builder import apply_substitutions_to_structure
+    # Create canonical structure to analyze.
+    # Structure creation (including alloy definition via substitutions/sites) lives in structure_builder.
+    cif_file_val = master_config.get('cif_file')
+    cif_file_arg = cif_file_val if cif_file_val not in (None, False) else None
 
-        # Load CIF
-        structure_pmg = Structure.from_file(master_config['cif_file'])
-        structure_pmg.remove_oxidation_states()
-
-        # Apply substitutions
-        structure_pmg = apply_substitutions_to_structure(
-            structure_pmg,
-            master_config['substitutions']
-        )
-
-        # Convert to EMTO structure
+    if cif_file_arg is not None:
         structure_pmg, _ = create_emto_structure(
-            structure_pmg=structure_pmg,
+            cif_file=cif_file_arg,
+            substitutions=master_config.get('substitutions'),
             user_magnetic_moments=master_config.get('user_magnetic_moments')
         )
     else:
-        # Parameter method or CIF without substitutions
-        # Only pass cif_file if it's truthy (avoid passing False or None)
-        cif_file_val = master_config.get('cif_file')
-        cif_file_arg = cif_file_val if cif_file_val not in (None, False) else None
-
         structure_pmg, _ = create_emto_structure(
-            cif_file=cif_file_arg,
             lat=master_config.get('lat'),
             a=master_config.get('a'),
             b=master_config.get('b'),
@@ -106,8 +90,6 @@ def generate_percentage_configs(master_config_path: str,
             sites=master_config.get('sites'),
             user_magnetic_moments=master_config.get('user_magnetic_moments')
         )
-
-    print(structure_pmg)
 
     # Determine which site to vary and get element information
     site_idx, elements, base_concentrations = determine_loop_site(
@@ -193,35 +175,18 @@ def preview_compositions(master_config_path: str) -> None:
     master_config = load_and_validate_config(master_config_path)
     validate_generate_percentages_config(master_config)
 
-    # Create structure
-    # For CIF + substitutions, we need to apply substitutions first
-    if master_config.get('cif_file') and master_config.get('substitutions'):
-        from pymatgen.core import Structure
-        from modules.structure_builder import apply_substitutions_to_structure
+    # Create canonical structure (primitive for CIF workflows).
+    cif_file_val = master_config.get('cif_file')
+    cif_file_arg = cif_file_val if cif_file_val not in (None, False) else None
 
-        # Load CIF
-        structure_pmg = Structure.from_file(master_config['cif_file'])
-        structure_pmg.remove_oxidation_states()
-
-        # Apply substitutions
-        structure_pmg = apply_substitutions_to_structure(
-            structure_pmg,
-            master_config['substitutions']
-        )
-
-        # Convert to EMTO structure
+    if cif_file_arg is not None:
         structure_pmg, _ = create_emto_structure(
-            structure_pmg=structure_pmg,
+            cif_file=cif_file_arg,
+            substitutions=master_config.get('substitutions'),
             user_magnetic_moments=master_config.get('user_magnetic_moments')
         )
     else:
-        # Parameter method or CIF without substitutions
-        # Only pass cif_file if it's truthy (avoid passing False or None)
-        cif_file_val = master_config.get('cif_file')
-        cif_file_arg = cif_file_val if cif_file_val not in (None, False) else None
-
         structure_pmg, _ = create_emto_structure(
-            cif_file=cif_file_arg,
             lat=master_config.get('lat'),
             a=master_config.get('a'),
             b=master_config.get('b'),
