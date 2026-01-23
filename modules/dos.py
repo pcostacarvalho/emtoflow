@@ -482,7 +482,9 @@ class DOSPlotter:
         self.parser = parser
     
     def plot_total(self, spin_polarized: bool = True, figsize: Tuple[float, float] = (8, 6),
-                   save: Optional[str] = None, show: bool = True):
+                   save: Optional[str] = None, show: bool = True,
+                   xlim: Optional[Tuple[float, float]] = None,
+                   ylim: Optional[Tuple[float, float]] = None):
         """
         Plot total DOS.
         
@@ -496,6 +498,10 @@ class DOSPlotter:
             Filename to save plot
         show : bool
             Whether to display the plot
+        xlim : tuple of float, optional
+            Energy range (x-axis) [E_min, E_max] in Ry
+        ylim : tuple of float, optional
+            DOS range (y-axis) [DOS_min, DOS_max] in states/Ry
         """
         dos_down, dos_up = self.parser.get_dos('total', spin_polarized=spin_polarized)
 
@@ -508,10 +514,15 @@ class DOSPlotter:
             ax.set_ylabel('DOS (states/Ry)')
         else:
             ax.plot(dos_down[:, 0], dos_down[:, 1], label='Total', color='black')
+            ax.axhline(0, color='black', linewidth=0.5)  # Add horizontal line for paramagnetic plots
             ax.set_ylabel('DOS (states/Ry)')
         
         ax.axvline(0, color='gray', linestyle='--', alpha=0.5, label='E_F')
         ax.set_xlabel('Energy (Ry)')
+        if xlim is not None:
+            ax.set_xlim(xlim[0], xlim[1])
+        if ylim is not None:
+            ax.set_ylim(ylim[0], ylim[1])
         ax.legend()
         ax.set_title('Total DOS')
         plt.tight_layout()
@@ -525,7 +536,9 @@ class DOSPlotter:
     
     def plot_sublattice(self, sublattice: Optional[int] = None, spin_polarized: bool = True,
                         figsize: Tuple[float, float] = (8, 6), save: Optional[str] = None,
-                        show: bool = True):
+                        show: bool = True,
+                        xlim: Optional[Tuple[float, float]] = None,
+                        ylim: Optional[Tuple[float, float]] = None):
         """
         Plot sublattice DOS (IT contributions).
 
@@ -544,6 +557,10 @@ class DOSPlotter:
             Filename to save plot
         show : bool
             Whether to display the plot
+        xlim : tuple of float, optional
+            Energy range (x-axis) [E_min, E_max] in Ry
+        ylim : tuple of float, optional
+            DOS range (y-axis) [DOS_min, DOS_max] in states/Ry
         """
         # Auto-detect number of sublattices
         if self.parser.data['total_down'] is None:
@@ -589,6 +606,10 @@ class DOSPlotter:
         ax.axvline(0, color='gray', linestyle='--', alpha=0.5, label='E_F')
         ax.set_xlabel('Energy (Ry)')
         ax.set_ylabel('DOS (states/Ry)')
+        if xlim is not None:
+            ax.set_xlim(xlim[0], xlim[1])
+        if ylim is not None:
+            ax.set_ylim(ylim[0], ylim[1])
         ax.legend()
         ax.set_title(title)
         plt.tight_layout()
@@ -603,7 +624,9 @@ class DOSPlotter:
     def plot_ITA(self, sublattice: int, ITA_index: int = 1, orbital: str = 'total',
                  orbital_resolved: bool = False, spin_polarized: bool = True,
                  figsize: Tuple[float, float] = (8, 6),
-                 save: Optional[str] = None, show: bool = True):
+                 save: Optional[str] = None, show: bool = True,
+                 xlim: Optional[Tuple[float, float]] = None,
+                 ylim: Optional[Tuple[float, float]] = None):
         """
         Plot ITA (Interacting Type Atom) DOS with optional orbital selection.
 
@@ -632,6 +655,10 @@ class DOSPlotter:
             Filename to save plot
         show : bool
             Whether to display the plot
+        xlim : tuple of float, optional
+            Energy range (x-axis) [E_min, E_max] in Ry
+        ylim : tuple of float, optional
+            DOS range (y-axis) [DOS_min, DOS_max] in states/Ry
 
         Examples
         --------
@@ -691,6 +718,10 @@ class DOSPlotter:
         ax.axvline(0, color='gray', linestyle='--', alpha=0.5, label='E_F')
         ax.set_xlabel('Energy (Ry)')
         ax.set_ylabel('DOS (states/Ry)')
+        if xlim is not None:
+            ax.set_xlim(xlim[0], xlim[1])
+        if ylim is not None:
+            ax.set_ylim(ylim[0], ylim[1])
         ax.legend()
         ax.set_title(f'ITA {ITA_index} ({element.upper()}, sublattice {sublattice}) {title_orbital} DOS'.strip())
         plt.tight_layout()
@@ -709,7 +740,9 @@ def plot_dos(filename: str, plot_type: str = 'total',
              ITA_index: Optional[int] = None,
              orbital: Optional[str] = None, orbital_resolved: bool = False,
              spin_polarized: bool = True, figsize: Tuple[float, float] = (8, 6),
-             save: Optional[str] = None, show: bool = True):
+             save: Optional[str] = None, show: bool = True,
+             xlim: Optional[Tuple[float, float]] = None,
+             ylim: Optional[Tuple[float, float]] = None):
     """
     Convenience function to parse and plot DOS in one call.
 
@@ -739,6 +772,10 @@ def plot_dos(filename: str, plot_type: str = 'total',
         Save filename
     show : bool
         Display plot
+    xlim : tuple of float, optional
+        Energy range (x-axis) [E_min, E_max] in Ry
+    ylim : tuple of float, optional
+        DOS range (y-axis) [DOS_min, DOS_max] in states/Ry
 
     Returns
     -------
@@ -751,15 +788,16 @@ def plot_dos(filename: str, plot_type: str = 'total',
     >>> plot_dos('dos.dat', 'ITA', sublattice=1, ITA_index=1)
     >>> plot_dos('dos.dat', 'ITA', sublattice=1, ITA_index=1, orbital='d')
     >>> plot_dos('dos.dat', 'ITA', sublattice=1, ITA_index=1, orbital_resolved=True)
+    >>> plot_dos('dos.dat', 'total', xlim=(-0.8, 0.15), ylim=(0, 10))
     """
     parser = DOSParser(filename)
     plotter = DOSPlotter(parser)
 
     if plot_type == 'total':
-        return plotter.plot_total(spin_polarized, figsize, save, show)
+        return plotter.plot_total(spin_polarized, figsize, save, show, xlim, ylim)
 
     elif plot_type == 'sublattice':
-        return plotter.plot_sublattice(sublattice, spin_polarized, figsize, save, show)
+        return plotter.plot_sublattice(sublattice, spin_polarized, figsize, save, show, xlim, ylim)
 
     elif plot_type == 'ITA':
         if sublattice is None:
@@ -780,7 +818,9 @@ def plot_dos(filename: str, plot_type: str = 'total',
             spin_polarized=spin_polarized,
             figsize=figsize,
             save=save,
-            show=show
+            show=show,
+            xlim=xlim,
+            ylim=ylim
         )
 
     else:

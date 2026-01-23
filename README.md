@@ -201,7 +201,8 @@ eos_type: "MO88"                     # MO88, POLN, SPLN, MU37, ALL
 
 # DOS analysis
 generate_dos: false                  # Generate DOS files (supports paramagnetic and spin-polarized)
-dos_plot_range: [-0.8, 0.15]        # Energy range (Ry)
+dos_plot_range: [-0.8, 0.15]        # Energy range (x-axis) in Ry
+dos_ylim: null                       # DOS range (y-axis) in states/Ry (optional, auto-scales if null)
 
 # Output
 generate_plots: true

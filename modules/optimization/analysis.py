@@ -368,7 +368,8 @@ def plot_eos_fit(
 def generate_dos_analysis(
     phase_path: Union[str, Path],
     file_id: str,
-    dos_plot_range: Optional[List[float]] = None
+    dos_plot_range: Optional[List[float]] = None,
+    dos_ylim: Optional[List[float]] = None
 ) -> Dict[str, Any]:
     """
     Generate DOS analysis and plots.
@@ -382,6 +383,9 @@ def generate_dos_analysis(
     dos_plot_range : list of float, optional
         Energy range for DOS plots [E_min, E_max] in Ry
         If None, uses default [-0.8, 0.15]
+    dos_ylim : list of float, optional
+        DOS range (y-axis) for plots [DOS_min, DOS_max] in states/Ry
+        If None, y-axis range is auto-scaled
 
     Returns
     -------
@@ -436,11 +440,17 @@ def generate_dos_analysis(
         traceback.print_exc()
         return {'status': 'parse_error', 'error': str(e)}
 
-    # Get plot range
+    # Get plot ranges
     if dos_plot_range is None:
         dos_plot_range = [-0.8, 0.15]
     if len(dos_plot_range) != 2:
         raise ValueError(f"dos_plot_range must be [E_min, E_max], got: {dos_plot_range}")
+    
+    # Convert to tuple for plotting methods
+    xlim = tuple(dos_plot_range)
+    ylim = tuple(dos_ylim) if dos_ylim is not None and len(dos_ylim) == 2 else None
+    if dos_ylim is not None and len(dos_ylim) != 2:
+        raise ValueError(f"dos_ylim must be [DOS_min, DOS_max], got: {dos_ylim}")
 
     # Generate plots
     total_plot = None
@@ -460,11 +470,13 @@ def generate_dos_analysis(
             spin_polarized=True,
             save=None,
             show=False,
+            xlim=xlim,
+            ylim=ylim,
         )
         print(f"✓ plot_total() returned figure and axes")
-        
-        ax.set_xlim(dos_plot_range[0], dos_plot_range[1])
-        print(f"  Setting xlim to: {dos_plot_range}")
+        print(f"  Setting xlim to: {xlim}")
+        if ylim is not None:
+            print(f"  Setting ylim to: {ylim}")
         
         print(f"  Calling fig.savefig({total_plot})...")
         fig.savefig(total_plot, dpi=300, bbox_inches='tight')
@@ -490,8 +502,9 @@ def generate_dos_analysis(
                     spin_polarized=True,
                     save=None,
                     show=False,
+                    xlim=xlim,
+                    ylim=ylim,
                 )
-                ax.set_xlim(dos_plot_range[0], dos_plot_range[1])
                 fig.savefig(sublat_plot, dpi=300, bbox_inches='tight')
                 plt.close(fig)
                 
@@ -518,6 +531,7 @@ def generate_dos_analysis(
         'total_plot': str(total_plot) if 'total_plot' in locals() else None,
         'sublattice_plots': sublattice_plots if 'sublattice_plots' in locals() else [],
         'plot_range': dos_plot_range,
+        'ylim': dos_ylim,
         'atom_info': [
             {'atom_number': num, 'element': elem, 'sublattice': sublat}
             for num, elem, sublat in parser.atom_info

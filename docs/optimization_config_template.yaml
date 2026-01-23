@@ -207,7 +207,9 @@ export_csv: true                     # Export results to CSV format (default: tr
 plot_format: "png"                   # Plot file format: png, pdf, svg (default: "png")
 
 generate_dos: false                  # Generate DOS files during calculations (default: false)
-dos_plot_range: [-0.8, 0.15]         # Energy range for DOS plots in Ry (default: [-0.8, 0.15])
+dos_plot_range: [-0.8, 0.15]         # Energy range (x-axis) for DOS plots in Ry (default: [-0.8, 0.15])
+dos_ylim: null                       # DOS range (y-axis) for DOS plots in states/Ry (default: null = auto-scale)
+                                     # Example: [0, 10] to set y-axis from 0 to 10 states/Ry
 
 
 # ------------------------------------------------------------------------------

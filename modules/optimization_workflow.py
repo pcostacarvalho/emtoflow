@@ -548,7 +548,8 @@ class OptimizationWorkflow:
         self,
         phase_path: Union[str, Path],
         file_id: str,
-        plot_range: Optional[List[float]] = None
+        plot_range: Optional[List[float]] = None,
+        ylim: Optional[List[float]] = None
     ) -> Dict[str, Any]:
         """
         Generate DOS analysis and plots.
@@ -562,8 +563,11 @@ class OptimizationWorkflow:
         file_id : str
             File identifier for DOS files
         plot_range : list of float, optional
-            Energy range for DOS plots [E_min, E_max] in eV
+            Energy range for DOS plots [E_min, E_max] in Ry
             If None, uses config['dos_plot_range']
+        ylim : list of float, optional
+            DOS range (y-axis) for plots [DOS_min, DOS_max] in states/Ry
+            If None, uses config['dos_ylim'] or auto-scales
 
         Returns
         -------
@@ -574,11 +578,14 @@ class OptimizationWorkflow:
 
         if plot_range is None:
             plot_range = self.config.get('dos_plot_range')
+        if ylim is None:
+            ylim = self.config.get('dos_ylim')
 
         return generate_dos_analysis(
             phase_path=phase_path,
             file_id=file_id,
-            dos_plot_range=plot_range
+            dos_plot_range=plot_range,
+            dos_ylim=ylim
         )
 
     def generate_summary_report(self) -> str:
@@ -779,7 +786,8 @@ class OptimizationWorkflow:
                 dos_results = self.generate_dos_analysis(
                     phase_path=phase_path,
                     file_id=file_id,
-                    plot_range=self.config.get('dos_plot_range')
+                    plot_range=self.config.get('dos_plot_range'),
+                    ylim=self.config.get('dos_ylim')
                 )
 
                 self.results['dos_analysis'] = dos_results

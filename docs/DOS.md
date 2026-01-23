@@ -98,6 +98,29 @@ Creates publication-quality plots:
 - For **paramagnetic** files: Plots single combined DOS curve
 - The plotter automatically detects the file type and adjusts the plot style accordingly
 
+## Plot Range Control
+
+Both x-axis (energy) and y-axis (DOS) ranges can be controlled:
+
+```python
+from modules.dos import DOSParser, DOSPlotter
+
+parser = DOSParser("dos_file.dos")
+plotter = DOSPlotter(parser)
+
+# Plot with custom ranges
+fig, ax = plotter.plot_total(
+    xlim=(-0.8, 0.15),  # Energy range in Ry
+    ylim=(0, 10)        # DOS range in states/Ry (optional)
+)
+```
+
+**In configuration files:**
+```yaml
+dos_plot_range: [-0.8, 0.15]  # Energy range (x-axis) in Ry
+dos_ylim: [0, 10]              # DOS range (y-axis) in states/Ry (optional, auto-scales if not specified)
+```
+
 ## Integration
 
 Used by `modules/optimization_workflow.py` for automated DOS analysis in optimization workflows.
@@ -122,7 +145,13 @@ dos_down, dos_up = parser.get_dos('total', spin_polarized=True)
 
 # Plotting automatically handles paramagnetic case
 plotter = DOSPlotter(parser)
-fig, ax = plotter.plot_total(spin_polarized=True, save="dos_total.png", show=False)
+fig, ax = plotter.plot_total(
+    spin_polarized=True,
+    xlim=(-0.8, 0.15),  # Energy range
+    ylim=(0, 10),       # DOS range (optional)
+    save="dos_total.png",
+    show=False
+)
 ```
 
 ### Spin-Polarized DOS File
@@ -139,7 +168,13 @@ dos_down, dos_up = parser.get_dos('total', spin_polarized=True)
 
 # Plotting shows separate spin channels
 plotter = DOSPlotter(parser)
-fig, ax = plotter.plot_total(spin_polarized=True, save="dos_total.png", show=False)
+fig, ax = plotter.plot_total(
+    spin_polarized=True,
+    xlim=(-0.8, 0.15),  # Energy range
+    ylim=(-5, 5),       # DOS range for spin-polarized (optional)
+    save="dos_total.png",
+    show=False
+)
 ```
 
 ## Notes
