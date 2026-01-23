@@ -25,16 +25,21 @@ for r in {ratios_str}; do
 
     cd smx
 
-    echo "Running KSTR:"
-    {kstr_executable} < {id_ratio}_${{r}}.dat > smx_${{r}}.log
-
-    # Check KSTR completion via .prn content
-    if [ ! -f {id_ratio}_${{r}}.prn ] || ! grep -q "Finished at:" {id_ratio}_${{r}}.prn 2>/dev/null; then
-        echo "KSTR failed: .prn file missing or incomplete!"
-        grep "Try DMAX" smx_${{r}}.log
-        exit 1
+    # Check if KSTR output already exists and is complete
+    if [ -f {id_ratio}_${{r}}.prn ] && [ -s {id_ratio}_${{r}}.prn ] && grep -q "KSTR:     Finished at:" {id_ratio}_${{r}}.prn 2>/dev/null; then
+        echo "Skipping KSTR for c/a=$r (output already exists and is complete)"
     else
-        echo "DONE!"
+        echo "Running KSTR:"
+        {kstr_executable} < {id_ratio}_${{r}}.dat > smx_${{r}}.log
+
+        # Check KSTR completion via .prn content
+        if [ ! -f {id_ratio}_${{r}}.prn ] || ! grep -q "KSTR:     Finished at:" {id_ratio}_${{r}}.prn 2>/dev/null; then
+            echo "KSTR failed: .prn file missing or incomplete!"
+            grep "Try DMAX" smx_${{r}}.log
+            exit 1
+        else
+            echo "DONE!"
+        fi
     fi
 
     echo "Info about DMAX:"
@@ -42,15 +47,20 @@ for r in {ratios_str}; do
 
     cd ../shp
 
-    echo "Running SHAPE:"
-    {shape_executable} < ${{id_ratio}}_${{r}}.dat > shp_${{r}}.log
-
-    # Check SHAPE completion via log content
-    if [ ! -f shp_${{r}}.log ] || ! grep -q "Shape function completed" shp_${{r}}.log 2>/dev/null; then
-        echo "SHAPE failed!"
-        exit 1
+    # Check if SHAPE output already exists and is complete
+    if [ -f shp_${{r}}.log ] && [ -s shp_${{r}}.log ] && grep -q "Shape function completed" shp_${{r}}.log 2>/dev/null; then
+        echo "Skipping SHAPE for c/a=$r (output already exists and is complete)"
     else
-        echo "DONE!"
+        echo "Running SHAPE:"
+        {shape_executable} < ${{id_ratio}}_${{r}}.dat > shp_${{r}}.log
+
+        # Check SHAPE completion via log content
+        if [ ! -f shp_${{r}}.log ] || ! grep -q "Shape function completed" shp_${{r}}.log 2>/dev/null; then
+            echo "SHAPE failed!"
+            exit 1
+        else
+            echo "DONE!"
+        fi
     fi
 
     cd ../
@@ -59,28 +69,38 @@ for r in {ratios_str}; do
 
         echo "WSW: $v"
 
-        echo "Running KGRN:"
-        mpirun -n {prcs}  {kgrn_executable} < {id_ratio}_${{r}}_${{v}}.dat > kgrn_${{r}}_${{v}}.log
-
-        # Check KGRN completion via .prn content
-        if [ ! -f {id_ratio}_${{r}}_${{v}}.prn ] || ! grep -q "Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
-            echo "KGRN failed!"
-            exit 1
+        # Check if KGRN output already exists and is complete
+        if [ -f {id_ratio}_${{r}}_${{v}}.prn ] && [ -s {id_ratio}_${{r}}_${{v}}.prn ] && grep -q "KGRN: OK  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
+            echo "Skipping KGRN for c/a=$r, SWS=$v (output already exists and is complete)"
         else
-            echo "DONE!"
+            echo "Running KGRN:"
+            mpirun -n {prcs}  {kgrn_executable} < {id_ratio}_${{r}}_${{v}}.dat > kgrn_${{r}}_${{v}}.log
+
+            # Check KGRN completion via .prn content
+            if [ ! -f {id_ratio}_${{r}}_${{v}}.prn ] || ! grep -q "KGRN: OK  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
+                echo "KGRN failed!"
+                exit 1
+            else
+                echo "DONE!"
+            fi
         fi
 
         cd fcd/
 
-        echo "Running KFCD:"
-        {kfcd_executable} < {id_ratio}_${{r}}_${{v}}.dat > kfcd_${{r}}_${{v}}.log
-
-        # Check KFCD completion via .prn content
-        if [ ! -f {id_ratio}_${{r}}_${{v}}.prn ] || ! grep -q "Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
-            echo "KFCD failed!"
-            exit 1
+        # Check if KFCD output already exists and is complete
+        if [ -f {id_ratio}_${{r}}_${{v}}.prn ] && [ -s {id_ratio}_${{r}}_${{v}}.prn ] && grep -q "KFCD: OK  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
+            echo "Skipping KFCD for c/a=$r, SWS=$v (output already exists and is complete)"
         else
-            echo "DONE!"
+            echo "Running KFCD:"
+            {kfcd_executable} < {id_ratio}_${{r}}_${{v}}.dat > kfcd_${{r}}_${{v}}.log
+
+            # Check KFCD completion via .prn content
+            if [ ! -f {id_ratio}_${{r}}_${{v}}.prn ] || ! grep -q "KFCD: OK  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
+                echo "KFCD failed!"
+                exit 1
+            else
+                echo "DONE!"
+            fi
         fi
 
         cd ../
@@ -120,16 +140,21 @@ r={r_fmt}
 
 cd smx
 
-echo "Running KSTR:"
-{kstr_executable} < {id_ratio}_${{r}}.dat > smx_${{r}}.log
-
-# Check KSTR completion via .prn content
-if [ ! -f {id_ratio}_${{r}}.prn ] || ! grep -q "Finished at:" {id_ratio}_${{r}}.prn 2>/dev/null; then
-    echo "KSTR failed: .prn file missing or incomplete!"
-    grep "Try DMAX" smx_${{r}}.log
-    exit 1
+# Check if KSTR output already exists and is complete
+if [ -f {id_ratio}_${{r}}.prn ] && [ -s {id_ratio}_${{r}}.prn ] && grep -q "KSTR:     Finished at:" {id_ratio}_${{r}}.prn 2>/dev/null; then
+    echo "Skipping KSTR for c/a=$r (output already exists and is complete)"
 else
-    echo "DONE!"
+    echo "Running KSTR:"
+    {kstr_executable} < {id_ratio}_${{r}}.dat > smx_${{r}}.log
+
+    # Check KSTR completion via .prn content
+    if [ ! -f {id_ratio}_${{r}}.prn ] || ! grep -q "KSTR:     Finished at:" {id_ratio}_${{r}}.prn 2>/dev/null; then
+        echo "KSTR failed: .prn file missing or incomplete!"
+        grep "Try DMAX" smx_${{r}}.log
+        exit 1
+    else
+        echo "DONE!"
+    fi
 fi
 
 echo "Info about DMAX:"
@@ -137,15 +162,20 @@ grep -A1 "Primv" smx_${{r}}.log
 
 cd ../shp
 
-echo "Running SHAPE:"
-{shape_executable} < {id_ratio}_${{r}}.dat > shp_${{r}}.log
-
-# Check SHAPE completion via log content
-if [ ! -f shp_${{r}}.log ] || ! grep -q "Shape function completed" shp_${{r}}.log 2>/dev/null; then
-    echo "SHAPE failed!"
-    exit 1
+# Check if SHAPE output already exists and is complete
+if [ -f shp_${{r}}.log ] && [ -s shp_${{r}}.log ] && grep -q "Shape function completed" shp_${{r}}.log 2>/dev/null; then
+    echo "Skipping SHAPE for c/a=$r (output already exists and is complete)"
 else
-    echo "DONE!"
+    echo "Running SHAPE:"
+    {shape_executable} < {id_ratio}_${{r}}.dat > shp_${{r}}.log
+
+    # Check SHAPE completion via log content
+    if [ ! -f shp_${{r}}.log ] || ! grep -q "Shape function completed" shp_${{r}}.log 2>/dev/null; then
+        echo "SHAPE failed!"
+        exit 1
+    else
+        echo "DONE!"
+    fi
 fi
 
 cd ../
@@ -176,28 +206,38 @@ id_ratio="{id_ratio}"
 r={r_fmt}
 v={v_fmt}
 
-echo "Running KGRN:"
-mpirun -n {prcs} {kgrn_executable} < {id_ratio}_${{r}}_${{v}}.dat > kgrn_${{r}}_${{v}}.log
-
-# Check KGRN completion via .prn content
-if [ ! -f {id_ratio}_${{r}}_${{v}}.prn ] || ! grep -q "Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
-    echo "KGRN failed!"
-    exit 1
+# Check if KGRN output already exists and is complete
+if [ -f {id_ratio}_${{r}}_${{v}}.prn ] && [ -s {id_ratio}_${{r}}_${{v}}.prn ] && grep -q "KGRN: OK  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
+    echo "Skipping KGRN for c/a=$r, SWS=$v (output already exists and is complete)"
 else
-    echo "DONE!"
+    echo "Running KGRN:"
+    mpirun -n {prcs} {kgrn_executable} < {id_ratio}_${{r}}_${{v}}.dat > kgrn_${{r}}_${{v}}.log
+
+    # Check KGRN completion via .prn content
+    if [ ! -f {id_ratio}_${{r}}_${{v}}.prn ] || ! grep -q "KGRN: OK  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
+        echo "KGRN failed!"
+        exit 1
+    else
+        echo "DONE!"
+    fi
 fi
 
 cd fcd/
 
-echo "Running KFCD:"
-{kfcd_executable} < {id_ratio}_${{r}}_${{v}}.dat > kfcd_${{r}}_${{v}}.log
-
-# Check KFCD completion via .prn content
-if [ ! -f {id_ratio}_${{r}}_${{v}}.prn ] || ! grep -q "Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
-    echo "KFCD failed!"
-    exit 1
+# Check if KFCD output already exists and is complete
+if [ -f {id_ratio}_${{r}}_${{v}}.prn ] && [ -s {id_ratio}_${{r}}_${{v}}.prn ] && grep -q "KFCD: OK  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
+    echo "Skipping KFCD for c/a=$r, SWS=$v (output already exists and is complete)"
 else
-    echo "DONE!"
+    echo "Running KFCD:"
+    {kfcd_executable} < {id_ratio}_${{r}}_${{v}}.dat > kfcd_${{r}}_${{v}}.log
+
+    # Check KFCD completion via .prn content
+    if [ ! -f {id_ratio}_${{r}}_${{v}}.prn ] || ! grep -q "KFCD: OK  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
+        echo "KFCD failed!"
+        exit 1
+    else
+        echo "DONE!"
+    fi
 fi
 
 cd ../
