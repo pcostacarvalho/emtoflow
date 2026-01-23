@@ -7,6 +7,7 @@ Supports YAML and JSON configuration files with validation.
 
 import yaml
 import json
+import os
 from pathlib import Path
 from typing import Dict, Any, Union, Optional
 
@@ -314,16 +315,6 @@ def validate_config(config: Dict[str, Any]) -> None:
             f"rescale_k must be boolean, got: {type(config['rescale_k'])}"
         )
 
-    # Validate eos_executable for optimization workflows
-    if config.get('optimize_ca') or config.get('optimize_sws'):
-        if config.get('eos_executable') is None:
-            raise ConfigValidationError(
-                "eos_executable is required when optimize_ca or optimize_sws is True"
-            )
-        if not isinstance(config['eos_executable'], str) or not config['eos_executable'].strip():
-            raise ConfigValidationError(
-                f"eos_executable must be a non-empty string path, got: {config['eos_executable']}"
-            )
 
     # Validate ca_ratios and sws_values types if present
     for param_name in ['ca_ratios', 'sws_values']:
@@ -377,34 +368,85 @@ def validate_config(config: Dict[str, Any]) -> None:
             f"dmax_vector_tolerance must be a non-negative number, got: {tolerance}"
         )
 
-    # Validate executables (consolidated validation)
-    # kstr_executable needed for: optimize_dmax OR create_job_script
-    if config.get('optimize_dmax') or config.get('create_job_script'):
-        if config.get('kstr_executable') is None:
-            raise ConfigValidationError(
-                "kstr_executable is required when optimize_dmax=True or create_job_script=True"
-            )
-        if not isinstance(config['kstr_executable'], str) or not config['kstr_executable'].strip():
-            raise ConfigValidationError(
-                f"kstr_executable must be a non-empty string path, got: {config['kstr_executable']}"
-            )
-
-    # Other executables needed for: create_job_script
-    if config.get('create_job_script'):
-        executables = {
-            'shape_executable': 'shape_executable',
-            'kgrn_executable': 'kgrn_executable',
-            'kfcd_executable': 'kfcd_executable'
-        }
-        for key, name in executables.items():
-            if config.get(key) is None:
+    # ==================== VALIDATE EXECUTABLES ====================
+    # Consolidated validation for all EMTO executables
+    # Checks: None value, type, absolute path, and file existence
+    
+    def validate_executable(executable_path: Any, executable_name: str, required: bool = False) -> None:
+        """
+        Validate a single executable path.
+        
+        Parameters
+        ----------
+        executable_path : Any
+            The executable path to validate
+        executable_name : str
+            Human-readable name for error messages
+        required : bool
+            Whether this executable is required (raises error if None)
+        
+        Raises
+        ------
+        ConfigValidationError
+            If validation fails
+        """
+        if executable_path is None:
+            if required:
                 raise ConfigValidationError(
-                    f"{name} is required when create_job_script=True"
+                    f"{executable_name} is required but was not provided (None)"
                 )
-            if not isinstance(config[key], str) or not config[key].strip():
-                raise ConfigValidationError(
-                    f"{name} must be a non-empty string path, got: {config[key]}"
-                )
+            return  # Optional executable, skip validation
+        
+        # Check type
+        if not isinstance(executable_path, str):
+            raise ConfigValidationError(
+                f"{executable_name} must be a string, got: {type(executable_path).__name__}"
+            )
+        
+        # Check non-empty
+        executable_path = executable_path.strip()
+        if not executable_path:
+            raise ConfigValidationError(
+                f"{executable_name} must be a non-empty string path"
+            )
+        
+        # Check absolute path
+        if not os.path.isabs(executable_path):
+            raise ConfigValidationError(
+                f"{executable_name} must be an absolute path, got: {executable_path}"
+            )
+        
+        # Check file existence
+        if not os.path.exists(executable_path):
+            raise ConfigValidationError(
+                f"{executable_name} not found at: {executable_path}"
+            )
+    
+    # Determine which executables are required based on workflow flags
+    optimize_ca = config.get('optimize_ca', False)
+    optimize_sws = config.get('optimize_sws', False)
+    optimize_dmax = config.get('optimize_dmax', False)
+    create_job_script = config.get('create_job_script', False)
+    
+    # Validate eos_executable (required for optimization workflows)
+    validate_executable(
+        config.get('eos_executable'),
+        'eos_executable',
+        required=(optimize_ca or optimize_sws)
+    )
+    
+    # Validate kstr_executable (required for DMAX optimization or job script creation)
+    validate_executable(
+        config.get('kstr_executable'),
+        'kstr_executable',
+        required=(optimize_dmax or create_job_script)
+    )
+    
+    # Validate job script executables (required when creating job scripts)
+    if create_job_script:
+        validate_executable(config.get('shape_executable'), 'shape_executable', required=True)
+        validate_executable(config.get('kgrn_executable'), 'kgrn_executable', required=True)
+        validate_executable(config.get('kfcd_executable'), 'kfcd_executable', required=True)
 
     # Note: loop_perc validation is now handled by validate_generate_percentages_config()
     # when using the generate_percentages module. The legacy validate_loop_perc_config()
