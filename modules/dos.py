@@ -43,8 +43,16 @@ class DOSParser:
         while i < len(lines):
             line = lines[i].strip()
             
+            # Total DOS UP+DOWN (paramagnetic) - Check this FIRST before DOSUP/DOSDOWN
+            # because DOSUP is a substring of DOSUP+DOWN
+            if 'Total DOS and NOS and partial (IT) DOSUP+DOWN' in line:
+                i += 4
+                data['total_down'] = self._read_data_block(lines, i)
+                data['total_up'] = None  # Mark as paramagnetic
+                self.is_paramagnetic = True
+            
             # Total DOS DOWN
-            if 'Total DOS and NOS and partial (IT) DOSDOWN' in line:
+            elif 'Total DOS and NOS and partial (IT) DOSDOWN' in line:
                 i += 4  # Skip to data (header + empty line)
                 data['total_down'] = self._read_data_block(lines, i)
             
@@ -54,13 +62,6 @@ class DOSParser:
                 data['total_up'] = self._read_data_block(lines, i)
                 # Reset counter for UP spin section
                 atom_counter_up = 0
-            
-            # Total DOS UP+DOWN (paramagnetic)
-            elif 'Total DOS and NOS and partial (IT) DOSUP+DOWN' in line:
-                i += 4
-                data['total_down'] = self._read_data_block(lines, i)
-                data['total_up'] = None  # Mark as paramagnetic
-                self.is_paramagnetic = True
             
             # Generic sublattice parsing: "Sublattice  X Atom YY   spin DOWN/UP/UP+DOWN"
             elif 'Sublattice' in line and 'Atom' in line:
