@@ -133,14 +133,16 @@ The EOS module is integrated into the optimization workflow:
 from modules.optimization.analysis import run_eos_fit
 
 # Run EOS fit for c/a optimization
-optimal_ca, eos_results = run_eos_fit(
+optimal_ca, eos_results, metadata = run_eos_fit(
     output_path=phase_path,
     job_name="fept",
     comment="c/a optimization",
     r_or_v_data=ca_ratios,
     energy_data=energies,
     eos_executable="/path/to/eos.exe",
-    eos_type="MO88"
+    eos_type="MO88",
+    use_symmetric_selection=True,  # Enable symmetric point selection
+    n_points_final=7                # Number of points for final fit
 )
 ```
 
@@ -149,7 +151,38 @@ The `run_eos_fit()` function:
 2. Runs EMTO EOS executable
 3. Parses output using `parse_eos_output()`
 4. Extracts optimal parameter (rwseq)
-5. Returns optimal value and all fit results
+5. Returns optimal value, all fit results, and metadata
+
+### Symmetric Point Selection
+
+When `use_symmetric_selection=True` and more than `n_points_final` points are provided, the function performs a two-stage fitting process:
+
+1. **Initial fit**: Fits EOS with all provided points to find equilibrium value
+2. **Symmetric selection**: Selects `n_points_final` points (default: 7) centered around the equilibrium
+3. **Final fit**: Performs final EOS fit with the selected symmetric points
+
+This ensures the energy curve is symmetric around the equilibrium, which is important for accurate optimization results.
+
+**Benefits:**
+- Ensures symmetric energy curve around equilibrium
+- More reliable optimization when equilibrium falls between data points
+- Better fit quality when many points are provided
+
+**Warnings:**
+The function will issue warnings (but not fail) if:
+- Equilibrium is outside the input range (extrapolation)
+- Symmetric selection is not possible (equilibrium too close to boundary)
+- Fewer than requested points are available
+
+**Metadata:**
+The function returns a metadata dictionary containing:
+- `symmetric_selection_used`: Whether symmetric selection was performed
+- `initial_points`: Number of points in initial fit
+- `final_points`: Number of points in final fit
+- `equilibrium_value`: Equilibrium value from fit
+- `equilibrium_in_range`: Whether equilibrium is within input range
+- `selected_indices`: Indices of selected points
+- `warnings`: List of warning messages
 
 ## EOS Input File Format
 
@@ -220,7 +253,10 @@ plot_eos_fit(
 2. **Compare fits**: Use `ALL` to compare all methods and select best fit
 3. **Check quality**: Review `fit_quality` and `fsumsq` values
 4. **Visualization**: Always plot EOS fits to verify quality
-5. **Data points**: Ensure sufficient data points (typically 5-7) for reliable fits
+5. **Data points**: 
+   - For symmetric fitting: Provide many points (e.g., 14) and let the code select 7 symmetric points
+   - For standard fitting: Ensure sufficient data points (typically 5-7) for reliable fits
+6. **Symmetric fitting**: Enable symmetric point selection when providing many points to ensure symmetric energy curves
 
 ## Error Handling
 

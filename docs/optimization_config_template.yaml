@@ -197,6 +197,22 @@ eos_type: "MO88"                     # EOS fitting type:
                                      # "MU37" = Murnaghan
                                      # "ALL" = Fit all types
 
+# Symmetric EOS fitting - Automatically selects symmetric points around equilibrium
+symmetric_fit: true                  # Enable symmetric point selection (default: true)
+                                     # When enabled and many points (>n_points_final) are provided:
+                                     # 1. Performs initial fit with all points to find equilibrium
+                                     # 2. Selects n_points_final symmetric points around equilibrium
+                                     # 3. Performs final fit with selected points (used for optimization)
+                                     # This ensures symmetric energy curves for better fit quality
+                                     # Warnings are issued (but workflow continues) if:
+                                     # - Equilibrium is outside input range
+                                     # - Symmetric selection is not possible
+                                     # - Fewer than requested points available
+
+n_points_final: 7                    # Number of points for final symmetric fit (default: 7)
+                                     # Only used when symmetric_fit=true and more points are provided
+                                     # Typical values: 5-9 (7 is recommended)
+
 
 # ------------------------------------------------------------------------------
 # ANALYSIS SETTINGS

@@ -383,7 +383,7 @@ class OptimizationWorkflow:
         job_name: str,
         comment: str,
         eos_type: Optional[str] = None
-    ) -> Tuple[float, Dict[str, Any]]:
+    ) -> Tuple[float, Dict[str, Any], Dict[str, Any]]:
         """
         Run EMTO EOS executable and parse results.
 
@@ -407,14 +407,19 @@ class OptimizationWorkflow:
 
         Returns
         -------
-        tuple of (float, dict)
+        tuple of (float, dict, dict)
             optimal_value : Optimal parameter (rwseq) from primary fit
             results : Dictionary of all EOS fit results
+            metadata : Dictionary with symmetric fit metadata and warnings
         """
         from modules.optimization.analysis import run_eos_fit
 
         if eos_type is None:
             eos_type = self.config.get('eos_type', 'MO88')
+
+        # Get symmetric selection parameters from config (with defaults)
+        use_symmetric_selection = self.config.get('symmetric_fit', True)
+        n_points_final = self.config.get('n_points_final', 7)
 
         return run_eos_fit(
             r_or_v_data=r_or_v_data,
@@ -423,7 +428,9 @@ class OptimizationWorkflow:
             job_name=job_name,
             comment=comment,
             eos_executable=self.config['eos_executable'],
-            eos_type=eos_type
+            eos_type=eos_type,
+            use_symmetric_selection=use_symmetric_selection,
+            n_points_final=n_points_final
         )
 
     def optimize_ca_ratio(

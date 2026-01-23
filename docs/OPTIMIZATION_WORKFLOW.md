@@ -78,6 +78,32 @@ The workflow automatically generates parameter ranges:
 
 Steps: 0.02 for c/a, 0.05 for SWS (user-configurable)
 
+## Symmetric EOS Fitting
+
+When you provide many points (e.g., 14) for c/a or SWS optimization, the workflow automatically performs symmetric point selection:
+
+1. **Initial fit**: Fits EOS with all provided points to find equilibrium
+2. **Symmetric selection**: Selects 7 points centered around the equilibrium
+3. **Final fit**: Performs final fit with selected points (used for optimization)
+
+This ensures the energy curve is symmetric around the equilibrium value, improving fit quality and optimization accuracy.
+
+**Configuration:**
+```yaml
+symmetric_fit: true          # Enable symmetric fitting (default: true)
+n_points_final: 7             # Number of points for final symmetric fit (default: 7)
+```
+
+**When to use:**
+- Provide many points (e.g., 14) for better initial exploration
+- The code automatically selects the best 7 symmetric points for final fit
+- Warnings are issued if symmetry is not possible or equilibrium is outside range
+
+**Output files:**
+- Initial fit: `<job_name>_ca.out` or `<job_name>_sws.out`
+- Final fit: `<job_name>_ca_final.out` or `<job_name>_sws_final.out`
+- Plots use the final fit results when symmetric selection is enabled
+
 ## Output Structure
 
 ```

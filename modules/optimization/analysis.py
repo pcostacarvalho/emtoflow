@@ -18,6 +18,150 @@ from modules.inputs.eos_emto import create_eos_input
 from modules.inputs.eos_emto import parse_eos_output, morse_energy
 
 
+def select_symmetric_points(
+    param_values: List[float],
+    equilibrium_value: float,
+    n_points: int = 7
+) -> Tuple[List[int], List[str]]:
+    """
+    Select N points centered around equilibrium value for symmetric fitting.
+    
+    Parameters
+    ----------
+    param_values : list of float
+        Parameter values (must be sorted)
+    equilibrium_value : float
+        Equilibrium value around which to center selection
+    n_points : int, optional
+        Number of points to select (default: 7)
+    
+    Returns
+    -------
+    tuple of (list, list)
+        indices : List of indices of selected points
+        warnings : List of warning messages (empty if no warnings)
+    
+    Notes
+    -----
+    - Finds the point closest to equilibrium
+    - Selects N points centered around that closest point
+    - Handles edge cases: equilibrium outside range, insufficient points
+    """
+    warnings = []
+    param_values = np.array(param_values)
+    
+    # Ensure param_values is sorted
+    if not np.all(np.diff(param_values) >= 0):
+        # Sort and track original indices
+        sorted_indices = np.argsort(param_values)
+        param_values_sorted = param_values[sorted_indices]
+    else:
+        sorted_indices = np.arange(len(param_values))
+        param_values_sorted = param_values
+    
+    # Find index of point closest to equilibrium
+    closest_idx = np.argmin(np.abs(param_values_sorted - equilibrium_value))
+    closest_value = param_values_sorted[closest_idx]
+    
+    # Calculate how many points needed on each side
+    n_side = (n_points - 1) // 2
+    
+    # Check if we have enough points
+    if len(param_values_sorted) < n_points:
+        warnings.append(
+            f"WARNING: Only {len(param_values_sorted)} points available, "
+            f"fewer than requested {n_points}. Using all available points for final fit."
+        )
+        # Use all available points
+        indices_sorted = list(range(len(param_values_sorted)))
+    else:
+        # Try to select symmetric points
+        start_idx = closest_idx - n_side
+        end_idx = closest_idx + n_side + 1
+        
+        # Check if we have enough points on both sides
+        if start_idx < 0:
+            # Not enough points on left side
+            start_idx = 0
+            end_idx = min(n_points, len(param_values_sorted))
+            n_left = closest_idx
+            n_right = end_idx - closest_idx - 1
+            warnings.append(
+                f"WARNING: Equilibrium value {equilibrium_value:.6f} is too close to the "
+                f"range boundary. Cannot select {n_points} symmetric points. "
+                f"Using best available selection with {end_idx - start_idx} points "
+                f"({n_left} left, {n_right} right of equilibrium)."
+            )
+        elif end_idx > len(param_values_sorted):
+            # Not enough points on right side
+            end_idx = len(param_values_sorted)
+            start_idx = max(0, end_idx - n_points)
+            n_left = closest_idx - start_idx
+            n_right = end_idx - closest_idx - 1
+            warnings.append(
+                f"WARNING: Equilibrium value {equilibrium_value:.6f} is too close to the "
+                f"range boundary. Cannot select {n_points} symmetric points. "
+                f"Using best available selection with {end_idx - start_idx} points "
+                f"({n_left} left, {n_right} right of equilibrium)."
+            )
+        
+        indices_sorted = list(range(start_idx, end_idx))
+    
+    # Map back to original indices if we sorted
+    if not np.all(np.diff(param_values) >= 0):
+        indices = [int(sorted_indices[i]) for i in indices_sorted]
+    else:
+        indices = indices_sorted
+    
+    return indices, warnings
+
+
+def check_equilibrium_position(
+    equilibrium_value: float,
+    param_values: List[float],
+    tolerance: Optional[float] = None
+) -> Tuple[bool, str]:
+    """
+    Check if equilibrium value is within the parameter range.
+    
+    Parameters
+    ----------
+    equilibrium_value : float
+        Equilibrium value to check
+    param_values : list of float
+        Parameter values
+    tolerance : float, optional
+        Tolerance for boundary check. If None, checks exact range.
+    
+    Returns
+    -------
+    tuple of (bool, str)
+        in_range : True if equilibrium is within range
+        warning_message : Warning message if not in range, empty string otherwise
+    """
+    min_val = min(param_values)
+    max_val = max(param_values)
+    
+    if tolerance is None:
+        # Exact range check
+        if equilibrium_value < min_val or equilibrium_value > max_val:
+            return False, (
+                f"WARNING: Equilibrium value {equilibrium_value:.6f} is outside the "
+                f"input range [{min_val:.6f}, {max_val:.6f}]. "
+                f"The fit may be extrapolated."
+            )
+    else:
+        # Check with tolerance
+        if equilibrium_value < min_val - tolerance or equilibrium_value > max_val + tolerance:
+            return False, (
+                f"WARNING: Equilibrium value {equilibrium_value:.6f} is outside the "
+                f"input range [{min_val:.6f}, {max_val:.6f}] (tolerance: {tolerance:.6f}). "
+                f"The fit may be extrapolated."
+            )
+    
+    return True, ""
+
+
 def run_eos_fit(
     r_or_v_data: List[float],
     energy_data: List[float],
@@ -25,8 +169,10 @@ def run_eos_fit(
     job_name: str,
     comment: str,
     eos_executable: str,
-    eos_type: str = 'MO88'
-) -> Tuple[float, Dict[str, Any]]:
+    eos_type: str = 'MO88',
+    use_symmetric_selection: bool = True,
+    n_points_final: int = 7
+) -> Tuple[float, Dict[str, Any], Dict[str, Any]]:
     """
     Run EMTO EOS executable and parse results.
 
@@ -36,6 +182,179 @@ def run_eos_fit(
     3. Parse output using parse_eos_output()
     4. Extract optimal parameter (rwseq)
 
+    If use_symmetric_selection=True and more than n_points_final points are provided:
+    - Performs initial fit with all points to find equilibrium
+    - Selects n_points_final symmetric points around equilibrium
+    - Performs final fit with selected points (used for optimization)
+
+    Parameters
+    ----------
+    r_or_v_data : list of float
+        R or V values (independent variable)
+    energy_data : list of float
+        Energy values (dependent variable)
+    output_path : str or Path
+        Directory where EOS files will be created
+    job_name : str
+        Job identifier
+    comment : str
+        Comment for EOS input
+    eos_executable : str
+        Path to EOS executable
+    eos_type : str, optional
+        EOS fit type (MO88, POLN, SPLN, MU37, ALL)
+        Default: 'MO88'
+    use_symmetric_selection : bool, optional
+        If True and len(r_or_v_data) > n_points_final, performs two-stage fitting
+        with symmetric point selection. Default: True
+    n_points_final : int, optional
+        Number of points to use for final symmetric fit. Default: 7
+
+    Returns
+    -------
+    tuple of (float, dict, dict)
+        optimal_value : Optimal parameter (rwseq) from primary fit
+        results : Dictionary of all EOS fit results
+        metadata : Dictionary with symmetric fit metadata and warnings
+
+    Raises
+    ------
+    RuntimeError
+        If EOS executable fails or parsing fails
+    """
+
+    output_path = Path(output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    # Initialize metadata dictionary
+    metadata = {
+        'symmetric_selection_used': False,
+        'initial_points': len(r_or_v_data),
+        'final_points': len(r_or_v_data),
+        'equilibrium_value': None,
+        'equilibrium_in_range': True,
+        'selected_indices': list(range(len(r_or_v_data))),
+        'warnings': [],
+        'initial_fit_equilibrium': None
+    }
+
+    # Check if we should use symmetric selection
+    use_symmetric = use_symmetric_selection and len(r_or_v_data) > n_points_final
+
+    if use_symmetric:
+        print(f"\n{'='*70}")
+        print(f"RUNNING EOS FIT WITH SYMMETRIC SELECTION")
+        print(f"{'='*70}")
+        print(f"Initial points: {len(r_or_v_data)}")
+        print(f"Target final points: {n_points_final}")
+        print(f"Type: {eos_type}")
+        print(f"Output: {output_path}")
+        print(f"{'='*70}\n")
+
+        # Step 1: Initial fit with all points
+        print("Step 1: Initial fit with all points to find equilibrium...")
+        initial_optimal, initial_results = _run_single_eos_fit(
+            r_or_v_data=r_or_v_data,
+            energy_data=energy_data,
+            output_path=output_path,
+            job_name=job_name,
+            comment=comment,
+            eos_executable=eos_executable,
+            eos_type=eos_type
+        )
+        
+        metadata['initial_fit_equilibrium'] = initial_optimal
+        metadata['equilibrium_value'] = initial_optimal
+
+        # Step 2: Check equilibrium position
+        print("\nStep 2: Checking equilibrium position...")
+        in_range, range_warning = check_equilibrium_position(
+            initial_optimal, r_or_v_data
+        )
+        metadata['equilibrium_in_range'] = in_range
+        if range_warning:
+            metadata['warnings'].append(range_warning)
+            print(f"  {range_warning}")
+
+        # Step 3: Select symmetric points
+        print("\nStep 3: Selecting symmetric points around equilibrium...")
+        selected_indices, selection_warnings = select_symmetric_points(
+            r_or_v_data, initial_optimal, n_points_final
+        )
+        metadata['selected_indices'] = selected_indices
+        metadata['warnings'].extend(selection_warnings)
+        
+        if selection_warnings:
+            for warning in selection_warnings:
+                print(f"  {warning}")
+        else:
+            print(f"  INFO: Selected {len(selected_indices)} symmetric points "
+                  f"around equilibrium {initial_optimal:.6f}")
+
+        # Step 4: Final fit with selected points
+        print(f"\nStep 4: Final fit with {len(selected_indices)} selected points...")
+        r_or_v_final = [r_or_v_data[i] for i in selected_indices]
+        energy_final = [energy_data[i] for i in selected_indices]
+        
+        metadata['symmetric_selection_used'] = True
+        metadata['final_points'] = len(selected_indices)
+
+        optimal_value, eos_results = _run_single_eos_fit(
+            r_or_v_data=r_or_v_final,
+            energy_data=energy_final,
+            output_path=output_path,
+            job_name=f"{job_name}_final",
+            comment=f"{comment} (final symmetric fit)",
+            eos_executable=eos_executable,
+            eos_type=eos_type
+        )
+
+        print(f"\n✓ Final fit completed: optimal value = {optimal_value:.6f}")
+        if metadata['warnings']:
+            print(f"\n⚠ Warnings:")
+            for warning in metadata['warnings']:
+                print(f"  {warning}")
+        print(f"{'='*70}\n")
+
+    else:
+        # Original behavior: single fit with all points
+        print(f"\n{'='*70}")
+        print(f"RUNNING EOS FIT")
+        print(f"{'='*70}")
+        print(f"Type: {eos_type}")
+        print(f"Data points: {len(r_or_v_data)}")
+        print(f"Output: {output_path}")
+        print(f"{'='*70}\n")
+
+        optimal_value, eos_results = _run_single_eos_fit(
+            r_or_v_data=r_or_v_data,
+            energy_data=energy_data,
+            output_path=output_path,
+            job_name=job_name,
+            comment=comment,
+            eos_executable=eos_executable,
+            eos_type=eos_type
+        )
+        metadata['equilibrium_value'] = optimal_value
+
+    return optimal_value, eos_results, metadata
+
+
+def _run_single_eos_fit(
+    r_or_v_data: List[float],
+    energy_data: List[float],
+    output_path: Union[str, Path],
+    job_name: str,
+    comment: str,
+    eos_executable: str,
+    eos_type: str = 'MO88'
+) -> Tuple[float, Dict[str, Any]]:
+    """
+    Internal function to run a single EOS fit.
+    
+    This is the core EOS fitting logic, extracted to be reusable
+    for both initial and final fits in symmetric selection mode.
+    
     Parameters
     ----------
     r_or_v_data : list of float
@@ -65,23 +384,9 @@ def run_eos_fit(
     RuntimeError
         If EOS executable fails or parsing fails
     """
-
     output_path = Path(output_path)
-    output_path.mkdir(parents=True, exist_ok=True)
-
     eos_input_file = output_path / "eos.dat"
-    # Note: the authoritative EOS results are written by eos.exe to
-    # `filename_eos_results` (derived from JOB_NAME in the eos.dat input).
-    # We still capture stdout to a separate file for debugging/logging.
     eos_stdout_file = output_path / "eos.out"
-
-    print(f"\n{'='*70}")
-    print(f"RUNNING EOS FIT")
-    print(f"{'='*70}")
-    print(f"Type: {eos_type}")
-    print(f"Data points: {len(r_or_v_data)}")
-    print(f"Output: {output_path}")
-    print(f"{'='*70}\n")
 
     # Step 1: Create EOS input file
     try:

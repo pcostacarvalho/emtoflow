@@ -174,9 +174,6 @@ class DOSParser:
         elif data_type == 'sublattice':
             if sublattice is None:
                 raise ValueError("Must specify sublattice when data_type='sublattice'")
-            # Validate data exists
-            if self.data['total_down'] is None:
-                raise ValueError("No DOS data found. File may be empty or unparseable.")
             # Validate sublattice exists
             num_sublattices = self.data['total_down'].shape[1] - 3  # Subtract E, Total, NOS
             if sublattice < 1 or sublattice > num_sublattices:
@@ -185,10 +182,6 @@ class DOSParser:
             col_idx = 2 + sublattice
         else:
             raise ValueError(f"data_type must be 'total', 'nos', or 'sublattice', got '{data_type}'")
-
-        # Validate data exists before accessing
-        if self.data['total_down'] is None:
-            raise ValueError("No DOS data found. File may be empty or unparseable.")
 
         # Extract energy and data columns
         dos_down = np.column_stack([
@@ -563,9 +556,6 @@ class DOSPlotter:
             DOS range (y-axis) [DOS_min, DOS_max] in states/Ry
         """
         # Auto-detect number of sublattices
-        if self.parser.data['total_down'] is None:
-            raise ValueError("No DOS data found. File may be empty or unparseable.")
-        
         num_sublattices = self.parser.data['total_down'].shape[1] - 3  # Subtract E, Total, NOS
 
         if num_sublattices < 1:

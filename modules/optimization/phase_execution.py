@@ -153,7 +153,7 @@ def optimize_ca_ratio(
             raise RuntimeError(f"Failed to parse {kfcd_file}: {e}")
 
     # Run EOS fit
-    optimal_ca, eos_results = run_eos_fit_func(
+    eos_fit_result = run_eos_fit_func(
         r_or_v_data=ca_values,
         energy_data=energy_values,
         output_path=phase_path,
@@ -161,6 +161,19 @@ def optimize_ca_ratio(
         comment=f"c/a optimization for {config['job_name']}",
         eos_type=config.get('eos_type', 'MO88')
     )
+    
+    # Handle both old (2-tuple) and new (3-tuple) return signatures for backward compatibility
+    if len(eos_fit_result) == 2:
+        optimal_ca, eos_results = eos_fit_result
+        symmetric_metadata = {}
+    else:
+        optimal_ca, eos_results, symmetric_metadata = eos_fit_result
+    
+    # Print warnings if any
+    if symmetric_metadata.get('warnings'):
+        print("\n⚠ Symmetric fit warnings:")
+        for warning in symmetric_metadata['warnings']:
+            print(f"  {warning}")
 
     # Generate EOS plot
     try:
@@ -177,7 +190,11 @@ def optimize_ca_ratio(
         }
         plot_eos_type = eos_type_map.get(config.get('eos_type', 'MO88'), 'morse')
 
-        eos_output_file = phase_path / f"{config['job_name']}_ca.out"
+        # Use final fit output if symmetric selection was used, otherwise use initial fit
+        if symmetric_metadata.get('symmetric_selection_used'):
+            eos_output_file = phase_path / f"{config['job_name']}_ca_final.out"
+        else:
+            eos_output_file = phase_path / f"{config['job_name']}_ca.out"
         plot_eos_fit(
             eos_output_file=eos_output_file,
             output_path=phase_path,
@@ -189,6 +206,14 @@ def optimize_ca_ratio(
     except Exception as e:
         print(f"Warning: Failed to generate EOS plot: {e}")
 
+    # Extract final selected values if symmetric selection was used
+    ca_values_final = None
+    energy_values_final = None
+    if symmetric_metadata.get('symmetric_selection_used'):
+        selected_indices = symmetric_metadata.get('selected_indices', [])
+        ca_values_final = [ca_values[i] for i in selected_indices]
+        energy_values_final = [energy_values[i] for i in selected_indices]
+    
     # Save results
     phase_results = {
         'optimal_ca': optimal_ca,
@@ -205,6 +230,14 @@ def optimize_ca_ratio(
             for name, params in eos_results.items()
         }
     }
+    
+    # Add symmetric fit metadata if available
+    if symmetric_metadata:
+        phase_results['symmetric_fit_metadata'] = symmetric_metadata
+        if ca_values_final is not None:
+            phase_results['ca_values_final'] = ca_values_final
+        if energy_values_final is not None:
+            phase_results['energy_values_final'] = energy_values_final
 
     results_file = phase_path / "ca_optimization_results.json"
     with open(results_file, 'w') as f:
@@ -339,7 +372,7 @@ def optimize_sws(
             raise RuntimeError(f"Failed to parse {kfcd_file}: {e}")
 
     # Run EOS fit
-    optimal_sws, eos_results = run_eos_fit_func(
+    eos_fit_result = run_eos_fit_func(
         r_or_v_data=sws_parsed,
         energy_data=energy_values,
         output_path=phase_path,
@@ -347,6 +380,19 @@ def optimize_sws(
         comment=f"SWS optimization for {config['job_name']} at c/a={optimal_ca:.4f}",
         eos_type=config.get('eos_type', 'MO88')
     )
+    
+    # Handle both old (2-tuple) and new (3-tuple) return signatures for backward compatibility
+    if len(eos_fit_result) == 2:
+        optimal_sws, eos_results = eos_fit_result
+        symmetric_metadata = {}
+    else:
+        optimal_sws, eos_results, symmetric_metadata = eos_fit_result
+    
+    # Print warnings if any
+    if symmetric_metadata.get('warnings'):
+        print("\n⚠ Symmetric fit warnings:")
+        for warning in symmetric_metadata['warnings']:
+            print(f"  {warning}")
 
     # Generate EOS plot
     try:
@@ -363,7 +409,11 @@ def optimize_sws(
         }
         plot_eos_type = eos_type_map.get(config.get('eos_type', 'MO88'), 'morse')
 
-        eos_output_file = phase_path / f"{config['job_name']}_sws.out"
+        # Use final fit output if symmetric selection was used, otherwise use initial fit
+        if symmetric_metadata.get('symmetric_selection_used'):
+            eos_output_file = phase_path / f"{config['job_name']}_sws_final.out"
+        else:
+            eos_output_file = phase_path / f"{config['job_name']}_sws.out"
         plot_eos_fit(
             eos_output_file=eos_output_file,
             output_path=phase_path,
@@ -425,6 +475,14 @@ def optimize_sws(
         'lattice_name': structure.get('lattice_name', 'Unknown')
     }
 
+    # Extract final selected values if symmetric selection was used
+    sws_values_final = None
+    energy_values_final = None
+    if symmetric_metadata.get('symmetric_selection_used'):
+        selected_indices = symmetric_metadata.get('selected_indices', [])
+        sws_values_final = [sws_parsed[i] for i in selected_indices]
+        energy_values_final = [energy_values[i] for i in selected_indices]
+    
     # Save results
     phase_results = {
         'optimal_sws': optimal_sws,
@@ -443,6 +501,14 @@ def optimize_sws(
         },
         'derived_parameters': derived_params
     }
+    
+    # Add symmetric fit metadata if available
+    if symmetric_metadata:
+        phase_results['symmetric_fit_metadata'] = symmetric_metadata
+        if sws_values_final is not None:
+            phase_results['sws_values_final'] = sws_values_final
+        if energy_values_final is not None:
+            phase_results['energy_values_final'] = energy_values_final
 
     results_file = phase_path / "sws_optimization_results.json"
     with open(results_file, 'w') as f:

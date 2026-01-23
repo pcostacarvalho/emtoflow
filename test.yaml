@@ -56,6 +56,8 @@ kgrn_executable: /home/x_pamca/postdoc_proj/emto/bin/kgrn_mpi.x
 kfcd_executable: /home/x_pamca/postdoc_proj/emto/bin/kfcd.exe
 eos_executable: /home/x_pamca/postdoc_proj/emto/bin/eos.exe
 eos_type: MO88
+symmetric_fit: true
+n_points_final: 7
 generate_plots: true
 export_csv: true
 plot_format: png
