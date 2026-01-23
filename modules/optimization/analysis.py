@@ -313,11 +313,14 @@ def run_eos_fit(
         metadata['symmetric_selection_used'] = True
         metadata['final_points'] = len(selected_indices)
 
+        # Use shorter job name for final fit to avoid EOS truncation issues
+        # EOS limits job names to ~20 characters, so use a shorter suffix
+        final_job_name = f"{job_name}_fin" if len(f"{job_name}_final") > 20 else f"{job_name}_final"
         optimal_value, eos_results = _run_single_eos_fit(
             r_or_v_data=r_or_v_final,
             energy_data=energy_final,
             output_path=output_path,
-            job_name=f"{job_name}_final",
+            job_name=final_job_name,
             comment=f"{comment} (final symmetric fit)",
             eos_executable=eos_executable,
             eos_type=eos_type
@@ -446,36 +449,69 @@ def _run_single_eos_fit(
         raise RuntimeError(f"Failed to run EOS executable: {e}")
 
     # Step 3: Parse EOS output
+    # EOS executable may truncate job names to ~20 characters, so check for both full and truncated names
     filename_eos_results = output_path / f"{job_name}.out"
+    
+    # First, try to find output file from stdout log (most reliable)
+    if not filename_eos_results.exists() and eos_stdout_file.exists():
+        try:
+            with open(eos_stdout_file, 'r') as f:
+                stdout_content = f.read()
+                # Look for "Output file" pattern in stdout
+                import re
+                match = re.search(r'Output file\s+(\S+)', stdout_content, re.IGNORECASE)
+                if match:
+                    output_file_from_stdout = match.group(1)
+                    potential_file = output_path / output_file_from_stdout
+                    if potential_file.exists():
+                        filename_eos_results = potential_file
+                        print(f"  Note: Found output file from stdout: {output_file_from_stdout}")
+                        if output_file_from_stdout != f"{job_name}.out":
+                            print(f"       (EOS truncated job name from '{job_name}' to '{output_file_from_stdout[:-4]}')")
+        except Exception:
+            pass
+    
+    # If still not found, check for truncated version (EOS limits job names to ~20 chars)
     if not filename_eos_results.exists():
-        # Check what .out files were actually created
-        created_files = list(output_path.glob("*.out"))
-        created_files_str = "\n".join([f"  - {f.name}" for f in created_files])
+        # Check for truncated job name (first 20 characters)
+        truncated_job_name = job_name[:20] if len(job_name) > 20 else job_name
+        filename_truncated = output_path / f"{truncated_job_name}.out"
         
-        # Read stdout log for error messages
-        stdout_content = ""
-        if eos_stdout_file.exists():
-            try:
-                with open(eos_stdout_file, 'r') as f:
-                    stdout_content = f.read()
-                    # Show last 20 lines if file is long
-                    lines = stdout_content.split('\n')
-                    if len(lines) > 20:
-                        stdout_content = '\n'.join(lines[-20:])
-            except Exception:
-                pass
-        
-        error_msg = (
-            "EOS executable completed but did not produce the expected results file.\n"
-            f"Expected: {filename_eos_results}\n"
-            f"Files created in output directory:\n{created_files_str if created_files_str else '  (none)'}\n"
-        )
-        if stdout_content:
-            error_msg += f"\nLast lines from stdout log ({eos_stdout_file}):\n{stdout_content}"
+        if filename_truncated.exists():
+            # Use the truncated filename
+            filename_eos_results = filename_truncated
+            print(f"  Note: EOS truncated job name to '{truncated_job_name}' (original: '{job_name}')")
         else:
-            error_msg += f"\nStdout log: {eos_stdout_file}"
-        
-        raise RuntimeError(error_msg)
+            # Check what .out files were actually created
+            created_files = list(output_path.glob("*.out"))
+            created_files_str = "\n".join([f"  - {f.name}" for f in created_files])
+            
+            # Read stdout log for error messages
+            stdout_content = ""
+            if eos_stdout_file.exists():
+                try:
+                    with open(eos_stdout_file, 'r') as f:
+                        stdout_content = f.read()
+                        # Show last 20 lines if file is long
+                        lines = stdout_content.split('\n')
+                        if len(lines) > 20:
+                            stdout_content = '\n'.join(lines[-20:])
+                except Exception:
+                    pass
+            
+            if not filename_eos_results.exists():
+                error_msg = (
+                    "EOS executable completed but did not produce the expected results file.\n"
+                    f"Expected: {output_path / f'{job_name}.out'}\n"
+                    f"Also checked truncated: {filename_truncated}\n"
+                    f"Files created in output directory:\n{created_files_str if created_files_str else '  (none)'}\n"
+                )
+                if stdout_content:
+                    error_msg += f"\nLast lines from stdout log ({eos_stdout_file}):\n{stdout_content}"
+                else:
+                    error_msg += f"\nStdout log: {eos_stdout_file}"
+                
+                raise RuntimeError(error_msg)
     try:
         results = parse_eos_output(filename_eos_results)
 
