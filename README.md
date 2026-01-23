@@ -200,7 +200,7 @@ job_mode: "serial"                   # "serial" or "parallel"
 eos_type: "MO88"                     # MO88, POLN, SPLN, MU37, ALL
 
 # DOS analysis
-generate_dos: false                  # Generate DOS files
+generate_dos: false                  # Generate DOS files (supports paramagnetic and spin-polarized)
 dos_plot_range: [-0.8, 0.15]        # Energy range (Ry)
 
 # Output
@@ -232,7 +232,7 @@ The optimization workflow runs in phases:
 - Parse results (energies, magnetic moments)
 
 ### Phase 4-6: Analysis
-- DOS analysis (optional)
+- DOS analysis (optional) - Supports both paramagnetic and spin-polarized DOS files
 - Summary report generation
 - Export results to JSON/CSV
 

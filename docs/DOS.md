@@ -4,6 +4,21 @@
 
 The `modules/dos.py` module provides parsing and plotting functionality for Density of States (DOS) data from EMTO output files.
 
+## Supported DOS File Formats
+
+The parser supports two DOS file formats:
+
+1. **Spin-polarized (magnetic)**: Contains separate `DOSDOWN` and `DOSUP` sections
+   - Header: `"Total DOS and NOS and partial (IT) DOSDOWN"` and `"Total DOS and NOS and partial (IT) DOSUP"`
+   - Sublattices: `"Sublattice X Atom YY spin DOWN"` and `"Sublattice X Atom YY spin UP"`
+
+2. **Paramagnetic (non-magnetic)**: Contains combined `DOSUP+DOWN` sections
+   - Header: `"Total DOS and NOS and partial (IT) DOSUP+DOWN"`
+   - Sublattices: `"Sublattice X Atom YY spin UP+DOWN"`
+   - For paramagnetic files, `get_dos()` returns `(dos_data, None)` instead of separate spin channels
+
+The parser automatically detects the file format and handles both cases transparently.
+
 ## Key Concepts
 
 - **Energy unit**: Ry. \(E_F\) is plotted as **0** (vertical line)
@@ -56,16 +71,80 @@ check = parser.verify_ITA_sum(sublattice=1, concentrations=[0.7, 0.3])
 
 ### `DOSParser`
 Parses DOS files and extracts:
-- Total DOS (spin up and down)
+- Total DOS (spin up and down for magnetic, combined for paramagnetic)
 - Sublattice DOS (IT-resolved)
 - ITA DOS (component-resolved with orbital resolution)
 
+**Attributes:**
+- `is_paramagnetic`: Boolean flag indicating if the DOS file is paramagnetic (non-magnetic)
+- `atom_info`: List of tuples `(atom_number, element, sublattice)` for all ITAs
+- `data`: Dictionary containing parsed DOS data
+
+**Methods:**
+- `get_dos(data_type, sublattice=None, spin_polarized=True)`: Extract DOS data
+  - For paramagnetic files, `dos_up` will be `None` even if `spin_polarized=True`
+- `get_ITA_dos(sublattice, ITA_index, orbital, ...)`: Extract ITA-specific DOS
+- `list_ITAs()`: Return list of all ITAs in the file
+- `verify_ITA_sum(sublattice, concentrations)`: Verify CPA weighting consistency
+
 ### `DOSPlotter`
 Creates publication-quality plots:
-- Total DOS plots
+- Total DOS plots (automatically handles paramagnetic vs spin-polarized)
 - Sublattice DOS plots
 - ITA DOS plots (with optional orbital resolution)
+
+**Plotting behavior:**
+- For **spin-polarized** files: Plots spin-up and spin-down separately (up positive, down negative)
+- For **paramagnetic** files: Plots single combined DOS curve
+- The plotter automatically detects the file type and adjusts the plot style accordingly
 
 ## Integration
 
 Used by `modules/optimization_workflow.py` for automated DOS analysis in optimization workflows.
+
+## Examples
+
+### Paramagnetic DOS File
+
+```python
+from modules.dos import DOSParser, DOSPlotter
+
+# Parse paramagnetic DOS file
+parser = DOSParser("paramagnetic_calc.dos")
+
+# Check if file is paramagnetic
+if parser.is_paramagnetic:
+    print("This is a paramagnetic (non-magnetic) calculation")
+
+# Get total DOS (dos_up will be None for paramagnetic)
+dos_down, dos_up = parser.get_dos('total', spin_polarized=True)
+# dos_up is None for paramagnetic files
+
+# Plotting automatically handles paramagnetic case
+plotter = DOSPlotter(parser)
+fig, ax = plotter.plot_total(spin_polarized=True, save="dos_total.png", show=False)
+```
+
+### Spin-Polarized DOS File
+
+```python
+from modules.dos import DOSParser, DOSPlotter
+
+# Parse spin-polarized DOS file
+parser = DOSParser("magnetic_calc.dos")
+
+# Get total DOS (both spin channels available)
+dos_down, dos_up = parser.get_dos('total', spin_polarized=True)
+# Both dos_down and dos_up contain data
+
+# Plotting shows separate spin channels
+plotter = DOSPlotter(parser)
+fig, ax = plotter.plot_total(spin_polarized=True, save="dos_total.png", show=False)
+```
+
+## Notes
+
+- The parser automatically detects the DOS file format (paramagnetic vs spin-polarized)
+- For paramagnetic files, `get_dos()` and `get_ITA_dos()` return `(dos_data, None)` instead of separate spin channels
+- Plotting methods automatically adjust based on available data (no separate spin channels for paramagnetic)
+- All methods maintain backward compatibility with existing spin-polarized DOS files

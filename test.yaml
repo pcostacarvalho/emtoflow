@@ -1,4 +1,4 @@
-output_path: CuMg_fcc/Cu100_Mg0
+output_path: Cu100_Mg0
 job_name: CuMg
 cif_file: null
 lat: 2
@@ -43,7 +43,7 @@ optimize_dmax: false
 dmax_initial: 2.0
 dmax_target_vectors: 100
 dmax_vector_tolerance: 15
-kstr_executable: /path/to/kstr.exe
+kstr_executable: /home/x_pamca/postdoc_proj/emto/bin/kstr.exe
 run_mode: local
 prcs: 8
 slurm_account: naiss2025-1-38
@@ -51,15 +51,15 @@ slurm_partition: main
 slurm_time: 02:00:00
 create_job_script: true
 job_mode: serial
-shape_executable: /path/to/shape.exe
-kgrn_executable: /path/to/kgrn_mpi.x
-kfcd_executable: /path/to/kfcd.exe
-eos_executable: /path/to/eos.exe
+shape_executable: /home/x_pamca/postdoc_proj/emto/bin/shape.exe
+kgrn_executable: /home/x_pamca/postdoc_proj/emto/bin/kgrn_mpi.x
+kfcd_executable: /home/x_pamca/postdoc_proj/emto/bin/kfcd.exe
+eos_executable: /home/x_pamca/postdoc_proj/emto/bin/eos.exe
 eos_type: MO88
 generate_plots: true
 export_csv: true
 plot_format: png
-generate_dos: false
+generate_dos: true
 dos_plot_range:
 - -0.8
 - 0.15

@@ -23,6 +23,7 @@ class DOSParser:
         """
         self.filename = filename
         self.atom_info = []  # Will store (atom_number, element, sublattice) tuples
+        self.is_paramagnetic = False  # Flag to track paramagnetic vs spin-polarized
         self.data = self._parse_file()
     
     def _parse_file(self) -> Dict:
@@ -54,7 +55,14 @@ class DOSParser:
                 # Reset counter for UP spin section
                 atom_counter_up = 0
             
-            # Generic sublattice parsing: "Sublattice  X Atom YY   spin DOWN/UP"
+            # Total DOS UP+DOWN (paramagnetic)
+            elif 'Total DOS and NOS and partial (IT) DOSUP+DOWN' in line:
+                i += 4
+                data['total_down'] = self._read_data_block(lines, i)
+                data['total_up'] = None  # Mark as paramagnetic
+                self.is_paramagnetic = True
+            
+            # Generic sublattice parsing: "Sublattice  X Atom YY   spin DOWN/UP/UP+DOWN"
             elif 'Sublattice' in line and 'Atom' in line:
                 parts = line.split()
                 sublattice_num = None
@@ -74,6 +82,11 @@ class DOSParser:
                         spin = parts[idx + 1].lower()
                 
                 if atom_name and spin and sublattice_num:
+                    # Handle paramagnetic case: 'up+down' -> treat as 'down' for consistency
+                    if spin == 'up+down':
+                        spin = 'down'
+                        self.is_paramagnetic = True
+                    
                     # Increment appropriate counter
                     if spin == 'down':
                         atom_counter_down += 1
@@ -160,6 +173,9 @@ class DOSParser:
         elif data_type == 'sublattice':
             if sublattice is None:
                 raise ValueError("Must specify sublattice when data_type='sublattice'")
+            # Validate data exists
+            if self.data['total_down'] is None:
+                raise ValueError("No DOS data found. File may be empty or unparseable.")
             # Validate sublattice exists
             num_sublattices = self.data['total_down'].shape[1] - 3  # Subtract E, Total, NOS
             if sublattice < 1 or sublattice > num_sublattices:
@@ -168,6 +184,10 @@ class DOSParser:
             col_idx = 2 + sublattice
         else:
             raise ValueError(f"data_type must be 'total', 'nos', or 'sublattice', got '{data_type}'")
+
+        # Validate data exists before accessing
+        if self.data['total_down'] is None:
+            raise ValueError("No DOS data found. File may be empty or unparseable.")
 
         # Extract energy and data columns
         dos_down = np.column_stack([
@@ -295,6 +315,7 @@ class DOSParser:
                 down_key = f'atom_{atom_num}_down'
                 up_key = f'atom_{atom_num}_up'
 
+                # Check for paramagnetic case: only 'down' key exists (contains combined data)
                 if down_key not in self.data:
                     continue
 
@@ -303,6 +324,7 @@ class DOSParser:
                         self.data[down_key][:, 0],
                         conc * self.data[down_key][:, col_idx]
                     ])
+                    # For paramagnetic, up_key won't exist or will be None
                     if up_key in self.data and self.data[up_key] is not None:
                         dos_up_sum = np.column_stack([
                             self.data[up_key][:, 0],
@@ -333,6 +355,7 @@ class DOSParser:
             atom_number = ITAs_on_sublattice[ITA_index - 1][0]  # -1 because ITA_index is 1-based
 
             # Get the ITA data
+            # For paramagnetic, data is stored under 'down' key (contains combined spin data)
             down_key = f'atom_{atom_number}_down'
             up_key = f'atom_{atom_number}_up'
 
@@ -522,6 +545,9 @@ class DOSPlotter:
             Whether to display the plot
         """
         # Auto-detect number of sublattices
+        if self.parser.data['total_down'] is None:
+            raise ValueError("No DOS data found. File may be empty or unparseable.")
+        
         num_sublattices = self.parser.data['total_down'].shape[1] - 3  # Subtract E, Total, NOS
 
         if num_sublattices < 1:

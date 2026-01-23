@@ -64,7 +64,7 @@ eos_type: "MO88"          # MO88, POLN, SPLN, MU37, ALL
 - Parse results (energies, magnetic moments)
 
 ### Phase 4-6: Analysis
-- DOS analysis (optional)
+- DOS analysis (optional) - Supports both paramagnetic and spin-polarized DOS files
 - Summary report generation
 - Export results to JSON/CSV
 
