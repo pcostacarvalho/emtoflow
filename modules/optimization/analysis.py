@@ -7,9 +7,13 @@ Handles EOS fitting, DOS analysis, and report generation.
 
 import subprocess
 import os
+import json
+import re
+from datetime import datetime
 from pathlib import Path
 from typing import Union, List, Dict, Any, Optional, Tuple
 import numpy as np
+from scipy.optimize import curve_fit
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend for headless environments
 import matplotlib.pyplot as plt
@@ -1063,3 +1067,443 @@ def generate_summary_report(
     print(f"\n✓ Summary report saved to: {report_file}\n")
 
     return report_text
+
+
+# ============================================================================
+# Range Expansion Functions
+# ============================================================================
+
+def detect_expansion_needed(
+    eos_results: Dict[str, Any],
+    param_values: List[float],
+    energy_values: List[float],
+    equilibrium_value: float
+) -> Tuple[bool, str]:
+    """
+    Determine if parameter range expansion is needed.
+    
+    Simplified detection: checks for NaN values, equilibrium outside range,
+    or energy monotonic at boundaries.
+    
+    Parameters
+    ----------
+    eos_results : dict
+        EOS fit results from parse_eos_output
+    param_values : List[float]
+        Parameter values used in fit
+    energy_values : List[float]
+        Energy values used in fit
+    equilibrium_value : float
+        Equilibrium value from EOS fit (may be NaN)
+    
+    Returns
+    -------
+    tuple of (needs_expansion, reason)
+        needs_expansion : bool
+        reason : str (reason for expansion, empty if not needed)
+    """
+    if not param_values or not energy_values:
+        return False, ""
+    
+    param_values = np.array(param_values)
+    energy_values = np.array(energy_values)
+    
+    # Sort by parameter value
+    sort_idx = np.argsort(param_values)
+    param_values = param_values[sort_idx]
+    energy_values = energy_values[sort_idx]
+    
+    # Check 1: NaN values in EOS results
+    for name, params in eos_results.items():
+        if (np.isnan(params.rwseq) or np.isnan(params.eeq) or 
+            np.isnan(params.bmod) or np.isnan(params.v_eq)):
+            return True, f"EOS fit returned NaN values in {name} fit"
+    
+    # Check 2: Equilibrium outside range
+    if np.isnan(equilibrium_value):
+        return True, "Equilibrium value is NaN"
+    
+    param_min = np.min(param_values)
+    param_max = np.max(param_values)
+    if equilibrium_value < param_min:
+        return True, f"Equilibrium ({equilibrium_value:.6f}) below minimum parameter ({param_min:.6f})"
+    if equilibrium_value > param_max:
+        return True, f"Equilibrium ({equilibrium_value:.6f}) above maximum parameter ({param_max:.6f})"
+    
+    # Check 3: Energy monotonic at boundaries
+    # Check if energy still decreasing at maximum
+    if len(energy_values) >= 2:
+        energy_at_max = energy_values[-1]
+        energy_before_max = energy_values[-2]
+        if energy_at_max < energy_before_max:
+            return True, f"Energy still decreasing at maximum parameter ({param_max:.6f})"
+        
+        # Check if energy still increasing at minimum
+        energy_at_min = energy_values[0]
+        energy_after_min = energy_values[1]
+        if energy_at_min > energy_after_min:
+            return True, f"Energy still increasing at minimum parameter ({param_min:.6f})"
+    
+    return False, ""
+
+
+def estimate_morse_minimum(
+    param_values: List[float],
+    energy_values: List[float]
+) -> Tuple[float, float, Dict[str, Any]]:
+    """
+    Estimate minimum using Modified Morse EOS fitting.
+    
+    Fits Modified Morse equation: E(R) = a + b·exp(-λ·R) + c·exp(-2λ·R)
+    Equilibrium found from: x0 = -b/(2c), R_eq = -log(x0)/λ
+    
+    Based on fitmo88.for (V.L.Moruzzi et al. Phys.Rev.B, 37, 790-799 (1988))
+    
+    Parameters
+    ----------
+    param_values : List[float]
+        Parameter values (R_WS for SWS optimization, c/a for c/a optimization)
+        Will be sorted
+    energy_values : List[float]
+        Corresponding energy values
+    
+    Returns
+    -------
+    tuple of (estimated_min_param, estimated_min_energy, fit_info)
+        estimated_min_param : float
+            Estimated parameter value at minimum (R_eq or c/a_eq)
+        estimated_min_energy : float
+            Estimated energy at minimum
+        fit_info : dict
+            - morse_params: {'a': float, 'b': float, 'c': float, 'lambda': float}
+            - r_squared: float (fit quality, 0-1)
+            - is_valid: bool (fit converged and R² > 0.7)
+            - rms: float (root mean square error)
+    
+    Note
+    ----
+    Currently only implements Modified Morse EOS. Other EOS types (Birch-Murnaghan,
+    Murnaghan, Polynomial) need to be implemented for full support.
+    """
+    if len(param_values) < 4:
+        raise ValueError("Need at least 4 points to fit Morse EOS")
+    
+    param_values = np.array(param_values)
+    energy_values = np.array(energy_values)
+    
+    # Sort by parameter value
+    sort_idx = np.argsort(param_values)
+    param_values = param_values[sort_idx]
+    energy_values = energy_values[sort_idx]
+    
+    # Define Morse function for fitting
+    def morse_func(r, a, b, c, lam):
+        """Modified Morse: E(R) = a + b·exp(-λ·R) + c·exp(-2λ·R)"""
+        x = np.exp(-lam * r)
+        return a + b * x + c * x * x
+    
+    # Initial guess for parameters
+    # Use simple estimates based on data
+    energy_min = np.min(energy_values)
+    energy_max = np.max(energy_values)
+    energy_range = energy_max - energy_min
+    param_range = np.max(param_values) - np.min(param_values)
+    
+    # Initial guesses
+    a_init = energy_min  # Offset
+    lam_init = 2.0 / param_range  # Rough estimate for lambda
+    # For b and c, we need b < 0 and c > 0 for a minimum
+    b_init = -energy_range * 0.5
+    c_init = energy_range * 0.3
+    
+    try:
+        # Fit Morse equation
+        popt, pcov = curve_fit(
+            morse_func,
+            param_values,
+            energy_values,
+            p0=[a_init, b_init, c_init, lam_init],
+            maxfev=5000,
+            bounds=(
+                [-np.inf, -np.inf, 1e-10, 1e-10],  # Lower bounds
+                [np.inf, np.inf, np.inf, np.inf]    # Upper bounds
+            )
+        )
+        
+        a, b, c, lam = popt
+        
+        # Calculate equilibrium from Morse parameters (fitmo88.for:222-224)
+        # x0 = -b/(2c)
+        # alx0 = log(x0)
+        # R_eq = -alx0/λ
+        if abs(c) < 1e-10:
+            raise ValueError("c parameter too small, cannot calculate equilibrium")
+        
+        x0_eq = -b / (2.0 * c)
+        if x0_eq <= 0:
+            raise ValueError("x0_eq is non-positive, invalid Morse parameters")
+        
+        alx0_eq = np.log(x0_eq)
+        estimated_min_param = -alx0_eq / lam
+        
+        # Calculate energy at equilibrium
+        estimated_min_energy = morse_func(estimated_min_param, a, b, c, lam)
+        
+        # Calculate R²
+        energy_predicted = morse_func(param_values, a, b, c, lam)
+        ss_res = np.sum((energy_values - energy_predicted)**2)
+        ss_tot = np.sum((energy_values - np.mean(energy_values))**2)
+        r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
+        
+        # Calculate RMS
+        rms = np.sqrt(np.mean((energy_values - energy_predicted)**2))
+        
+        # Validate: reasonable fit (R² > 0.7) and valid parameters
+        is_valid = (r_squared > 0.7) and np.all(np.isfinite([a, b, c, lam])) and (c > 0)
+        
+        fit_info = {
+            'morse_params': {
+                'a': float(a),
+                'b': float(b),
+                'c': float(c),
+                'lambda': float(lam)
+            },
+            'r_squared': float(r_squared),
+            'rms': float(rms),
+            'is_valid': bool(is_valid)
+        }
+        
+    except Exception as e:
+        # Fallback: use minimum from data
+        min_idx = np.argmin(energy_values)
+        estimated_min_param = float(param_values[min_idx])
+        estimated_min_energy = float(energy_values[min_idx])
+        
+        fit_info = {
+            'morse_params': None,
+            'r_squared': 0.0,
+            'rms': np.inf,
+            'is_valid': False,
+            'error': str(e)
+        }
+    
+    return float(estimated_min_param), float(estimated_min_energy), fit_info
+
+
+def generate_parameter_vector_around_estimate(
+    estimated_minimum: float,
+    step_size: float,
+    n_points: int = 14,
+    expansion_factor: float = 3.0
+) -> List[float]:
+    """
+    Generate parameter vector centered around estimated minimum.
+    
+    Parameters
+    ----------
+    estimated_minimum : float
+        Morse EOS-estimated minimum parameter value
+    step_size : float
+        Step size for parameter spacing (from config: ca_step or sws_step)
+    n_points : int
+        Number of points to generate (default: 14)
+    expansion_factor : float
+        Factor for range width: range = ±expansion_factor * step_size (default: 3.0)
+    
+    Returns
+    -------
+    List[float]
+        Sorted list of parameter values centered around estimate
+    """
+    range_half_width = expansion_factor * step_size
+    min_val = estimated_minimum - range_half_width
+    max_val = estimated_minimum + range_half_width
+    
+    param_values = np.linspace(min_val, max_val, n_points)
+    return sorted(param_values.tolist())
+
+
+# ============================================================================
+# Data Persistence Functions
+# ============================================================================
+
+def save_parameter_energy_data(
+    phase_path: Path,
+    parameter_name: str,
+    parameter_values: List[float],
+    energy_values: List[float]
+) -> Path:
+    """
+    Save parameter values and energies to JSON file.
+    Merges with existing data if file exists (avoids duplicates).
+    
+    Parameters
+    ----------
+    phase_path : Path
+        Phase directory (e.g., phase2_sws_optimization)
+    parameter_name : str
+        'sws' or 'ca'
+    parameter_values : List[float]
+        Parameter values
+    energy_values : List[float]
+        Corresponding energy values
+    
+    Returns
+    -------
+    Path
+        Path to saved file
+    """
+    if len(parameter_values) != len(energy_values):
+        raise ValueError("parameter_values and energy_values must have same length")
+    
+    filename = f"{parameter_name}_energy_data.json"
+    file_path = phase_path / filename
+    
+    # Load existing data if file exists
+    existing_data = {}
+    if file_path.exists():
+        try:
+            with open(file_path, 'r') as f:
+                existing_data = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            # If file is corrupted or can't be read, start fresh
+            existing_data = {}
+    
+    # Create data points dictionary (use parameter as key for deduplication)
+    new_data_points = {
+        float(p): float(e) for p, e in zip(parameter_values, energy_values)
+    }
+    
+    # Merge with existing data (new values take precedence)
+    if 'data_points' in existing_data:
+        existing_data_points = {
+            float(p['parameter']): float(p['energy'])
+            for p in existing_data['data_points']
+        }
+        existing_data_points.update(new_data_points)
+        merged_data_points = existing_data_points
+    else:
+        merged_data_points = new_data_points
+    
+    # Convert back to list format
+    data_points_list = [
+        {'parameter': p, 'energy': e}
+        for p, e in sorted(merged_data_points.items())
+    ]
+    
+    # Save to file
+    output_data = {
+        'parameter_name': parameter_name,
+        'data_points': data_points_list,
+        'last_updated': datetime.now().isoformat(),
+        'source': str(phase_path.name)
+    }
+    
+    with open(file_path, 'w') as f:
+        json.dump(output_data, f, indent=2)
+    
+    return file_path
+
+
+def load_parameter_energy_data(
+    phase_path: Path,
+    parameter_name: str
+) -> Tuple[Optional[List[float]], Optional[List[float]]]:
+    """
+    Load parameter values and energies from saved file.
+    
+    Parameters
+    ----------
+    phase_path : Path
+        Phase directory
+    parameter_name : str
+        'sws' or 'ca'
+    
+    Returns
+    -------
+    tuple of (parameter_values, energy_values) or (None, None) if not found
+    """
+    filename = f"{parameter_name}_energy_data.json"
+    file_path = phase_path / filename
+    
+    if not file_path.exists():
+        return None, None
+    
+    try:
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+        
+        if 'data_points' not in data or not data['data_points']:
+            return None, None
+        
+        parameter_values = [p['parameter'] for p in data['data_points']]
+        energy_values = [p['energy'] for p in data['data_points']]
+        
+        return parameter_values, energy_values
+    except (json.JSONDecodeError, IOError, KeyError):
+        return None, None
+
+
+def prepare_data_for_eos_fit(
+    current_param_values: List[float],
+    current_energy_values: List[float],
+    phase_path: Path,
+    parameter_name: str,
+    use_saved_data: bool
+) -> Tuple[List[float], List[float]]:
+    """
+    Prepare data for EOS fitting based on user preference.
+    
+    IMPORTANT: Always saves current workflow data to file (automatic, no option).
+    The flag controls which data to use for EOS fitting:
+    - If use_saved_data=True: Use ALL points from saved file (accumulated over time)
+    - If use_saved_data=False: Use ONLY current workflow's array (just generated)
+    
+    Parameters
+    ----------
+    current_param_values : List[float]
+        Current workflow's parameter values
+    current_energy_values : List[float]
+        Current workflow's energy values
+    phase_path : Path
+        Phase directory
+    parameter_name : str
+        'sws' or 'ca'
+    use_saved_data : bool
+        Whether to use all saved data (true) or only current workflow (false)
+    
+    Returns
+    -------
+    tuple of (final_param_values, final_energy_values) sorted by parameter
+    """
+    if len(current_param_values) != len(current_energy_values):
+        raise ValueError("current_param_values and current_energy_values must have same length")
+    
+    # ALWAYS save current workflow data to file (automatic, no option)
+    save_parameter_energy_data(phase_path, parameter_name, current_param_values, current_energy_values)
+    
+    # Choose data source for EOS fitting based on user flag
+    if use_saved_data:
+        # Use ALL points from saved file (accumulated over multiple runs)
+        saved_params, saved_energies = load_parameter_energy_data(phase_path, parameter_name)
+        if saved_params:
+            print(f"  Using all {len(saved_params)} points from saved file for EOS fit")
+            final_param_values = list(saved_params)
+            final_energy_values = list(saved_energies)
+        else:
+            # Fallback to current workflow if no saved file exists
+            print("  No saved file found, using current workflow data only")
+            final_param_values = list(current_param_values)
+            final_energy_values = list(current_energy_values)
+    else:
+        # Use ONLY current workflow's array (just generated)
+        print(f"  Using current workflow data only ({len(current_param_values)} points)")
+        final_param_values = list(current_param_values)
+        final_energy_values = list(current_energy_values)
+    
+    # Sort by parameter value
+    sorted_pairs = sorted(zip(final_param_values, final_energy_values))
+    final_param_values = [p for p, e in sorted_pairs]
+    final_energy_values = [e for p, e in sorted_pairs]
+    
+    return final_param_values, final_energy_values

@@ -213,6 +213,44 @@ n_points_final: 7                    # Number of points for final symmetric fit 
                                      # Only used when symmetric_fit=true and more points are provided
                                      # Typical values: 5-9 (7 is recommended)
 
+# Automatic range expansion for out-of-range equilibrium
+eos_auto_expand_range: false         # Enable automatic range expansion (default: false)
+                                     # When enabled: If equilibrium falls outside input range or
+                                     # EOS fit returns NaN values, automatically:
+                                     # 1. Estimates minimum using Modified Morse EOS fitting
+                                     # 2. Generates new parameter vector centered around estimate
+                                     #    (uses same number of points as initial user input)
+                                     # 3. Runs calculations for new points (if needed)
+                                     # 4. Always saves expanded workflow points to file
+                                     # 5. Chooses data source for EOS fit based on eos_use_saved_data flag:
+                                     #    - true: Uses ALL points from saved file (may include previous runs)
+                                     #    - false: Uses ONLY workflow points (initial + newly calculated)
+                                     # 6. Re-fits EOS with selected data
+                                     #    (symmetric selection only applied if symmetric_fit=true)
+                                     # 7. If still not converged, estimates equilibrium from all data
+                                     #    and suggests initial_sws/ca_ratios value, then raises error
+                                     # Note: Only performs ONE expansion (not iterative)
+
+eos_expansion_factor: 3.0            # Range factor for expansion (default: 3.0)
+                                     # Expanded range = ±expansion_factor × step_size around estimate
+                                     # Example: If estimate=2.95, step_size=0.05, factor=3.0:
+                                     #   Range = [2.95 - 0.15, 2.95 + 0.15] = [2.80, 3.10]
+                                     # The number of points in expanded vector equals the initial
+                                     # number of points provided by the user
+
+# Data persistence and re-use for EOS fitting
+# IMPORTANT: Data is ALWAYS saved to file automatically (no option to disable)
+# This flag controls which data to use for EOS fitting:
+eos_use_saved_data: false            # Choose data source for EOS fitting (default: false)
+                                     # When true: Use ALL points from saved file (accumulated over multiple runs)
+                                     #   - Includes data from all previous workflow runs
+                                     #   - Applies to initial EOS fit and after expansion
+                                     # When false: Use ONLY current workflow's array (just generated in this run)
+                                     #   - Initial fit uses only current workflow points
+                                     #   - After expansion, uses only workflow points (initial + newly calculated)
+                                     # Saving to file happens automatically regardless of this flag
+                                     # Saved files: {phase_path}/sws_energy_data.json or {phase_path}/ca_energy_data.json
+
 
 # ------------------------------------------------------------------------------
 # ANALYSIS SETTINGS

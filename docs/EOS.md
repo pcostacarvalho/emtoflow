@@ -184,6 +184,54 @@ The function returns a metadata dictionary containing:
 - `selected_indices`: Indices of selected points
 - `warnings`: List of warning messages
 
+### Automatic Range Expansion
+
+When the equilibrium value falls outside the input parameter range or the EOS fit returns invalid values (NaN), the workflow can automatically expand the parameter range:
+
+**Workflow:**
+1. Follow user instructions (use initial points)
+2. **Always save** current workflow data to file (automatic, no option)
+3. Choose data source for EOS fitting:
+   - If `eos_use_saved_data: true`: Use ALL points from saved file
+   - If `eos_use_saved_data: false`: Use ONLY current workflow's array
+4. Verify EOS fit
+5. If not adequate:
+   - Estimate equilibrium using Modified Morse EOS fitting
+   - Generate same number of points as initial around estimate
+   - **Always save** expanded workflow points to file
+   - Choose data source again (all saved vs workflow only)
+   - Verify EOS fit again
+   - Only apply symmetric selection if `symmetric_fit: true` is set
+6. If fit still not ok:
+   - Use all available data to estimate new equilibrium value
+   - Print estimated value to user
+   - Raise error with suggestion
+
+**Configuration:**
+```yaml
+eos_auto_expand_range: false         # Enable automatic expansion (default: false)
+eos_expansion_factor: 3.0            # Range factor: ±factor×step_size around estimate (default: 3.0)
+                                     # Expanded vector uses same number of points as initial user input
+
+# Data persistence: ALWAYS saves to file (no option to disable)
+# This flag controls which data to use for EOS fitting:
+eos_use_saved_data: false            # Choose data source for EOS fitting (default: false)
+                                     # When true: Use ALL points from saved file (accumulated)
+                                     # When false: Use ONLY current workflow's array (just generated)
+```
+
+**Note**: Currently only Modified Morse EOS is implemented for minimum estimation. Other EOS types (Birch-Murnaghan, Murnaghan, Polynomial) need to be implemented for full support.
+
+**Data Persistence:**
+The workflow **always** saves parameter-energy data to JSON files (`sws_energy_data.json` or `ca_energy_data.json`) automatically - there is no option to disable saving. This allows:
+- Accumulating data over multiple workflow runs
+- Re-using existing calculations
+- Manual inspection and editing of data
+
+The `eos_use_saved_data` flag controls **which data to use** for EOS fitting:
+- `true`: Use ALL accumulated points from saved file
+- `false`: Use ONLY the current workflow's array
+
 ## EOS Input File Format
 
 The generated input file format:
@@ -257,6 +305,10 @@ plot_eos_fit(
    - For symmetric fitting: Provide many points (e.g., 14) and let the code select 7 symmetric points
    - For standard fitting: Ensure sufficient data points (typically 5-7) for reliable fits
 6. **Symmetric fitting**: Enable symmetric point selection when providing many points to ensure symmetric energy curves
+7. **Automatic expansion**: Enable `eos_auto_expand_range` for automated workflows where equilibrium might fall outside initial range
+   - The workflow uses Modified Morse EOS to estimate the minimum and automatically expands the range
+   - Currently only Modified Morse EOS is supported for estimation (other EOS types need implementation)
+8. **Data persistence**: Data is always saved automatically. Use `eos_use_saved_data: true` to use ALL accumulated points from saved file (includes data from previous runs), or `false` to use ONLY the current workflow's array
 
 ## Error Handling
 
