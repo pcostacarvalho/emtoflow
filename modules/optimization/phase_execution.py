@@ -171,35 +171,62 @@ def optimize_ca_ratio(
     ca_workflow_points = list(ca_values)
     energy_workflow_points = list(energy_values)
 
-    # Run EOS fit
-    eos_fit_result = run_eos_fit_func(
-        r_or_v_data=ca_values_for_fit,
-        energy_data=energy_values_for_fit,
-        output_path=phase_path,
-        job_name=f"{config['job_name']}_ca",
-        comment=f"c/a optimization for {config['job_name']}",
-        eos_type=config.get('eos_type', 'MO88')
-    )
+    # Run EOS fit (with error handling for failed fits)
+    eos_fit_failed = False
+    eos_fit_error_msg = None
+    try:
+        eos_fit_result = run_eos_fit_func(
+            r_or_v_data=ca_values_for_fit,
+            energy_data=energy_values_for_fit,
+            output_path=phase_path,
+            job_name=f"{config['job_name']}_ca",
+            comment=f"c/a optimization for {config['job_name']}",
+            eos_type=config.get('eos_type', 'MO88')
+        )
+        
+        # Handle both old (2-tuple) and new (3-tuple) return signatures for backward compatibility
+        if len(eos_fit_result) == 2:
+            optimal_ca, eos_results = eos_fit_result
+            symmetric_metadata = {}
+        else:
+            optimal_ca, eos_results, symmetric_metadata = eos_fit_result
+        
+        # Print warnings if any
+        if symmetric_metadata.get('warnings'):
+            print("\n⚠ Symmetric fit warnings:")
+            for warning in symmetric_metadata['warnings']:
+                print(f"  {warning}")
     
-    # Handle both old (2-tuple) and new (3-tuple) return signatures for backward compatibility
-    if len(eos_fit_result) == 2:
-        optimal_ca, eos_results = eos_fit_result
+    except Exception as e:
+        # EOS fit failed - proceed with expansion check using Morse estimation
+        eos_fit_failed = True
+        eos_fit_error_msg = str(e)
+        print(f"\n⚠ EOS fit failed: {eos_fit_error_msg}")
+        print("  Proceeding with expansion check using Morse estimation...")
+        
+        # Create dummy results for detect_expansion_needed
+        from modules.inputs.eos_emto import EOSParams
+        dummy_params = EOSParams(
+            rwseq=float('nan'),
+            v_eq=float('nan'),
+            eeq=float('nan'),
+            bmod=float('nan')
+        )
+        eos_results = {'morse': dummy_params}
+        optimal_ca = float('nan')
         symmetric_metadata = {}
-    else:
-        optimal_ca, eos_results, symmetric_metadata = eos_fit_result
-    
-    # Print warnings if any
-    if symmetric_metadata.get('warnings'):
-        print("\n⚠ Symmetric fit warnings:")
-        for warning in symmetric_metadata['warnings']:
-            print(f"  {warning}")
     
     # Check if expansion is needed (similar to optimize_sws)
     expansion_metadata = {}
     if config.get('eos_auto_expand_range', False):
-        needs_expansion, reason = detect_expansion_needed(
-            eos_results, ca_values_for_fit, energy_values_for_fit, optimal_ca
-        )
+        # If EOS fit failed, we definitely need expansion
+        if eos_fit_failed:
+            needs_expansion = True
+            reason = f"EOS fit failed: {eos_fit_error_msg}"
+        else:
+            needs_expansion, reason = detect_expansion_needed(
+                eos_results, ca_values_for_fit, energy_values_for_fit, optimal_ca
+            )
         
         if needs_expansion:
             print(f"\n⚠ Expansion needed: {reason}")
@@ -280,26 +307,43 @@ def optimize_ca_ratio(
                 print(f"  Using workflow points only ({len(all_ca_values)} points)")
             
             # Re-fit EOS with all points (symmetric selection only if user enabled it)
-            eos_fit_result = run_eos_fit_func(
-                r_or_v_data=all_ca_values,
-                energy_data=all_energy_values,
-                output_path=phase_path,
-                job_name=f"{config['job_name']}_ca",
-                comment=f"c/a optimization (after expansion) for {config['job_name']}",
-                eos_type=config.get('eos_type', 'MO88')
-            )
-            
-            # Handle return signature
-            if len(eos_fit_result) == 2:
-                optimal_ca, eos_results = eos_fit_result
+            try:
+                eos_fit_result = run_eos_fit_func(
+                    r_or_v_data=all_ca_values,
+                    energy_data=all_energy_values,
+                    output_path=phase_path,
+                    job_name=f"{config['job_name']}_ca",
+                    comment=f"c/a optimization (after expansion) for {config['job_name']}",
+                    eos_type=config.get('eos_type', 'MO88')
+                )
+                
+                # Handle return signature
+                if len(eos_fit_result) == 2:
+                    optimal_ca, eos_results = eos_fit_result
+                    symmetric_metadata = {}
+                else:
+                    optimal_ca, eos_results, symmetric_metadata = eos_fit_result
+                
+                # Check if converged after expansion
+                needs_expansion_again, reason_again = detect_expansion_needed(
+                    eos_results, all_ca_values, all_energy_values, optimal_ca
+                )
+            except Exception as e:
+                # Post-expansion fit also failed - estimate and suggest value
+                print(f"\n⚠ Post-expansion EOS fit failed: {e}")
+                needs_expansion_again = True
+                reason_again = f"Post-expansion EOS fit failed: {e}"
+                # Create dummy results for estimation
+                from modules.inputs.eos_emto import EOSParams
+                dummy_params = EOSParams(
+                    rwseq=float('nan'),
+                    v_eq=float('nan'),
+                    eeq=float('nan'),
+                    bmod=float('nan')
+                )
+                eos_results = {'morse': dummy_params}
+                optimal_ca = float('nan')
                 symmetric_metadata = {}
-            else:
-                optimal_ca, eos_results, symmetric_metadata = eos_fit_result
-            
-            # Check if converged after expansion
-            needs_expansion_again, reason_again = detect_expansion_needed(
-                eos_results, all_ca_values, all_energy_values, optimal_ca
-            )
             
             if needs_expansion_again:
                 # Estimate Morse EOS from all data and suggest value
@@ -700,35 +744,62 @@ def optimize_sws(
     sws_workflow_points = list(sws_parsed)
     energy_workflow_points = list(energy_values)
 
-    # Run EOS fit
-    eos_fit_result = run_eos_fit_func(
-        r_or_v_data=sws_values_for_fit,
-        energy_data=energy_values_for_fit,
-        output_path=phase_path,
-        job_name=f"{config['job_name']}_sws",
-        comment=f"SWS optimization for {config['job_name']} at c/a={optimal_ca:.4f}",
-        eos_type=config.get('eos_type', 'MO88')
-    )
+    # Run EOS fit (with error handling for failed fits)
+    eos_fit_failed = False
+    eos_fit_error_msg = None
+    try:
+        eos_fit_result = run_eos_fit_func(
+            r_or_v_data=sws_values_for_fit,
+            energy_data=energy_values_for_fit,
+            output_path=phase_path,
+            job_name=f"{config['job_name']}_sws",
+            comment=f"SWS optimization for {config['job_name']} at c/a={optimal_ca:.4f}",
+            eos_type=config.get('eos_type', 'MO88')
+        )
+        
+        # Handle both old (2-tuple) and new (3-tuple) return signatures for backward compatibility
+        if len(eos_fit_result) == 2:
+            optimal_sws, eos_results = eos_fit_result
+            symmetric_metadata = {}
+        else:
+            optimal_sws, eos_results, symmetric_metadata = eos_fit_result
+        
+        # Print warnings if any
+        if symmetric_metadata.get('warnings'):
+            print("\n⚠ Symmetric fit warnings:")
+            for warning in symmetric_metadata['warnings']:
+                print(f"  {warning}")
     
-    # Handle both old (2-tuple) and new (3-tuple) return signatures for backward compatibility
-    if len(eos_fit_result) == 2:
-        optimal_sws, eos_results = eos_fit_result
+    except Exception as e:
+        # EOS fit failed - proceed with expansion check using Morse estimation
+        eos_fit_failed = True
+        eos_fit_error_msg = str(e)
+        print(f"\n⚠ EOS fit failed: {eos_fit_error_msg}")
+        print("  Proceeding with expansion check using Morse estimation...")
+        
+        # Create dummy results for detect_expansion_needed
+        from modules.inputs.eos_emto import EOSParams
+        dummy_params = EOSParams(
+            rwseq=float('nan'),
+            v_eq=float('nan'),
+            eeq=float('nan'),
+            bmod=float('nan')
+        )
+        eos_results = {'morse': dummy_params}
+        optimal_sws = float('nan')
         symmetric_metadata = {}
-    else:
-        optimal_sws, eos_results, symmetric_metadata = eos_fit_result
-    
-    # Print warnings if any
-    if symmetric_metadata.get('warnings'):
-        print("\n⚠ Symmetric fit warnings:")
-        for warning in symmetric_metadata['warnings']:
-            print(f"  {warning}")
     
     # Check if expansion is needed
     expansion_metadata = {}
     if config.get('eos_auto_expand_range', False):
-        needs_expansion, reason = detect_expansion_needed(
-            eos_results, sws_values_for_fit, energy_values_for_fit, optimal_sws
-        )
+        # If EOS fit failed, we definitely need expansion
+        if eos_fit_failed:
+            needs_expansion = True
+            reason = f"EOS fit failed: {eos_fit_error_msg}"
+        else:
+            needs_expansion, reason = detect_expansion_needed(
+                eos_results, sws_values_for_fit, energy_values_for_fit, optimal_sws
+            )
         
         if needs_expansion:
             print(f"\n⚠ Expansion needed: {reason}")
@@ -809,26 +880,43 @@ def optimize_sws(
                 print(f"  Using workflow points only ({len(all_sws_values)} points)")
             
             # Re-fit EOS with all points (symmetric selection only if user enabled it)
-            eos_fit_result = run_eos_fit_func(
-                r_or_v_data=all_sws_values,
-                energy_data=all_energy_values,
-                output_path=phase_path,
-                job_name=f"{config['job_name']}_sws",
-                comment=f"SWS optimization (after expansion) for {config['job_name']} at c/a={optimal_ca:.4f}",
-                eos_type=config.get('eos_type', 'MO88')
-            )
-            
-            # Handle return signature
-            if len(eos_fit_result) == 2:
-                optimal_sws, eos_results = eos_fit_result
+            try:
+                eos_fit_result = run_eos_fit_func(
+                    r_or_v_data=all_sws_values,
+                    energy_data=all_energy_values,
+                    output_path=phase_path,
+                    job_name=f"{config['job_name']}_sws",
+                    comment=f"SWS optimization (after expansion) for {config['job_name']} at c/a={optimal_ca:.4f}",
+                    eos_type=config.get('eos_type', 'MO88')
+                )
+                
+                # Handle return signature
+                if len(eos_fit_result) == 2:
+                    optimal_sws, eos_results = eos_fit_result
+                    symmetric_metadata = {}
+                else:
+                    optimal_sws, eos_results, symmetric_metadata = eos_fit_result
+                
+                # Check if converged after expansion
+                needs_expansion_again, reason_again = detect_expansion_needed(
+                    eos_results, all_sws_values, all_energy_values, optimal_sws
+                )
+            except Exception as e:
+                # Post-expansion fit also failed - estimate and suggest value
+                print(f"\n⚠ Post-expansion EOS fit failed: {e}")
+                needs_expansion_again = True
+                reason_again = f"Post-expansion EOS fit failed: {e}"
+                # Create dummy results for estimation
+                from modules.inputs.eos_emto import EOSParams
+                dummy_params = EOSParams(
+                    rwseq=float('nan'),
+                    v_eq=float('nan'),
+                    eeq=float('nan'),
+                    bmod=float('nan')
+                )
+                eos_results = {'morse': dummy_params}
+                optimal_sws = float('nan')
                 symmetric_metadata = {}
-            else:
-                optimal_sws, eos_results, symmetric_metadata = eos_fit_result
-            
-            # Check if converged after expansion
-            needs_expansion_again, reason_again = detect_expansion_needed(
-                eos_results, all_sws_values, all_energy_values, optimal_sws
-            )
             
             if needs_expansion_again:
                 # Estimate Morse EOS from all data and suggest value
