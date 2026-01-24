@@ -230,13 +230,8 @@ eos_auto_expand_range: false         # Enable automatic range expansion (default
                                      # 7. If still not converged, estimates equilibrium from all data
                                      #    and suggests initial_sws/ca_ratios value, then raises error
                                      # Note: Only performs ONE expansion (not iterative)
-
-eos_expansion_factor: 3.0            # Range factor for expansion (default: 3.0)
-                                     # Expanded range = ±expansion_factor × step_size around estimate
-                                     # Example: If estimate=2.95, step_size=0.05, factor=3.0:
-                                     #   Range = [2.95 - 0.15, 2.95 + 0.15] = [2.80, 3.10]
-                                     # The number of points in expanded vector equals the initial
-                                     # number of points provided by the user
+                                     # Note: Range width is automatically calculated from number of points
+                                     #   and step_size: range_width = (n_points - 1) × step_size
 
 # Data persistence and re-use for EOS fitting
 # IMPORTANT: Data is ALWAYS saved to file automatically (no option to disable)

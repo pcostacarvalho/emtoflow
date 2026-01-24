@@ -210,8 +210,9 @@ When the equilibrium value falls outside the input parameter range or the EOS fi
 **Configuration:**
 ```yaml
 eos_auto_expand_range: false         # Enable automatic expansion (default: false)
-eos_expansion_factor: 3.0            # Range factor: ±factor×step_size around estimate (default: 3.0)
-                                     # Expanded vector uses same number of points as initial user input
+# Note: Range width is automatically calculated from number of points and step_size
+#   range_width = (n_points - 1) × step_size, centered around estimated minimum
+#   Expanded vector uses same number of points as initial user input
 
 # Data persistence: ALWAYS saves to file (no option to disable)
 # This flag controls which data to use for EOS fitting:

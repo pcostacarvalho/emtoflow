@@ -223,8 +223,7 @@ def optimize_ca_ratio(
             new_ca_values = generate_parameter_vector_around_estimate(
                 estimated_minimum=morse_min,
                 step_size=config.get('ca_step', 0.02),
-                n_points=initial_n_points,
-                expansion_factor=config.get('eos_expansion_factor', 3.0)
+                n_points=initial_n_points
             )
             
             # Identify which points need calculation
@@ -753,8 +752,7 @@ def optimize_sws(
             new_sws_values = generate_parameter_vector_around_estimate(
                 estimated_minimum=morse_min,
                 step_size=config.get('sws_step', 0.05),
-                n_points=initial_n_points,
-                expansion_factor=config.get('eos_expansion_factor', 3.0)
+                n_points=initial_n_points
             )
             
             # Identify which points need calculation

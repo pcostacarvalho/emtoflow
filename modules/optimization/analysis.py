@@ -1293,11 +1293,14 @@ def estimate_morse_minimum(
 def generate_parameter_vector_around_estimate(
     estimated_minimum: float,
     step_size: float,
-    n_points: int = 14,
-    expansion_factor: float = 3.0
+    n_points: int = 14
 ) -> List[float]:
     """
     Generate parameter vector centered around estimated minimum.
+    
+    The range width is automatically calculated from the number of points and step_size:
+    - Total range width = (n_points - 1) * step_size
+    - Range = [estimate - half_width, estimate + half_width]
     
     Parameters
     ----------
@@ -1306,16 +1309,18 @@ def generate_parameter_vector_around_estimate(
     step_size : float
         Step size for parameter spacing (from config: ca_step or sws_step)
     n_points : int
-        Number of points to generate (default: 14)
-    expansion_factor : float
-        Factor for range width: range = ±expansion_factor * step_size (default: 3.0)
+        Number of points to generate (uses same as initial user input)
     
     Returns
     -------
     List[float]
         Sorted list of parameter values centered around estimate
     """
-    range_half_width = expansion_factor * step_size
+    # Calculate range width automatically: (n_points - 1) * step_size
+    # This ensures the spacing between points matches the step_size
+    total_range_width = (n_points - 1) * step_size
+    range_half_width = total_range_width / 2.0
+    
     min_val = estimated_minimum - range_half_width
     max_val = estimated_minimum + range_half_width
     

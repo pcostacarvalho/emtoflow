@@ -92,12 +92,12 @@ def generate_parameter_vector_around_estimate(
     estimated_minimum: float,
     step_size: float,
     n_points: int = 14,
-    expansion_factor: float = 3.0
 ) -> List[float]:
     """
     Generate parameter vector centered around estimated minimum.
     
-    Range: [estimate - expansion_factor*step_size, estimate + expansion_factor*step_size]
+    Range width is automatically calculated: range_width = (n_points - 1) × step_size
+    Range: [estimate - half_width, estimate + half_width]
     Returns sorted list of n_points evenly spaced values.
     """
 ```
@@ -226,7 +226,6 @@ def optimize_sws_with_expansion(...):
                 estimated_minimum=morse_min,
                 step_size=config.get('sws_step', 0.05),
                 n_points=initial_n_points,
-                expansion_factor=config.get('eos_expansion_factor', 3.0)
             )
             
             # Step 7: Identify which points need calculation
@@ -330,7 +329,8 @@ def run_calculations_for_parameter_values(
 ```yaml
 # Automatic range expansion
 eos_auto_expand_range: false  # Enable automatic expansion (default: false)
-eos_expansion_factor: 3.0  # Range factor: ±factor*step_size around estimate (default: 3.0)
+# Note: Range width is automatically calculated from number of points and step_size
+#   range_width = (n_points - 1) × step_size, centered around estimated minimum
 # Note: Expanded vector uses same number of points as initial user input
 
 # Data usage for EOS fitting
