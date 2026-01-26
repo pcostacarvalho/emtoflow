@@ -172,6 +172,7 @@ def optimize_ca_ratio(
     energy_workflow_points = list(energy_values)
 
     # Run EOS fit (with error handling for failed fits)
+    # Initial fit: NO symmetric selection (fit all points to check if expansion needed)
     eos_fit_failed = False
     eos_fit_error_msg = None
     try:
@@ -181,7 +182,8 @@ def optimize_ca_ratio(
             output_path=phase_path,
             job_name=f"{config['job_name']}_ca",
             comment=f"c/a optimization for {config['job_name']}",
-            eos_type=config.get('eos_type', 'MO88')
+            eos_type=config.get('eos_type', 'MO88'),
+            use_symmetric_selection=False  # No symmetric selection for initial fit
         )
         
         # Handle both old (2-tuple) and new (3-tuple) return signatures for backward compatibility
@@ -241,14 +243,18 @@ def optimize_ca_ratio(
                 ca_workflow_points, energy_workflow_points
             )
             
+            # Use estimate even if fit quality is poor (warn user)
             if not morse_info['is_valid']:
-                raise RuntimeError(
-                    f"Cannot estimate Morse EOS minimum (R² = {morse_info['r_squared']:.3f}). "
-                    f"Please manually expand parameter range."
-                )
-            
-            print(f"  Morse EOS estimate: minimum at {morse_min:.6f} "
-                  f"(R² = {morse_info['r_squared']:.3f})")
+                if morse_info.get('error'):
+                    print(f"  ⚠ Morse fit failed: {morse_info['error']}")
+                    print(f"  Using minimum from data: {morse_min:.6f}")
+                else:
+                    print(f"  ⚠ Morse fit quality is poor (R² = {morse_info['r_squared']:.3f})")
+                    print(f"  Using estimated minimum anyway: {morse_min:.6f}")
+                    print(f"  (This may not be accurate - consider manually expanding range)")
+            else:
+                print(f"  Morse EOS estimate: minimum at {morse_min:.6f} "
+                      f"(R² = {morse_info['r_squared']:.3f})")
             
             # Generate new parameter vector (use same number of points as initial)
             initial_n_points = len(ca_values_for_fit)
@@ -319,7 +325,8 @@ def optimize_ca_ratio(
                     output_path=phase_path,
                     job_name=f"{config['job_name']}_ca",
                     comment=f"c/a optimization (after expansion) for {config['job_name']}",
-                    eos_type=config.get('eos_type', 'MO88')
+                    eos_type=config.get('eos_type', 'MO88'),
+                    use_symmetric_selection=config.get('symmetric_fit', False)  # Use config setting after expansion
                 )
                 
                 # Handle return signature
@@ -755,6 +762,7 @@ def optimize_sws(
     energy_workflow_points = list(energy_values)
 
     # Run EOS fit (with error handling for failed fits)
+    # Initial fit: NO symmetric selection (fit all points to check if expansion needed)
     eos_fit_failed = False
     eos_fit_error_msg = None
     try:
@@ -764,7 +772,8 @@ def optimize_sws(
             output_path=phase_path,
             job_name=f"{config['job_name']}_sws",
             comment=f"SWS optimization for {config['job_name']} at c/a={optimal_ca:.4f}",
-            eos_type=config.get('eos_type', 'MO88')
+            eos_type=config.get('eos_type', 'MO88'),
+            use_symmetric_selection=False  # No symmetric selection for initial fit
         )
         
         # Handle both old (2-tuple) and new (3-tuple) return signatures for backward compatibility
@@ -824,14 +833,18 @@ def optimize_sws(
                 sws_workflow_points, energy_workflow_points
             )
             
+            # Use estimate even if fit quality is poor (warn user)
             if not morse_info['is_valid']:
-                raise RuntimeError(
-                    f"Cannot estimate Morse EOS minimum (R² = {morse_info['r_squared']:.3f}). "
-                    f"Please manually expand parameter range."
-                )
-            
-            print(f"  Morse EOS estimate: minimum at {morse_min:.6f} "
-                  f"(R² = {morse_info['r_squared']:.3f})")
+                if morse_info.get('error'):
+                    print(f"  ⚠ Morse fit failed: {morse_info['error']}")
+                    print(f"  Using minimum from data: {morse_min:.6f}")
+                else:
+                    print(f"  ⚠ Morse fit quality is poor (R² = {morse_info['r_squared']:.3f})")
+                    print(f"  Using estimated minimum anyway: {morse_min:.6f}")
+                    print(f"  (This may not be accurate - consider manually expanding range)")
+            else:
+                print(f"  Morse EOS estimate: minimum at {morse_min:.6f} "
+                      f"(R² = {morse_info['r_squared']:.3f})")
             
             # Generate new parameter vector (use same number of points as initial)
             initial_n_points = len(sws_values_for_fit)
@@ -902,7 +915,8 @@ def optimize_sws(
                     output_path=phase_path,
                     job_name=f"{config['job_name']}_sws",
                     comment=f"SWS optimization (after expansion) for {config['job_name']} at c/a={optimal_ca:.4f}",
-                    eos_type=config.get('eos_type', 'MO88')
+                    eos_type=config.get('eos_type', 'MO88'),
+                    use_symmetric_selection=config.get('symmetric_fit', False)  # Use config setting after expansion
                 )
                 
                 # Handle return signature

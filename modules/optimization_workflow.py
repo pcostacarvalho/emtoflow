@@ -400,7 +400,8 @@ class OptimizationWorkflow:
         output_path: Union[str, Path],
         job_name: str,
         comment: str,
-        eos_type: Optional[str] = None
+        eos_type: Optional[str] = None,
+        use_symmetric_selection: Optional[bool] = None
     ) -> Tuple[float, Dict[str, Any], Dict[str, Any]]:
         """
         Run EMTO EOS executable and parse results.
@@ -422,6 +423,8 @@ class OptimizationWorkflow:
         eos_type : str, optional
             EOS fit type (MO88, POLN, SPLN, MU37, ALL)
             If None, uses config['eos_type']
+        use_symmetric_selection : bool, optional
+            Whether to use symmetric point selection. If None, uses config['symmetric_fit']
 
         Returns
         -------
@@ -435,8 +438,9 @@ class OptimizationWorkflow:
         if eos_type is None:
             eos_type = self.config.get('eos_type', 'MO88')
 
-        # Get symmetric selection parameters from config (with defaults)
-        use_symmetric_selection = self.config.get('symmetric_fit', True)
+        # Get symmetric selection parameters
+        if use_symmetric_selection is None:
+            use_symmetric_selection = self.config.get('symmetric_fit', True)
         n_points_final = self.config.get('n_points_final', 7)
 
         return run_eos_fit(
