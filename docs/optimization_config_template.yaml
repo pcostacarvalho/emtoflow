@@ -218,6 +218,10 @@ eos_auto_expand_range: false         # Enable automatic range expansion (default
                                      # When enabled: If equilibrium falls outside input range or
                                      # EOS fit returns NaN values, automatically:
                                      # 1. Estimates minimum using Modified Morse EOS fitting
+                                     #    - Uses robust convergence (maxfev=20000, method='trf')
+                                     #    - Safety check: If energy decreasing and estimate < max(param),
+                                     #      uses max(param) instead (estimation was wrong)
+                                     #    - If fit fails: Uses max(param) if energy decreasing, else min(param)
                                      # 2. Generates new parameter vector centered around estimate
                                      #    (uses same number of points as initial user input)
                                      # 3. Runs calculations for new points (if needed)
@@ -245,6 +249,15 @@ eos_use_saved_data: false            # Choose data source for EOS fitting (defau
                                      #   - After expansion, uses only workflow points (initial + newly calculated)
                                      # Saving to file happens automatically regardless of this flag
                                      # Saved files: {phase_path}/sws_energy_data.json or {phase_path}/ca_energy_data.json
+
+# Final fit data source after expansion
+eos_use_all_saved_for_final_fit: false  # Use all saved data for final fit after expansion (default: false)
+                                         # When true: After expansion, use ALL points from saved file for final EOS fit
+                                         #   - Includes original workflow points + expanded points + any previous runs
+                                         # When false: After expansion, use ONLY the expanded parameter vector for final fit
+                                         #   - Uses only the newly generated points around the estimated minimum
+                                         #   - This is the default and recommended for focused fitting
+                                         # Note: This only affects the final fit after expansion, not the initial fit
 
 
 # ------------------------------------------------------------------------------

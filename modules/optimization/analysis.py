@@ -1081,7 +1081,8 @@ def detect_expansion_needed(
     eos_results: Dict[str, Any],
     param_values: List[float],
     energy_values: List[float],
-    equilibrium_value: float
+    equilibrium_value: float,
+    check_monotonic: bool = True
 ) -> Tuple[bool, str]:
     """
     Determine if parameter range expansion is needed.
@@ -1099,6 +1100,9 @@ def detect_expansion_needed(
         Energy values used in fit
     equilibrium_value : float
         Equilibrium value from EOS fit (may be NaN)
+    check_monotonic : bool
+        Whether to check for monotonic energy at boundaries (default: True)
+        Set to False after expansion to only check equilibrium position
     
     Returns
     -------
@@ -1134,9 +1138,9 @@ def detect_expansion_needed(
     if equilibrium_value > param_max:
         return True, f"Equilibrium ({equilibrium_value:.6f}) above maximum parameter ({param_max:.6f})"
     
-    # Check 3: Energy monotonic at boundaries
-    # Check if energy still decreasing at maximum
-    if len(energy_values) >= 2:
+    # Check 3: Energy monotonic at boundaries (only if check_monotonic=True)
+    # Skip this check after expansion - equilibrium position is sufficient
+    if check_monotonic and len(energy_values) >= 2:
         energy_at_max = energy_values[-1]
         energy_before_max = energy_values[-2]
         if energy_at_max < energy_before_max:
@@ -1328,6 +1332,19 @@ def estimate_morse_minimum(
         # Validate: reasonable fit (R² > 0.7) and valid parameters
         is_valid = (r_squared > 0.7) and np.all(np.isfinite([a, b, c, lam])) and (c > 0)
         
+        # Check energy trend
+        energy_decreasing = energy_values[-1] < energy_values[0]
+        param_max = float(np.max(param_values))
+        
+        # Safety check: If energy is decreasing, the minimum should be >= max(param_values)
+        # If estimated minimum is smaller than max, the estimation is wrong - use max instead
+        if energy_decreasing and estimated_min_param < param_max:
+            # Estimation is wrong - energy is decreasing so minimum should be beyond max
+            estimated_min_param = param_max
+            estimated_min_energy = float(energy_values[np.argmax(param_values)])
+            # Mark as invalid since we had to correct it
+            is_valid = False
+        
         # Always use the calculated Morse minimum (global minimum of curve)
         # User wants the global minimum of the curve, not the data minimum
         # The calculated minimum may be outside the data range, which is expected
@@ -1346,10 +1363,20 @@ def estimate_morse_minimum(
         }
         
     except Exception as e:
-        # Fallback: use minimum from data
-        min_idx = np.argmin(energy_values)
-        estimated_min_param = float(param_values[min_idx])
-        estimated_min_energy = float(energy_values[min_idx])
+        # Fallback: if energy is decreasing, use max(param_values)
+        # Otherwise use minimum from data
+        energy_decreasing = energy_values[-1] < energy_values[0]
+        
+        if energy_decreasing:
+            # Energy is decreasing - minimum should be beyond max, use max as fallback
+            max_idx = np.argmax(param_values)
+            estimated_min_param = float(param_values[max_idx])
+            estimated_min_energy = float(energy_values[max_idx])
+        else:
+            # Energy is increasing or has minimum in range - use data minimum
+            min_idx = np.argmin(energy_values)
+            estimated_min_param = float(param_values[min_idx])
+            estimated_min_energy = float(energy_values[min_idx])
         
         fit_info = {
             'morse_params': None,

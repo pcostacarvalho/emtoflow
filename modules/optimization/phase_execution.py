@@ -274,6 +274,9 @@ def optimize_ca_ratio(
             print(f"  New points to calculate: {len(new_points_to_calculate)}")
             print(f"  New range: [{min(new_ca_values):.4f}, {max(new_ca_values):.4f}]")
             
+            # Dictionary to map c/a values to energies (for lookup)
+            ca_to_energy = dict(zip(ca_workflow_points, energy_workflow_points))
+            
             if new_points_to_calculate:
                 print(f"  Calculating {len(new_points_to_calculate)} new points...")
                 # Run calculations for new points
@@ -288,41 +291,59 @@ def optimize_ca_ratio(
                     validate_calculations_func=validate_calculations_func
                 )
                 
-                # Merge with existing workflow points
-                all_ca_values = ca_workflow_points + new_ca_calculated
-                all_energy_values = energy_workflow_points + new_energy_values
+                # Update dictionary with new calculated values
+                for ca, energy in zip(new_ca_calculated, new_energy_values):
+                    ca_to_energy[ca] = energy
             else:
                 print(f"  All points already calculated, using existing data")
-                all_ca_values = list(ca_workflow_points)
-                all_energy_values = list(energy_workflow_points)
+            
+            # For final fit, use ONLY the expanded parameter vector (new_ca_values)
+            # Extract energies for these specific c/a values
+            expanded_ca_values = []
+            expanded_energy_values = []
+            for ca in new_ca_values:
+                if ca in ca_to_energy:
+                    expanded_ca_values.append(ca)
+                    expanded_energy_values.append(ca_to_energy[ca])
+                else:
+                    print(f"  ⚠ Warning: No energy found for c/a={ca:.4f}, skipping")
             
             # Sort by parameter value
-            sorted_pairs = sorted(zip(all_ca_values, all_energy_values))
-            all_ca_values = [c for c, e in sorted_pairs]
-            all_energy_values = [e for c, e in sorted_pairs]
+            sorted_pairs = sorted(zip(expanded_ca_values, expanded_energy_values))
+            expanded_ca_values = [c for c, e in sorted_pairs]
+            expanded_energy_values = [e for c, e in sorted_pairs]
             
-            # ALWAYS save updated workflow data to file (automatic, no option)
+            # ALWAYS save all workflow data to file (automatic, no option)
+            # Save combined data (original + expanded) for future use
+            all_ca_values = ca_workflow_points + expanded_ca_values
+            all_energy_values = energy_workflow_points + expanded_energy_values
             from modules.optimization.analysis import save_parameter_energy_data
             save_parameter_energy_data(phase_path, 'ca', all_ca_values, all_energy_values)
             
-            # Choose data source for EOS fitting based on user flag
-            if use_saved_data:
+            # Choose data source for final fit based on user flag
+            use_all_saved_for_final_fit = config.get('eos_use_all_saved_for_final_fit', False)
+            if use_all_saved_for_final_fit:
+                # Use all saved data from file (may include previous runs)
                 saved_ca, saved_energy = load_parameter_energy_data(phase_path, 'ca')
                 if saved_ca:
-                    print(f"  Using all {len(saved_ca)} points from saved file for EOS fit")
-                    # Use all saved data (current workflow data is already in saved file)
-                    all_ca_values = saved_ca
-                    all_energy_values = saved_energy
+                    print(f"  Using all {len(saved_ca)} saved points for final fit")
+                    final_ca_values = saved_ca
+                    final_energy_values = saved_energy
                 else:
-                    print(f"  No saved file found, using workflow points only")
+                    print(f"  No saved file found, using expanded parameter vector")
+                    final_ca_values = expanded_ca_values
+                    final_energy_values = expanded_energy_values
             else:
-                print(f"  Using workflow points only ({len(all_ca_values)} points)")
+                # Use ONLY the expanded parameter vector (default)
+                print(f"  Using expanded parameter vector only ({len(expanded_ca_values)} points) for final fit")
+                final_ca_values = expanded_ca_values
+                final_energy_values = expanded_energy_values
             
-            # Re-fit EOS with all points (symmetric selection only if user enabled it)
+            # Re-fit EOS with selected data (symmetric selection only if user enabled it)
             try:
                 eos_fit_result = run_eos_fit_func(
-                    r_or_v_data=all_ca_values,
-                    energy_data=all_energy_values,
+                    r_or_v_data=final_ca_values,
+                    energy_data=final_energy_values,
                     output_path=phase_path,
                     job_name=f"{config['job_name']}_ca",
                     comment=f"c/a optimization (after expansion) for {config['job_name']}",
@@ -338,8 +359,10 @@ def optimize_ca_ratio(
                     optimal_ca, eos_results, symmetric_metadata = eos_fit_result
                 
                 # Check if converged after expansion
+                # Don't check monotonicity after expansion - only check if equilibrium is within range
                 needs_expansion_again, reason_again = detect_expansion_needed(
-                    eos_results, all_ca_values, all_energy_values, optimal_ca
+                    eos_results, final_ca_values, final_energy_values, optimal_ca,
+                    check_monotonic=False  # Skip monotonic check after expansion
                 )
             except Exception as e:
                 # Post-expansion fit also failed - estimate and suggest value
@@ -364,13 +387,13 @@ def optimize_ca_ratio(
                 symmetric_metadata = {}
             
             if needs_expansion_again:
-                # Estimate Morse EOS from all data and suggest value
+                # Estimate Morse EOS from final fit data and suggest value
                 morse_min2, _, morse_info2 = estimate_morse_minimum(
-                    all_ca_values, all_energy_values
+                    final_ca_values, final_energy_values
                 )
                 
                 print(f"\n⚠ EOS fit still not adequate after expansion")
-                print(f"  Estimated equilibrium from all data: {morse_min2:.6f}")
+                print(f"  Estimated equilibrium from final fit data: {morse_min2:.6f}")
                 if morse_info2.get('morse_params'):
                     print(f"  Morse fit R²: {morse_info2['r_squared']:.3f}")
                 
@@ -379,22 +402,23 @@ def optimize_ca_ratio(
                 raise RuntimeError(
                     f"Failed to find equilibrium after expansion.\n\n"
                     f"Initial range: [{min(ca_values_for_fit):.6f}, {max(ca_values_for_fit):.6f}]\n"
-                    f"Expanded range: [{min(all_ca_values):.6f}, {max(all_ca_values):.6f}]\n"
+                    f"Expanded range: [{min(expanded_ca_values):.6f}, {max(expanded_ca_values):.6f}]\n"
+                    f"Final fit used: {len(final_ca_values)} points\n"
                     f"Reason: {reason_again}\n\n"
-                    f"Estimated equilibrium from all data: {morse_min2:.6f}\n"
+                    f"Estimated equilibrium from final fit data: {morse_min2:.6f}\n"
                     f"Fit quality (R²): {morse_info2['r_squared']:.3f}\n\n"
                     f"SUGGESTION: Re-run optimization with:\n"
                     f"  ca_ratios centered around {suggested_initial:.6f}"
                 )
             
-            # Update for results
-            ca_values_for_fit = all_ca_values
-            energy_values_for_fit = all_energy_values
+            # Update for results - use final fit values
+            ca_values_for_fit = final_ca_values
+            energy_values_for_fit = final_energy_values
             
             expansion_metadata = {
                 'expansion_used': True,
                 'morse_estimate': morse_min,
-                'expanded_range': (min(all_ca_values), max(all_ca_values)),
+                'expanded_range': (min(expanded_ca_values), max(expanded_ca_values)),
                 'points_added': len(new_points_to_calculate) if new_points_to_calculate else 0,
                 'converged_after_expansion': not needs_expansion_again
             }
@@ -865,6 +889,9 @@ def optimize_sws(
             print(f"  New points to calculate: {len(new_points_to_calculate)}")
             print(f"  New range: [{min(new_sws_values):.4f}, {max(new_sws_values):.4f}]")
             
+            # Dictionary to map SWS values to energies (for lookup)
+            sws_to_energy = dict(zip(sws_workflow_points, energy_workflow_points))
+            
             if new_points_to_calculate:
                 print(f"  Calculating {len(new_points_to_calculate)} new points...")
                 # Run calculations for new points
@@ -879,41 +906,59 @@ def optimize_sws(
                     validate_calculations_func=validate_calculations_func
                 )
                 
-                # Merge with existing workflow points
-                all_sws_values = sws_workflow_points + new_sws_calculated
-                all_energy_values = energy_workflow_points + new_energy_values
+                # Update dictionary with new calculated values
+                for sws, energy in zip(new_sws_calculated, new_energy_values):
+                    sws_to_energy[sws] = energy
             else:
                 print(f"  All points already calculated, using existing data")
-                all_sws_values = list(sws_workflow_points)
-                all_energy_values = list(energy_workflow_points)
+            
+            # For final fit, use ONLY the expanded parameter vector (new_sws_values)
+            # Extract energies for these specific SWS values
+            expanded_sws_values = []
+            expanded_energy_values = []
+            for sws in new_sws_values:
+                if sws in sws_to_energy:
+                    expanded_sws_values.append(sws)
+                    expanded_energy_values.append(sws_to_energy[sws])
+                else:
+                    print(f"  ⚠ Warning: No energy found for SWS={sws:.4f}, skipping")
             
             # Sort by parameter value
-            sorted_pairs = sorted(zip(all_sws_values, all_energy_values))
-            all_sws_values = [s for s, e in sorted_pairs]
-            all_energy_values = [e for s, e in sorted_pairs]
+            sorted_pairs = sorted(zip(expanded_sws_values, expanded_energy_values))
+            expanded_sws_values = [s for s, e in sorted_pairs]
+            expanded_energy_values = [e for s, e in sorted_pairs]
             
-            # ALWAYS save updated workflow data to file (automatic, no option)
+            # ALWAYS save all workflow data to file (automatic, no option)
+            # Save combined data (original + expanded) for future use
+            all_sws_values = sws_workflow_points + expanded_sws_values
+            all_energy_values = energy_workflow_points + expanded_energy_values
             from modules.optimization.analysis import save_parameter_energy_data
             save_parameter_energy_data(phase_path, 'sws', all_sws_values, all_energy_values)
             
-            # Choose data source for EOS fitting based on user flag
-            if use_saved_data:
+            # Choose data source for final fit based on user flag
+            use_all_saved_for_final_fit = config.get('eos_use_all_saved_for_final_fit', False)
+            if use_all_saved_for_final_fit:
+                # Use all saved data from file (may include previous runs)
                 saved_sws, saved_energy = load_parameter_energy_data(phase_path, 'sws')
                 if saved_sws:
-                    print(f"  Using all {len(saved_sws)} points from saved file for EOS fit")
-                    # Use all saved data (current workflow data is already in saved file)
-                    all_sws_values = saved_sws
-                    all_energy_values = saved_energy
+                    print(f"  Using all {len(saved_sws)} saved points for final fit")
+                    final_sws_values = saved_sws
+                    final_energy_values = saved_energy
                 else:
-                    print(f"  No saved file found, using workflow points only")
+                    print(f"  No saved file found, using expanded parameter vector")
+                    final_sws_values = expanded_sws_values
+                    final_energy_values = expanded_energy_values
             else:
-                print(f"  Using workflow points only ({len(all_sws_values)} points)")
+                # Use ONLY the expanded parameter vector (default)
+                print(f"  Using expanded parameter vector only ({len(expanded_sws_values)} points) for final fit")
+                final_sws_values = expanded_sws_values
+                final_energy_values = expanded_energy_values
             
-            # Re-fit EOS with all points (symmetric selection only if user enabled it)
+            # Re-fit EOS with selected data (symmetric selection only if user enabled it)
             try:
                 eos_fit_result = run_eos_fit_func(
-                    r_or_v_data=all_sws_values,
-                    energy_data=all_energy_values,
+                    r_or_v_data=final_sws_values,
+                    energy_data=final_energy_values,
                     output_path=phase_path,
                     job_name=f"{config['job_name']}_sws",
                     comment=f"SWS optimization (after expansion) for {config['job_name']} at c/a={optimal_ca:.4f}",
@@ -929,8 +974,10 @@ def optimize_sws(
                     optimal_sws, eos_results, symmetric_metadata = eos_fit_result
                 
                 # Check if converged after expansion
+                # Don't check monotonicity after expansion - only check if equilibrium is within range
                 needs_expansion_again, reason_again = detect_expansion_needed(
-                    eos_results, all_sws_values, all_energy_values, optimal_sws
+                    eos_results, final_sws_values, final_energy_values, optimal_sws,
+                    check_monotonic=False  # Skip monotonic check after expansion
                 )
             except Exception as e:
                 # Post-expansion fit also failed - estimate and suggest value
@@ -955,13 +1002,13 @@ def optimize_sws(
                 symmetric_metadata = {}
             
             if needs_expansion_again:
-                # Estimate Morse EOS from all data and suggest value
+                # Estimate Morse EOS from final fit data and suggest value
                 morse_min2, _, morse_info2 = estimate_morse_minimum(
-                    all_sws_values, all_energy_values
+                    final_sws_values, final_energy_values
                 )
                 
                 print(f"\n⚠ EOS fit still not adequate after expansion")
-                print(f"  Estimated equilibrium from all data: {morse_min2:.6f}")
+                print(f"  Estimated equilibrium from final fit data: {morse_min2:.6f}")
                 if morse_info2.get('morse_params'):
                     print(f"  Morse fit R²: {morse_info2['r_squared']:.3f}")
                 
@@ -970,23 +1017,24 @@ def optimize_sws(
                 raise RuntimeError(
                     f"Failed to find equilibrium after expansion.\n\n"
                     f"Initial range: [{min(sws_values_for_fit):.6f}, {max(sws_values_for_fit):.6f}]\n"
-                    f"Expanded range: [{min(all_sws_values):.6f}, {max(all_sws_values):.6f}]\n"
+                    f"Expanded range: [{min(expanded_sws_values):.6f}, {max(expanded_sws_values):.6f}]\n"
+                    f"Final fit used: {len(final_sws_values)} points\n"
                     f"Reason: {reason_again}\n\n"
-                    f"Estimated equilibrium from all data: {morse_min2:.6f}\n"
+                    f"Estimated equilibrium from final fit data: {morse_min2:.6f}\n"
                     f"Fit quality (R²): {morse_info2['r_squared']:.3f}\n\n"
                     f"SUGGESTION: Re-run optimization with:\n"
                     f"  initial_sws: {suggested_initial:.6f}\n"
                     f"  (or sws_values centered around {suggested_initial:.6f})"
                 )
             
-            # Update for results
-            sws_values_for_fit = all_sws_values
-            energy_values_for_fit = all_energy_values
+            # Update for results - use final fit values
+            sws_values_for_fit = final_sws_values
+            energy_values_for_fit = final_energy_values
             
             expansion_metadata = {
                 'expansion_used': True,
                 'morse_estimate': morse_min,
-                'expanded_range': (min(all_sws_values), max(all_sws_values)),
+                'expanded_range': (min(expanded_sws_values), max(expanded_sws_values)),
                 'points_added': len(new_points_to_calculate) if new_points_to_calculate else 0,
                 'converged_after_expansion': not needs_expansion_again
             }
