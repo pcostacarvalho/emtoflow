@@ -1,0 +1,97 @@
+output_path: Cu0_Mg100
+job_name: CuMg
+cif_file: null
+lat: 2
+a: 3.61
+b: null
+c: null
+alpha: 90
+beta: 90
+gamma: 90
+sites:
+- position:
+  - 0
+  - 0
+  - 0
+  elements:
+  - Cu
+  - Mg
+  concentrations:
+  - 0.0
+  - 1.0
+substitutions: null
+ca_ratios: null
+sws_values: null
+sws_values: [2.52, 2.54, 2.56, 2.59, 2.61, 2.63, 2.65, 2.68, 2.70, 2.72, 2.75, 2.77] #, 2.79, 2.80, 2.82, 2.84, 2.85, 2.86, 2.87, 2.88, 2.89, 2.90, 2.92, 2.94, 2.96, 2.98, 3.01, 3.03, 3.05, 3.08, 3.10,3.30, 4.00]
+auto_generate: true
+ca_step: 0.02
+sws_step: 0.05
+n_points: 7
+initial_sws: null
+dmax: 1.8
+magnetic: P
+user_magnetic_moments:
+  Cu: 0.0
+  Mg: 0.0
+functional: GGA
+nkx: 21
+nky: 21
+nkz: 21
+rescale_k: true
+optimize_ca: false
+optimize_sws: true
+optimize_dmax: false
+dmax_initial: 2.0
+dmax_target_vectors: 100
+dmax_vector_tolerance: 15
+kstr_executable: /home/x_pamca/postdoc_proj/emto/bin/kstr.exe
+run_mode: local
+prcs: 8
+slurm_account: naiss2025-1-38
+slurm_partition: main
+slurm_time: 02:00:00
+create_job_script: true
+job_mode: serial
+shape_executable: /home/x_pamca/postdoc_proj/emto/bin/shape.exe
+kgrn_executable: /home/x_pamca/postdoc_proj/emto/bin/kgrn_mpi.x
+kfcd_executable: /home/x_pamca/postdoc_proj/emto/bin/kfcd.exe
+eos_executable: /home/x_pamca/postdoc_proj/emto/bin/eos.exe
+eos_type: "MO88"                     # EOS fitting type:
+                                     # "MO88" = Morse (default)
+                                     # "POLN" = Polynomial
+                                     # "SPLN" = Spline
+                                     # "MU37" = Murnaghan
+                                     # "ALL" = Fit all types
+
+# Symmetric EOS fitting - Automatically selects symmetric points around equilibrium
+symmetric_fit: true           
+n_points_final: 5                   
+eos_auto_expand_range: true        
+eos_use_saved_data: false                          
+generate_plots: true
+export_csv: trued
+plot_format: png
+generate_dos: true
+dos_plot_range:
+- -0.8
+- 0.15
+reference_ca: null
+reference_sws: null
+reference_volume: null
+poll_interval: 30
+max_wait_time: 7200
+timeout_action: stop
+skip_existing: false
+save_intermediate: true
+cleanup_temp: false
+log_level: INFO
+prepare_only: false
+loop_perc:
+  enabled: false
+  start: 0
+  end: 100
+  step: 10
+  site_index: 0
+  element_index: 0
+  phase_diagram: false
+  percentages: null

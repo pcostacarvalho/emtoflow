@@ -283,31 +283,37 @@ def parse_morse_fit(lines: List[str], start_idx: int) -> Optional[EOSParameters]
             if match_ifail:
                 ifail = int(match_ifail.group(1))
 
-        # Extract ground state parameters
+        # Extract ground state parameters (handle NaN values)
         if 'Rwseq' in line and '=' in line:
-            match = re.search(r'=\s*([\d.+-]+)', line)
+            match = re.search(r'=\s*([\d.Na+-]+)', line, re.IGNORECASE)
             if match:
-                params['rwseq'] = float(match.group(1))
+                val_str = match.group(1).strip()
+                params['rwseq'] = float('nan') if val_str.upper() == 'NAN' else float(val_str)
         elif 'V_eq' in line and '=' in line:
-            match = re.search(r'=\s*([\d.+-]+)', line)
+            match = re.search(r'=\s*([\d.Na+-]+)', line, re.IGNORECASE)
             if match:
-                params['v_eq'] = float(match.group(1))
+                val_str = match.group(1).strip()
+                params['v_eq'] = float('nan') if val_str.upper() == 'NAN' else float(val_str)
         elif 'Eeq' in line and '=' in line:
-            match = re.search(r'=\s*([\d.E+-]+)', line)
+            match = re.search(r'=\s*([\d.ENa+-]+)', line, re.IGNORECASE)
             if match:
-                params['eeq'] = float(match.group(1))
+                val_str = match.group(1).strip()
+                params['eeq'] = float('nan') if val_str.upper() == 'NAN' else float(val_str)
         elif 'Bmod' in line and '=' in line:
-            match = re.search(r'=\s*([\d.+-]+)', line)
+            match = re.search(r'=\s*([\d.Na+-]+)', line, re.IGNORECASE)
             if match:
-                params['bmod'] = float(match.group(1))
+                val_str = match.group(1).strip()
+                params['bmod'] = float('nan') if val_str.upper() == 'NAN' else float(val_str)
         elif "B'" in line and '=' in line:
-            match = re.search(r'=\s*([\d.+-]+)', line)
+            match = re.search(r'=\s*([\d.Na+-]+)', line, re.IGNORECASE)
             if match:
-                params['b_prime'] = float(match.group(1))
+                val_str = match.group(1).strip()
+                params['b_prime'] = float('nan') if val_str.upper() == 'NAN' else float(val_str)
         elif 'Gamma' in line and '=' in line:
-            match = re.search(r'=\s*([\d.+-]+)', line)
+            match = re.search(r'=\s*([\d.Na+-]+)', line, re.IGNORECASE)
             if match:
-                params['gamma'] = float(match.group(1))
+                val_str = match.group(1).strip()
+                params['gamma'] = float('nan') if val_str.upper() == 'NAN' else float(val_str)
 
         # Extract Morse-specific parameters
         if 'a        =' in line:

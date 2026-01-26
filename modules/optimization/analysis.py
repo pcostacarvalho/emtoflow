@@ -524,7 +524,9 @@ def _run_single_eos_fit(
 
         print(f"\nParsed {len(results)} EOS fit(s):")
         for fit_name, params in results.items():
-            print(f"  {fit_name}: rwseq = {params.rwseq:.6f}, eeq = {params.eeq:.6f} Ry")
+            rwseq_str = f"{params.rwseq:.6f}" if not np.isnan(params.rwseq) else "NaN"
+            eeq_str = f"{params.eeq:.6f}" if not np.isnan(params.eeq) else "NaN"
+            print(f"  {fit_name}: rwseq = {rwseq_str}, eeq = {eeq_str} Ry")
 
     except Exception as e:
         raise RuntimeError(f"Failed to parse EOS output: {e}")
@@ -545,8 +547,10 @@ def _run_single_eos_fit(
         raise RuntimeError("No valid EOS fit found in results")
 
     optimal_value = results[primary_fit].rwseq
+    # If optimal_value is NaN, we'll let detect_expansion_needed handle it
 
-    print(f"\n✓ Using {primary_fit} fit: optimal value = {optimal_value:.6f}")
+    optimal_str = f"{optimal_value:.6f}" if not np.isnan(optimal_value) else "NaN"
+    print(f"\n✓ Using {primary_fit} fit: optimal value = {optimal_str}")
     print(f"{'='*70}\n")
 
     return optimal_value, results

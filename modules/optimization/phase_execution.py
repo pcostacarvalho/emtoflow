@@ -205,12 +205,17 @@ def optimize_ca_ratio(
         print("  Proceeding with expansion check using Morse estimation...")
         
         # Create dummy results for detect_expansion_needed
-        from modules.inputs.eos_emto import EOSParams
-        dummy_params = EOSParams(
+        from modules.inputs.eos_emto import EOSParameters
+        dummy_params = EOSParameters(
+            eos_type='morse',
             rwseq=float('nan'),
             v_eq=float('nan'),
             eeq=float('nan'),
-            bmod=float('nan')
+            bmod=float('nan'),
+            b_prime=0.0,
+            gamma=0.0,
+            fsumsq=float('inf'),
+            fit_quality='failed'
         )
         eos_results = {'morse': dummy_params}
         optimal_ca = float('nan')
@@ -334,12 +339,17 @@ def optimize_ca_ratio(
                 needs_expansion_again = True
                 reason_again = f"Post-expansion EOS fit failed: {e}"
                 # Create dummy results for estimation
-                from modules.inputs.eos_emto import EOSParams
-                dummy_params = EOSParams(
+                from modules.inputs.eos_emto import EOSParameters
+                dummy_params = EOSParameters(
+                    eos_type='morse',
                     rwseq=float('nan'),
                     v_eq=float('nan'),
                     eeq=float('nan'),
-                    bmod=float('nan')
+                    bmod=float('nan'),
+                    b_prime=0.0,
+                    gamma=0.0,
+                    fsumsq=float('inf'),
+                    fit_quality='failed'
                 )
                 eos_results = {'morse': dummy_params}
                 optimal_ca = float('nan')
@@ -778,12 +788,17 @@ def optimize_sws(
         print("  Proceeding with expansion check using Morse estimation...")
         
         # Create dummy results for detect_expansion_needed
-        from modules.inputs.eos_emto import EOSParams
-        dummy_params = EOSParams(
+        from modules.inputs.eos_emto import EOSParameters
+        dummy_params = EOSParameters(
+            eos_type='morse',
             rwseq=float('nan'),
             v_eq=float('nan'),
             eeq=float('nan'),
-            bmod=float('nan')
+            bmod=float('nan'),
+            b_prime=0.0,
+            gamma=0.0,
+            fsumsq=float('inf'),
+            fit_quality='failed'
         )
         eos_results = {'morse': dummy_params}
         optimal_sws = float('nan')
@@ -907,12 +922,17 @@ def optimize_sws(
                 needs_expansion_again = True
                 reason_again = f"Post-expansion EOS fit failed: {e}"
                 # Create dummy results for estimation
-                from modules.inputs.eos_emto import EOSParams
-                dummy_params = EOSParams(
+                from modules.inputs.eos_emto import EOSParameters
+                dummy_params = EOSParameters(
+                    eos_type='morse',
                     rwseq=float('nan'),
                     v_eq=float('nan'),
                     eeq=float('nan'),
-                    bmod=float('nan')
+                    bmod=float('nan'),
+                    b_prime=0.0,
+                    gamma=0.0,
+                    fsumsq=float('inf'),
+                    fit_quality='failed'
                 )
                 eos_results = {'morse': dummy_params}
                 optimal_sws = float('nan')
