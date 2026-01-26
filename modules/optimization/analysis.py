@@ -1207,31 +1207,70 @@ def estimate_morse_minimum(
         return a + b * x + c * x * x
     
     # Initial guess for parameters
-    # Use simple estimates based on data
+    # Use estimates based on data and expected behavior
     energy_min = np.min(energy_values)
     energy_max = np.max(energy_values)
     energy_range = energy_max - energy_min
     param_range = np.max(param_values) - np.min(param_values)
+    param_mean = np.mean(param_values)
     
-    # Initial guesses
-    a_init = energy_min  # Offset
-    lam_init = 2.0 / param_range  # Rough estimate for lambda
-    # For b and c, we need b < 0 and c > 0 for a minimum
-    b_init = -energy_range * 0.5
-    c_init = energy_range * 0.3
+    # Initial guesses - improved strategy based on data behavior
+    param_min = float(np.min(param_values))
+    param_max = float(np.max(param_values))
+    
+    # Estimate lambda: use a value that gives reasonable decay
+    # For SWS values around 2-3, lambda typically ranges from 0.5 to 5.0
+    # Use inverse of mean parameter as starting point
+    lam_init = 0.5 / param_mean  # More conservative lambda estimate
+    
+    # Determine energy trend to guess minimum location
+    energy_decreasing = energy_values[-1] < energy_values[0]
+    energy_increasing = energy_values[0] < energy_values[-1]
+    
+    if energy_decreasing:
+        # Energy still decreasing - minimum likely beyond max parameter
+        # Estimate minimum at ~10-20% beyond max
+        r_guess = param_max * 1.15  # 15% beyond max
+    elif energy_increasing:
+        # Energy still increasing - minimum likely before min parameter
+        r_guess = param_min * 0.85  # 15% before min
+    else:
+        # Energy has minimum in range - use center
+        r_guess = param_mean
+    
+    # Calculate initial x0 = exp(-lambda * R_guess) for the guessed minimum
+    x0_init = np.exp(-lam_init * r_guess)
+    
+    # For Morse minimum: -b/(2c) = exp(-λ*R_eq), so we want x0_init ≈ exp(-λ*R_guess)
+    # Set parameters so that the minimum occurs near r_guess
+    # We need: b < 0, c > 0, and -b/(2c) = x0_init
+    
+    # Estimate c from energy curvature (second derivative effect)
+    # Larger energy range suggests larger c
+    c_init = max(energy_range * 0.05, 1e-6)  # Ensure c > 0
+    
+    # Set b so that -b/(2c) = x0_init, i.e., b = -2*c*x0_init
+    b_init = -2.0 * c_init * x0_init
+    
+    # Set a so that energy at r_guess matches energy_min approximately
+    # E(r_guess) = a + b*x0_init + c*x0_init^2 ≈ energy_min
+    a_init = energy_min - b_init * x0_init - c_init * x0_init * x0_init
     
     try:
         # Fit Morse equation
+        # Use increased maxfev and method='trf' for better convergence
+        # (test_morse_estimation.py showed maxfev=20000 and method='trf' work well)
         popt, pcov = curve_fit(
             morse_func,
             param_values,
             energy_values,
             p0=[a_init, b_init, c_init, lam_init],
-            maxfev=5000,
+            maxfev=20000,  # Increased from 5000 for better convergence
             bounds=(
                 [-np.inf, -np.inf, 1e-10, 1e-10],  # Lower bounds
                 [np.inf, np.inf, np.inf, np.inf]    # Upper bounds
-            )
+            ),
+            method='trf'  # Trust Region Reflective - more robust with bounds
         )
         
         a, b, c, lam = popt
@@ -1250,6 +1289,30 @@ def estimate_morse_minimum(
         alx0_eq = np.log(x0_eq)
         estimated_min_param = -alx0_eq / lam
         
+        # #region agent log
+        import json
+        import time
+        log_data = {
+            'sessionId': 'debug-session',
+            'runId': 'morse-estimation',
+            'hypothesisId': 'A',
+            'location': 'analysis.py:1287',
+            'message': 'Morse fit completed - calculated minimum',
+            'data': {
+                'param_range': [float(np.min(param_values)), float(np.max(param_values))],
+                'fitted_params': {'a': float(a), 'b': float(b), 'c': float(c), 'lambda': float(lam)},
+                'x0_eq': float(x0_eq),
+                'estimated_min_param': float(estimated_min_param),
+                'energy_trend': 'decreasing' if energy_values[-1] < energy_values[0] else 'increasing' if energy_values[0] < energy_values[-1] else 'has_minimum'
+            },
+            'timestamp': int(time.time() * 1000)
+        }
+        try:
+            with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps(log_data) + '\n')
+        except: pass
+        # #endregion
+        
         # Calculate energy at equilibrium
         estimated_min_energy = morse_func(estimated_min_param, a, b, c, lam)
         
@@ -1264,6 +1327,11 @@ def estimate_morse_minimum(
         
         # Validate: reasonable fit (R² > 0.7) and valid parameters
         is_valid = (r_squared > 0.7) and np.all(np.isfinite([a, b, c, lam])) and (c > 0)
+        
+        # Always use the calculated Morse minimum (global minimum of curve)
+        # User wants the global minimum of the curve, not the data minimum
+        # The calculated minimum may be outside the data range, which is expected
+        # when energy is still decreasing/increasing at boundaries
         
         fit_info = {
             'morse_params': {

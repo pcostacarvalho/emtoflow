@@ -243,15 +243,16 @@ def optimize_ca_ratio(
                 ca_workflow_points, energy_workflow_points
             )
             
-            # Use estimate even if fit quality is poor (warn user)
+            # Always use the calculated Morse minimum (global minimum of curve)
+            # Warn if fit quality is poor, but still use the calculated value
             if not morse_info['is_valid']:
                 if morse_info.get('error'):
                     print(f"  ⚠ Morse fit failed: {morse_info['error']}")
                     print(f"  Using minimum from data: {morse_min:.6f}")
                 else:
                     print(f"  ⚠ Morse fit quality is poor (R² = {morse_info['r_squared']:.3f})")
-                    print(f"  Using estimated minimum anyway: {morse_min:.6f}")
-                    print(f"  (This may not be accurate - consider manually expanding range)")
+                    print(f"  Using calculated Morse minimum: {morse_min:.6f}")
+                    print(f"  (Fit quality is low - estimate may be unreliable)")
             else:
                 print(f"  Morse EOS estimate: minimum at {morse_min:.6f} "
                       f"(R² = {morse_info['r_squared']:.3f})")
@@ -833,15 +834,16 @@ def optimize_sws(
                 sws_workflow_points, energy_workflow_points
             )
             
-            # Use estimate even if fit quality is poor (warn user)
+            # Always use the calculated Morse minimum (global minimum of curve)
+            # Warn if fit quality is poor, but still use the calculated value
             if not morse_info['is_valid']:
                 if morse_info.get('error'):
                     print(f"  ⚠ Morse fit failed: {morse_info['error']}")
                     print(f"  Using minimum from data: {morse_min:.6f}")
                 else:
                     print(f"  ⚠ Morse fit quality is poor (R² = {morse_info['r_squared']:.3f})")
-                    print(f"  Using estimated minimum anyway: {morse_min:.6f}")
-                    print(f"  (This may not be accurate - consider manually expanding range)")
+                    print(f"  Using calculated Morse minimum: {morse_min:.6f}")
+                    print(f"  (Fit quality is low - estimate may be unreliable)")
             else:
                 print(f"  Morse EOS estimate: minimum at {morse_min:.6f} "
                       f"(R² = {morse_info['r_squared']:.3f})")
