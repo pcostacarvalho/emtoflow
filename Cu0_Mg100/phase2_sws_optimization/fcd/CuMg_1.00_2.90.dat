@@ -1,0 +1,10 @@
+KFCD      HP......=N sno..=100                     xx xxx xx
+JOBNAM...=CuMg_1.00_2.90                         MSGL.=  1
+STRNAM...=CuMg_1.00
+DIR001=../smx/
+DIR002=../chd/
+FOR003=../shp/CuMg_1.00.shp
+DIR004=../smx/
+DIR006=
+Lmaxs.= 30 NTH..= 41 NFI..= 81
+OVCOR.=  Y UBG..=  N NPRN.=  0 NRM..=  0

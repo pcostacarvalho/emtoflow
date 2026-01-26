@@ -1,0 +1,16 @@
+{
+  "job_name": "CuMg",
+  "optimal_ca": 1.0,
+  "optimal_sws": 3.3486604108,
+  "phases_completed": [
+    "phase2_sws_optimization",
+    "phase3_optimized_calculation",
+    "dos_analysis"
+  ],
+  "final_energy": -400.662045,
+  "structure_info": {
+    "lattice_type": 2,
+    "lattice_name": "Face-centered cubic",
+    "num_atoms": 1
+  }
+}

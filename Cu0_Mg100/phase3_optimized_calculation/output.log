@@ -1,0 +1,11 @@
+c/a ratio: 1.00
+Skipping KSTR for c/a=1.00 (output already exists and is complete)
+Info about DMAX:
+ Primv: Construct lattice
+ Latt3d: r_max = 1.80 nriq(iq) =    87 Nshell =    7
+Skipping SHAPE for c/a=1.00 (output already exists and is complete)
+WSW: 3.35
+Running KGRN:
+DONE!
+Running KFCD:
+DONE!
