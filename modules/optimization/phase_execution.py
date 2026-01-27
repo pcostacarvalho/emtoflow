@@ -258,7 +258,8 @@ def optimize_ca_ratio(
             print(f"    1. Check if energy values are reasonable")
             print(f"    2. Try a wider c/a range")
             print(f"    3. Enable 'eos_auto_expand_range: true' to automatically expand range")
-            print(f"    4. Check EOS output file for details: {phase_path / f'{config[\"job_name\"]}_ca.out'}")
+            eos_output_file = phase_path / f"{config['job_name']}_ca.out"
+            print(f"    4. Check EOS output file for details: {eos_output_file}")
             print(f"{'='*70}\n")
             raise RuntimeError(
                 f"EOS fit returned NaN and Morse estimation failed.\n"
