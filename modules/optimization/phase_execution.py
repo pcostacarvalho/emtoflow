@@ -840,6 +840,7 @@ def optimize_sws(
     
     # Check if expansion is needed
     expansion_metadata = {}
+    expansion_used = False
     if config.get('eos_auto_expand_range', False):
         # If EOS fit failed, we definitely need expansion
         if eos_fit_failed:
@@ -1038,6 +1039,47 @@ def optimize_sws(
                 'points_added': len(new_points_to_calculate) if new_points_to_calculate else 0,
                 'converged_after_expansion': not needs_expansion_again
             }
+            expansion_used = True
+    
+    # If no expansion was needed and symmetric_fit is enabled, run final symmetric fit
+    if not expansion_used and config.get('symmetric_fit', False):
+        # Initial fit was done without symmetric selection - now run final fit with symmetric selection
+        print(f"\n{'='*70}")
+        print(f"RUNNING FINAL SYMMETRIC FIT")
+        print(f"{'='*70}")
+        print(f"Selecting {config.get('n_points_final', 7)} points centered around equilibrium...")
+        
+        try:
+            eos_fit_result = run_eos_fit_func(
+                r_or_v_data=sws_values_for_fit,
+                energy_data=energy_values_for_fit,
+                output_path=phase_path,
+                job_name=f"{config['job_name']}_sws",
+                comment=f"SWS optimization (final symmetric fit) for {config['job_name']} at c/a={optimal_ca:.4f}",
+                eos_type=config.get('eos_type', 'MO88'),
+                use_symmetric_selection=True  # Enable symmetric selection for final fit
+            )
+            
+            # Handle return signature
+            if len(eos_fit_result) == 2:
+                optimal_sws, eos_results = eos_fit_result
+                symmetric_metadata = {}
+            else:
+                optimal_sws, eos_results, symmetric_metadata = eos_fit_result
+            
+            # Print warnings if any
+            if symmetric_metadata.get('warnings'):
+                print("\n⚠ Symmetric fit warnings:")
+                for warning in symmetric_metadata['warnings']:
+                    print(f"  {warning}")
+            
+            print(f"\n✓ Final symmetric fit completed: optimal value = {optimal_sws:.6f}")
+            print(f"{'='*70}\n")
+            
+        except Exception as e:
+            print(f"\n⚠ Final symmetric fit failed: {e}")
+            print("  Using initial fit results instead.")
+            # Keep the initial fit results (already set above)
 
     # Generate EOS plot
     try:
