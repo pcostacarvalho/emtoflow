@@ -92,8 +92,8 @@ def generate_percentage_configs(master_config_path: str,
             user_magnetic_moments=master_config.get('user_magnetic_moments')
         )
 
-    # Determine which site to vary and get element information
-    site_idx, elements, base_concentrations = determine_loop_site(
+    # Determine which site(s) to vary and get element information
+    site_indices, elements, base_concentrations = determine_loop_site(
         master_config, structure_pmg
     )
 
@@ -112,7 +112,10 @@ def generate_percentage_configs(master_config_path: str,
 
     print(f"\nGenerating YAML files for {len(compositions)} compositions")
     print(f"Elements: {elements}")
-    print(f"Site index: {site_idx}")
+    if len(site_indices) == 1:
+        print(f"Site index: {site_indices[0]}")
+    else:
+        print(f"Site indices: {site_indices} (same percentages applied to all)")
     print(f"Base folder: {base_folder}")
     print(f"Output directory: {base_folder_path}")
     print("-" * 70)
@@ -134,7 +137,7 @@ def generate_percentage_configs(master_config_path: str,
             composition=composition,
             composition_name=composition_name,
             structure_pmg=structure_pmg,
-            site_idx=site_idx,
+            site_indices=site_indices,
             elements=elements,
             is_cif_method=is_cif_method,
             base_folder=base_folder
@@ -214,8 +217,8 @@ def preview_compositions(master_config_path: str) -> None:
             user_magnetic_moments=master_config.get('user_magnetic_moments')
         )
 
-    # Determine site and elements
-    site_idx, elements, _ = determine_loop_site(master_config, structure_pmg)
+    # Determine site(s) and elements
+    site_indices, elements, _ = determine_loop_site(master_config, structure_pmg)
     n_elements = len(elements)
 
     # Generate compositions
@@ -224,7 +227,10 @@ def preview_compositions(master_config_path: str) -> None:
     # Print preview
     print(f"\nWill generate {len(compositions)} compositions:")
     print(f"Elements: {elements}")
-    print(f"Site index: {site_idx}")
+    if len(site_indices) == 1:
+        print(f"Site index: {site_indices[0]}")
+    else:
+        print(f"Site indices: {site_indices} (same percentages applied to all)")
     print("-" * 70)
 
     for i, comp in enumerate(compositions, 1):

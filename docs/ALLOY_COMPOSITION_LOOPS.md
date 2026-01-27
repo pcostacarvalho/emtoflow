@@ -26,16 +26,32 @@ python bin/run_optimization.py Fe60_Pt40.yaml
 
 ### Configuration
 
+**Single site variation:**
 ```yaml
 # Master config with loop_perc enabled
 loop_perc:
   enabled: true
   step: 10
-  site_index: 0
+  site_index: 0  # Single site
   phase_diagram: true  # Generate all combinations
   # OR
   percentages: [[0,100], [25,75], [50,50], [75,25], [100,0]]  # Explicit list
 ```
+
+**Multiple sites with same percentages:**
+```yaml
+# Vary multiple sites simultaneously with the same percentages
+loop_perc:
+  enabled: true
+  step: 10
+  site_indices: [0, 1]  # Apply same percentages to sites 0 and 1
+  phase_diagram: true
+```
+
+**Note:** When using `site_indices`, all specified sites must have:
+- The same number of elements
+- The same element symbols (order should match)
+- The same percentages will be applied to all sites in each iteration
 
 ### Three Modes
 
@@ -47,11 +63,21 @@ loop_perc:
 
 The `alloy_loop.py` module automatically runs all compositions in sequence:
 
+**Single site:**
 ```yaml
 loop_perc:
   enabled: true
   step: 10
   site_index: 0
+  phase_diagram: true
+```
+
+**Multiple sites:**
+```yaml
+loop_perc:
+  enabled: true
+  step: 10
+  site_indices: [0, 1]  # Same percentages for both sites
   phase_diagram: true
 ```
 

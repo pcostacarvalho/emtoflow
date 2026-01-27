@@ -18,7 +18,7 @@ def create_yaml_for_composition(base_config: Dict[str, Any],
                                 composition: List[float],
                                 composition_name: str,
                                 structure_pmg,
-                                site_idx: int,
+                                site_indices: List[int],
                                 elements: List[str],
                                 is_cif_method: bool,
                                 base_folder: str) -> Dict[str, Any]:
@@ -27,7 +27,7 @@ def create_yaml_for_composition(base_config: Dict[str, Any],
 
     Steps:
     1. Deep copy base config
-    2. Update concentrations (in substitutions or sites)
+    2. Update concentrations (in substitutions or sites) for all specified sites
     3. Update output_path to just composition name (base_folder is handled by directory structure)
     4. Disable loop_perc
     5. Preserve all other settings
@@ -42,8 +42,8 @@ def create_yaml_for_composition(base_config: Dict[str, Any],
         Formatted name (e.g., "Fe50_Pt50")
     structure_pmg : pymatgen.core.Structure
         Structure object (for reference)
-    site_idx : int
-        Index of site being varied
+    site_indices : list
+        List of site indices being varied (same percentages applied to all)
     elements : list
         Element symbols at varied site
     is_cif_method : bool
@@ -65,10 +65,14 @@ def create_yaml_for_composition(base_config: Dict[str, Any],
     # Update concentrations based on input method
     if is_cif_method:
         # CIF + substitutions method
+        # For CIF method, all sites should correspond to the same substitution
+        # (validated in determine_loop_site), so we only need to update once
         new_config = update_substitutions(new_config, elements, concentrations)
     else:
         # Parameter method (lat, a, sites)
-        new_config['sites'][site_idx]['concentrations'] = concentrations
+        # Apply same concentrations to all specified sites
+        for site_idx in site_indices:
+            new_config['sites'][site_idx]['concentrations'] = concentrations
 
     # Set output_path to just the composition name
     # The base_folder directory structure is created by generate_percentage_configs

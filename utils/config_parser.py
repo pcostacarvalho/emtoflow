@@ -480,20 +480,53 @@ def validate_loop_perc_config(config: Dict[str, Any]) -> None:
             "Use parameter-based structure definition (lat, a, sites)."
         )
 
-    site_idx = loop_config['site_index']
+    # Support both site_index (single) and site_indices (list)
+    if 'site_indices' in loop_config and loop_config['site_indices'] is not None:
+        site_indices = loop_config['site_indices']
+        if not isinstance(site_indices, list):
+            raise ConfigValidationError(
+                f"site_indices must be a list, got: {type(site_indices)}"
+            )
+        if len(site_indices) == 0:
+            raise ConfigValidationError("site_indices cannot be empty")
+        for idx in site_indices:
+            if not isinstance(idx, int):
+                raise ConfigValidationError(
+                    f"All site_indices must be integers, got: {type(idx)}"
+                )
+    elif 'site_index' in loop_config and loop_config['site_index'] is not None:
+        site_indices = [loop_config['site_index']]
+    else:
+        raise ConfigValidationError(
+            "Either 'site_index' or 'site_indices' must be provided in loop_perc"
+        )
+
     if config.get('sites') is None:
         raise ConfigValidationError(
             "sites must be defined when using loop_perc"
         )
 
-    if site_idx < 0 or site_idx >= len(config['sites']):
-        raise ConfigValidationError(
-            f"site_index {site_idx} is out of range. "
-            f"Must be between 0 and {len(config['sites']) - 1}"
-        )
+    # Validate all site indices are in range
+    for site_idx in site_indices:
+        if site_idx < 0 or site_idx >= len(config['sites']):
+            raise ConfigValidationError(
+                f"site_index {site_idx} is out of range. "
+                f"Must be between 0 and {len(config['sites']) - 1}"
+            )
 
-    site = config['sites'][site_idx]
+    # Get first site for element count (all sites should have same number of elements)
+    site = config['sites'][site_indices[0]]
     n_elements = len(site['elements'])
+    
+    # Validate all sites have same number of elements
+    for site_idx in site_indices[1:]:
+        other_site = config['sites'][site_idx]
+        if len(other_site['elements']) != n_elements:
+            raise ConfigValidationError(
+                f"All sites must have the same number of elements. "
+                f"Site {site_indices[0]} has {n_elements} elements, "
+                f"but site {site_idx} has {len(other_site['elements'])} elements."
+            )
 
     # Validate step
     if loop_config['step'] is not None:
@@ -856,8 +889,23 @@ def validate_generate_percentages_config(config: Dict[str, Any]) -> None:
                     f"loop_perc.percentages[{i}] must sum to 100%, got: {total}%"
                 )
 
-    # Validate site_index if provided
-    if loop_config.get('site_index') is not None:
+    # Validate site_index or site_indices if provided
+    if 'site_indices' in loop_config and loop_config['site_indices'] is not None:
+        site_indices = loop_config['site_indices']
+        if not isinstance(site_indices, list):
+            raise ConfigValidationError(
+                f"loop_perc.site_indices must be a list, got: {type(site_indices)}"
+            )
+        if len(site_indices) == 0:
+            raise ConfigValidationError("loop_perc.site_indices cannot be empty")
+        for idx in site_indices:
+            if not isinstance(idx, int):
+                raise ConfigValidationError(
+                    f"All site_indices must be integers, got: {type(idx)}"
+                )
+        # Note: We can't validate the range here without loading the structure,
+        # which is done in generate_percentages module
+    elif loop_config.get('site_index') is not None:
         site_idx = loop_config['site_index']
         if not isinstance(site_idx, int):
             raise ConfigValidationError(

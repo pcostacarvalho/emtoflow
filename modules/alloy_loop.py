@@ -16,6 +16,9 @@ def run_with_percentage_loop(config: Dict[str, Any], workflow_runner):
     """
     Run workflow for multiple alloy compositions.
 
+    Supports varying one or multiple sites simultaneously with the same percentages.
+    Use 'site_index' for single site or 'site_indices' (list) for multiple sites.
+
     Parameters
     ----------
     config : dict
@@ -30,9 +33,45 @@ def run_with_percentage_loop(config: Dict[str, Any], workflow_runner):
         List of results from each composition run
     """
     loop_config = config['loop_perc']
-    site_idx = loop_config['site_index']
-    base_site = config['sites'][site_idx]
+    
+    # Determine which sites to vary
+    # Support both 'site_indices' (list) and 'site_index' (single) for backward compatibility
+    if 'site_indices' in loop_config and loop_config['site_indices'] is not None:
+        site_indices = loop_config['site_indices']
+        if not isinstance(site_indices, list):
+            raise ValueError("site_indices must be a list of integers")
+        if len(site_indices) == 0:
+            raise ValueError("site_indices cannot be empty")
+    elif 'site_index' in loop_config and loop_config['site_index'] is not None:
+        site_indices = [loop_config['site_index']]
+    else:
+        raise ValueError("Either 'site_index' or 'site_indices' must be provided in loop_perc")
+    
+    # Validate all sites exist and have same number of elements
+    sites = config['sites']
+    if sites is None:
+        raise ValueError("sites must be defined when using loop_perc")
+    
+    base_site = sites[site_indices[0]]
     n_elements = len(base_site['elements'])
+    base_elements = base_site['elements']
+    
+    # Validate all sites have same number of elements
+    for idx in site_indices:
+        if idx < 0 or idx >= len(sites):
+            raise ValueError(f"site_index {idx} is out of range. Must be between 0 and {len(sites) - 1}")
+        site = sites[idx]
+        if len(site['elements']) != n_elements:
+            raise ValueError(
+                f"All sites must have the same number of elements. "
+                f"Site {site_indices[0]} has {n_elements} elements, "
+                f"but site {idx} has {len(site['elements'])} elements."
+            )
+        # Check element order matches (optional but recommended)
+        if site['elements'] != base_elements:
+            print(f"WARNING: Site {idx} has different element order than site {site_indices[0]}")
+            print(f"  Site {site_indices[0]}: {base_elements}")
+            print(f"  Site {idx}: {site['elements']}")
 
     # Determine mode and generate compositions
     if loop_config['percentages'] is not None:
@@ -59,6 +98,13 @@ def run_with_percentage_loop(config: Dict[str, Any], workflow_runner):
         elem_name = base_site['elements'][loop_config['element_index']]
         print(f"Mode: Single element sweep for {elem_name} ({len(compositions)} compositions)")
 
+    # Print site information
+    if len(site_indices) == 1:
+        print(f"Varying site {site_indices[0]}: {base_elements}")
+    else:
+        print(f"Varying {len(site_indices)} sites simultaneously: {site_indices}")
+        print(f"Elements: {base_elements}")
+
     # Create parent directory
     base_output = config['output_path']
     loop_parent = f"{base_output}_alloy_loop"
@@ -73,19 +119,22 @@ def run_with_percentage_loop(config: Dict[str, Any], workflow_runner):
         # Deep copy config
         run_config = copy.deepcopy(config)
 
-        # Modify concentrations
+        # Modify concentrations for all specified sites
         concentrations = [p / 100.0 for p in composition]
-        run_config['sites'][site_idx]['concentrations'] = concentrations
+        for site_idx in site_indices:
+            run_config['sites'][site_idx]['concentrations'] = concentrations
 
-        # Create subdirectory name
-        subdir_name = format_composition_name(base_site['elements'], composition)
+        # Create subdirectory name (using first site's elements)
+        subdir_name = format_composition_name(base_elements, composition)
         run_config['output_path'] = str(Path(loop_parent) / subdir_name)
 
         # Print composition info
-        comp_dict = dict(zip(base_site['elements'], composition))
+        comp_dict = dict(zip(base_elements, composition))
         print(f"Composition: {subdir_name}")
         for elem, perc in comp_dict.items():
             print(f"  {elem}: {perc}%")
+        if len(site_indices) > 1:
+            print(f"Applied to sites: {site_indices}")
         print(f"{'='*70}\n")
 
         # Run workflow for this composition
