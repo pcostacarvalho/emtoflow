@@ -223,6 +223,27 @@ def optimize_ca_ratio(
         optimal_ca = float('nan')
         symmetric_metadata = {}
     
+    # Always check if optimal value is outside range (warn user even if auto-expansion is disabled)
+    if not eos_fit_failed and not np.isnan(optimal_ca):
+        ca_min = min(ca_values_for_fit)
+        ca_max = max(ca_values_for_fit)
+        if optimal_ca < ca_min or optimal_ca > ca_max:
+            print(f"\n{'='*70}")
+            print("⚠ WARNING: Optimal c/a is outside the initial range!")
+            print(f"{'='*70}")
+            print(f"  Initial c/a range: [{ca_min:.6f}, {ca_max:.6f}]")
+            print(f"  Optimal c/a from EOS: {optimal_ca:.6f}")
+            if optimal_ca < ca_min:
+                print(f"  → Optimal value is {ca_min - optimal_ca:.6f} BELOW minimum")
+            else:
+                print(f"  → Optimal value is {optimal_ca - ca_max:.6f} ABOVE maximum")
+            print(f"\n  The EOS fit suggests the true minimum is outside your initial range.")
+            print(f"  Consider:")
+            print(f"    1. Enabling 'eos_auto_expand_range: true' in config to automatically expand")
+            print(f"    2. Re-running with a wider initial c/a range")
+            print(f"    3. Using ca_ratios centered around {optimal_ca:.6f}")
+            print(f"{'='*70}\n")
+    
     # Check if expansion is needed (similar to optimize_sws)
     expansion_metadata = {}
     if config.get('eos_auto_expand_range', False):
@@ -837,6 +858,27 @@ def optimize_sws(
         eos_results = {'morse': dummy_params}
         optimal_sws = float('nan')
         symmetric_metadata = {}
+    
+    # Always check if optimal value is outside range (warn user even if auto-expansion is disabled)
+    if not eos_fit_failed and not np.isnan(optimal_sws):
+        sws_min = min(sws_values_for_fit)
+        sws_max = max(sws_values_for_fit)
+        if optimal_sws < sws_min or optimal_sws > sws_max:
+            print(f"\n{'='*70}")
+            print("⚠ WARNING: Optimal SWS is outside the initial range!")
+            print(f"{'='*70}")
+            print(f"  Initial SWS range: [{sws_min:.6f}, {sws_max:.6f}] Bohr")
+            print(f"  Optimal SWS from EOS: {optimal_sws:.6f} Bohr")
+            if optimal_sws < sws_min:
+                print(f"  → Optimal value is {sws_min - optimal_sws:.6f} Bohr BELOW minimum")
+            else:
+                print(f"  → Optimal value is {optimal_sws - sws_max:.6f} Bohr ABOVE maximum")
+            print(f"\n  The EOS fit suggests the true minimum is outside your initial range.")
+            print(f"  Consider:")
+            print(f"    1. Enabling 'eos_auto_expand_range: true' in config to automatically expand")
+            print(f"    2. Re-running with a wider initial SWS range")
+            print(f"    3. Using initial_sws: {optimal_sws:.6f} as starting point")
+            print(f"{'='*70}\n")
     
     # Check if expansion is needed
     expansion_metadata = {}
