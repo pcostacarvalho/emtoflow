@@ -223,6 +223,50 @@ def optimize_ca_ratio(
         optimal_ca = float('nan')
         symmetric_metadata = {}
     
+    # Handle NaN values from EOS fit (always check, regardless of auto-expand setting)
+    if not eos_fit_failed and np.isnan(optimal_ca):
+        print(f"\n{'='*70}")
+        print("⚠ WARNING: EOS fit returned NaN for optimal c/a!")
+        print(f"{'='*70}")
+        print(f"  The EOS executable completed but could not determine equilibrium.")
+        print(f"  This often happens when the energy curve is monotonic or has insufficient curvature.")
+        print(f"\n  Attempting fallback: Using Morse EOS estimation from data points...")
+        
+        try:
+            morse_min, morse_energy, morse_info = estimate_morse_minimum(
+                ca_workflow_points, energy_workflow_points
+            )
+            
+            if morse_info['is_valid']:
+                optimal_ca = morse_min
+                print(f"  ✓ Morse estimation successful: optimal c/a = {optimal_ca:.6f}")
+                print(f"    Fit quality (R²): {morse_info['r_squared']:.3f}")
+                print(f"{'='*70}\n")
+            else:
+                if morse_info.get('error'):
+                    print(f"  ✗ Morse estimation failed: {morse_info['error']}")
+                else:
+                    print(f"  ⚠ Morse fit quality is poor (R² = {morse_info['r_squared']:.3f})")
+                    print(f"    Using estimated minimum: {morse_min:.6f}")
+                    print(f"    (Warning: This estimate may be unreliable)")
+                    optimal_ca = morse_min
+                    print(f"{'='*70}\n")
+        except Exception as e:
+            print(f"  ✗ Morse estimation failed: {e}")
+            print(f"\n  Cannot proceed without valid optimal c/a value.")
+            print(f"  Suggestions:")
+            print(f"    1. Check if energy values are reasonable")
+            print(f"    2. Try a wider c/a range")
+            print(f"    3. Enable 'eos_auto_expand_range: true' to automatically expand range")
+            print(f"    4. Check EOS output file for details: {phase_path / f'{config[\"job_name\"]}_ca.out'}")
+            print(f"{'='*70}\n")
+            raise RuntimeError(
+                f"EOS fit returned NaN and Morse estimation failed.\n"
+                f"Initial c/a range: [{min(ca_workflow_points):.6f}, {max(ca_workflow_points):.6f}]\n"
+                f"Energy range: [{min(energy_workflow_points):.6f}, {max(energy_workflow_points):.6f}] Ry\n"
+                f"Cannot determine optimal c/a value."
+            )
+    
     # Always check if optimal value is outside range (warn user even if auto-expansion is disabled)
     if not eos_fit_failed and not np.isnan(optimal_ca):
         ca_min = min(ca_values_for_fit)
@@ -858,6 +902,50 @@ def optimize_sws(
         eos_results = {'morse': dummy_params}
         optimal_sws = float('nan')
         symmetric_metadata = {}
+    
+    # Handle NaN values from EOS fit (always check, regardless of auto-expand setting)
+    if not eos_fit_failed and np.isnan(optimal_sws):
+        print(f"\n{'='*70}")
+        print("⚠ WARNING: EOS fit returned NaN for optimal SWS!")
+        print(f"{'='*70}")
+        print(f"  The EOS executable completed but could not determine equilibrium.")
+        print(f"  This often happens when the energy curve is monotonic or has insufficient curvature.")
+        print(f"\n  Attempting fallback: Using Morse EOS estimation from data points...")
+        
+        try:
+            morse_min, morse_energy, morse_info = estimate_morse_minimum(
+                sws_workflow_points, energy_workflow_points
+            )
+            
+            if morse_info['is_valid']:
+                optimal_sws = morse_min
+                print(f"  ✓ Morse estimation successful: optimal SWS = {optimal_sws:.6f} Bohr")
+                print(f"    Fit quality (R²): {morse_info['r_squared']:.3f}")
+                print(f"{'='*70}\n")
+            else:
+                if morse_info.get('error'):
+                    print(f"  ✗ Morse estimation failed: {morse_info['error']}")
+                else:
+                    print(f"  ⚠ Morse fit quality is poor (R² = {morse_info['r_squared']:.3f})")
+                    print(f"    Using estimated minimum: {morse_min:.6f} Bohr")
+                    print(f"    (Warning: This estimate may be unreliable)")
+                    optimal_sws = morse_min
+                    print(f"{'='*70}\n")
+        except Exception as e:
+            print(f"  ✗ Morse estimation failed: {e}")
+            print(f"\n  Cannot proceed without valid optimal SWS value.")
+            print(f"  Suggestions:")
+            print(f"    1. Check if energy values are reasonable")
+            print(f"    2. Try a wider SWS range")
+            print(f"    3. Enable 'eos_auto_expand_range: true' to automatically expand range")
+            print(f"    4. Check EOS output file for details: {phase_path / f'{config[\"job_name\"]}_sws.out'}")
+            print(f"{'='*70}\n")
+            raise RuntimeError(
+                f"EOS fit returned NaN and Morse estimation failed.\n"
+                f"Initial SWS range: [{min(sws_workflow_points):.6f}, {max(sws_workflow_points):.6f}] Bohr\n"
+                f"Energy range: [{min(energy_workflow_points):.6f}, {max(energy_workflow_points):.6f}] Ry\n"
+                f"Cannot determine optimal SWS value."
+            )
     
     # Always check if optimal value is outside range (warn user even if auto-expansion is disabled)
     if not eos_fit_failed and not np.isnan(optimal_sws):
