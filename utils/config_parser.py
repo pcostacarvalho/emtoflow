@@ -480,25 +480,25 @@ def validate_loop_perc_config(config: Dict[str, Any]) -> None:
             "Use parameter-based structure definition (lat, a, sites)."
         )
 
-    # Support both site_index (single) and site_indices (list)
-    if 'site_indices' in loop_config and loop_config['site_indices'] is not None:
-        site_indices = loop_config['site_indices']
-        if not isinstance(site_indices, list):
-            raise ConfigValidationError(
-                f"site_indices must be a list, got: {type(site_indices)}"
-            )
-        if len(site_indices) == 0:
-            raise ConfigValidationError("site_indices cannot be empty")
-        for idx in site_indices:
+    # site_index can be either an integer (single site) or a list (multiple sites)
+    if 'site_index' not in loop_config or loop_config['site_index'] is None:
+        raise ConfigValidationError("site_index must be provided in loop_perc")
+    
+    site_index_val = loop_config['site_index']
+    if isinstance(site_index_val, int):
+        site_indices = [site_index_val]
+    elif isinstance(site_index_val, list):
+        if len(site_index_val) == 0:
+            raise ConfigValidationError("site_index list cannot be empty")
+        for idx in site_index_val:
             if not isinstance(idx, int):
                 raise ConfigValidationError(
-                    f"All site_indices must be integers, got: {type(idx)}"
+                    f"All values in site_index list must be integers, got: {type(idx)}"
                 )
-    elif 'site_index' in loop_config and loop_config['site_index'] is not None:
-        site_indices = [loop_config['site_index']]
+        site_indices = site_index_val
     else:
         raise ConfigValidationError(
-            "Either 'site_index' or 'site_indices' must be provided in loop_perc"
+            f"site_index must be an integer or a list of integers, got: {type(site_index_val)}"
         )
 
     if config.get('sites') is None:
@@ -889,27 +889,24 @@ def validate_generate_percentages_config(config: Dict[str, Any]) -> None:
                     f"loop_perc.percentages[{i}] must sum to 100%, got: {total}%"
                 )
 
-    # Validate site_index or site_indices if provided
-    if 'site_indices' in loop_config and loop_config['site_indices'] is not None:
-        site_indices = loop_config['site_indices']
-        if not isinstance(site_indices, list):
+    # Validate site_index if provided (can be int or list)
+    if loop_config.get('site_index') is not None:
+        site_index_val = loop_config['site_index']
+        if isinstance(site_index_val, int):
+            # Single site - validate it's an integer
+            pass  # Already validated as int
+        elif isinstance(site_index_val, list):
+            # Multiple sites - validate list
+            if len(site_index_val) == 0:
+                raise ConfigValidationError("loop_perc.site_index list cannot be empty")
+            for idx in site_index_val:
+                if not isinstance(idx, int):
+                    raise ConfigValidationError(
+                        f"All values in site_index list must be integers, got: {type(idx)}"
+                    )
+        else:
             raise ConfigValidationError(
-                f"loop_perc.site_indices must be a list, got: {type(site_indices)}"
-            )
-        if len(site_indices) == 0:
-            raise ConfigValidationError("loop_perc.site_indices cannot be empty")
-        for idx in site_indices:
-            if not isinstance(idx, int):
-                raise ConfigValidationError(
-                    f"All site_indices must be integers, got: {type(idx)}"
-                )
-        # Note: We can't validate the range here without loading the structure,
-        # which is done in generate_percentages module
-    elif loop_config.get('site_index') is not None:
-        site_idx = loop_config['site_index']
-        if not isinstance(site_idx, int):
-            raise ConfigValidationError(
-                f"loop_perc.site_index must be an integer, got: {type(site_idx)}"
+                f"loop_perc.site_index must be an integer or a list of integers, got: {type(site_index_val)}"
             )
         # Note: We can't validate the range here without loading the structure,
         # which is done in generate_percentages module

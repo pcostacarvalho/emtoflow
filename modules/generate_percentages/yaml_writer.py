@@ -44,6 +44,7 @@ def create_yaml_for_composition(base_config: Dict[str, Any],
         Structure object (for reference)
     site_indices : list
         List of site indices being varied (same percentages applied to all)
+        Note: This is an internal parameter - config uses 'site_index' (int or list)
     elements : list
         Element symbols at varied site
     is_cif_method : bool
@@ -166,17 +167,24 @@ def write_yaml_file(config: Dict[str, Any], output_path: str) -> None:
     - default_flow_style=False for readable formatting
     - sort_keys=False to preserve order
     - allow_unicode=True for special characters
+    - Custom Dumper to disable YAML anchors/aliases for cleaner output
     """
     output_path = Path(output_path)
 
     # Ensure parent directory exists
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Write YAML with nice formatting
+    # Custom Dumper class that disables anchors/aliases
+    class NoAliasDumper(yaml.SafeDumper):
+        def ignore_aliases(self, data):
+            return True
+
+    # Write YAML with nice formatting (no anchors/aliases)
     with open(output_path, 'w') as f:
         yaml.dump(
             config,
             f,
+            Dumper=NoAliasDumper,
             default_flow_style=False,
             sort_keys=False,
             allow_unicode=True,

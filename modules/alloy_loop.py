@@ -35,17 +35,23 @@ def run_with_percentage_loop(config: Dict[str, Any], workflow_runner):
     loop_config = config['loop_perc']
     
     # Determine which sites to vary
-    # Support both 'site_indices' (list) and 'site_index' (single) for backward compatibility
-    if 'site_indices' in loop_config and loop_config['site_indices'] is not None:
-        site_indices = loop_config['site_indices']
-        if not isinstance(site_indices, list):
-            raise ValueError("site_indices must be a list of integers")
-        if len(site_indices) == 0:
-            raise ValueError("site_indices cannot be empty")
-    elif 'site_index' in loop_config and loop_config['site_index'] is not None:
-        site_indices = [loop_config['site_index']]
+    # site_index can be either an integer (single site) or a list (multiple sites)
+    if 'site_index' not in loop_config or loop_config['site_index'] is None:
+        raise ValueError("site_index must be provided in loop_perc")
+    
+    site_index_val = loop_config['site_index']
+    if isinstance(site_index_val, int):
+        site_indices = [site_index_val]
+    elif isinstance(site_index_val, list):
+        if len(site_index_val) == 0:
+            raise ValueError("site_index list cannot be empty")
+        if not all(isinstance(idx, int) for idx in site_index_val):
+            raise ValueError("All values in site_index list must be integers")
+        site_indices = site_index_val
     else:
-        raise ValueError("Either 'site_index' or 'site_indices' must be provided in loop_perc")
+        raise ValueError(
+            f"site_index must be an integer or a list of integers, got: {type(site_index_val)}"
+        )
     
     # Validate all sites exist and have same number of elements
     sites = config['sites']

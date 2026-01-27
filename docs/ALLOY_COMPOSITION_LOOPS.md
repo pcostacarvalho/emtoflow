@@ -32,7 +32,7 @@ python bin/run_optimization.py Fe60_Pt40.yaml
 loop_perc:
   enabled: true
   step: 10
-  site_index: 0  # Single site
+  site_index: 0  # Single site (integer)
   phase_diagram: true  # Generate all combinations
   # OR
   percentages: [[0,100], [25,75], [50,50], [75,25], [100,0]]  # Explicit list
@@ -44,11 +44,11 @@ loop_perc:
 loop_perc:
   enabled: true
   step: 10
-  site_indices: [0, 1]  # Apply same percentages to sites 0 and 1
+  site_index: [0, 1]  # List of sites - apply same percentages to sites 0 and 1
   phase_diagram: true
 ```
 
-**Note:** When using `site_indices`, all specified sites must have:
+**Note:** When using `site_index` as a list, all specified sites must have:
 - The same number of elements
 - The same element symbols (order should match)
 - The same percentages will be applied to all sites in each iteration
@@ -77,7 +77,7 @@ loop_perc:
 loop_perc:
   enabled: true
   step: 10
-  site_indices: [0, 1]  # Same percentages for both sites
+  site_index: [0, 1]  # List of sites - same percentages for both sites
   phase_diagram: true
 ```
 

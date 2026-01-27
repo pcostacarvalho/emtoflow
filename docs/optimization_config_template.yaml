@@ -345,19 +345,39 @@ loop_perc: null                      # Set to a dictionary to enable alloy compo
 #   end: 100                         # Ending percentage (default: 100)
 #   step: 10                         # Percentage step size (default: 10)
 #   site_index: 0                    # Site index to vary (0-based, default: 0)
+#                                    # Can be integer (single site) or list [0, 1] (multiple sites)
+#                                    # When list: same percentages applied to all sites
+#                                    # All sites must have same number of elements
 #   element_index: 0                 # Element index within site (0-based, default: 0)
 #   phase_diagram: false             # Generate phase diagram data (default: false)
 #   percentages: null                # Custom list of percentages (overrides start/end/step)
-#                                    # Example: [0, 25, 50, 75, 100]
+#                                    # Format: [[p1_elem1, p1_elem2], [p2_elem1, p2_elem2], ...]
+#                                    # Example: [[0,100], [25,75], [50,50], [75,25], [100,0]]
 
-# Example: Loop Cu concentration from 0-100% in Cu-Mg FCC alloy
+# Example 1: Loop Cu concentration from 0-100% in Cu-Mg FCC alloy (single site)
 # loop_perc:
 #   enabled: true
 #   start: 0
 #   end: 100
 #   step: 10
-#   site_index: 0        # First (and only) site
+#   site_index: 0        # First site at position [0, 0, 0]
 #   element_index: 0     # Cu is first element in ['Cu', 'Mg']
+
+# Example 2: Vary multiple sites simultaneously with same percentages
+# For structure with two sites:
+#   sites:
+#     - position: [0, 0, 0]
+#       elements: ['Cu', 'Mg']
+#       concentrations: [1.0, 0.0]
+#     - position: [0.333, 0.666, 0.5]
+#       elements: ['Cu', 'Mg']
+#       concentrations: [0.0, 1.0]
+# loop_perc:
+#   enabled: true
+#   step: 10
+#   site_index: [0, 1]  # List of sites - apply same percentages to both sites
+#   phase_diagram: true    # Generate all combinations
+# Note: Both sites must have same elements ['Cu', 'Mg'] and same number of elements
 
 # ==============================================================================
 # END OF CONFIGURATION TEMPLATE

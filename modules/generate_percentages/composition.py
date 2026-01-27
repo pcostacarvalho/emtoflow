@@ -24,13 +24,15 @@ def determine_loop_site(config: Dict[str, Any],
     This function extracts element information from the pymatgen structure,
     making it work for both CIF and parameter input methods.
 
-    Supports both single site (site_index) and multiple sites (site_indices)
-    with the same percentages applied to all sites.
+    The config uses 'site_index' which can be either an integer (single site)
+    or a list of integers (multiple sites). This function always returns a list
+    internally for consistent handling.
 
     Parameters
     ----------
     config : dict
         Configuration dictionary with loop_perc settings
+        Must contain 'site_index' (int or list of ints)
     structure_pmg : pymatgen.core.Structure
         Pymatgen structure object
 
@@ -50,18 +52,24 @@ def determine_loop_site(config: Dict[str, Any],
     loop_config = config['loop_perc']
     
     # Determine which sites to vary
-    # Support both 'site_indices' (list) and 'site_index' (single) for backward compatibility
-    if 'site_indices' in loop_config and loop_config['site_indices'] is not None:
-        site_indices = loop_config['site_indices']
-        if not isinstance(site_indices, list):
-            raise ValueError("site_indices must be a list of integers")
-        if len(site_indices) == 0:
-            raise ValueError("site_indices cannot be empty")
-    elif 'site_index' in loop_config and loop_config.get('site_index') is not None:
-        site_indices = [loop_config['site_index']]
-    else:
+    # site_index can be either an integer (single site) or a list (multiple sites)
+    if 'site_index' not in loop_config or loop_config.get('site_index') is None:
         # Default to site 0 for backward compatibility
         site_indices = [0]
+    else:
+        site_index_val = loop_config['site_index']
+        if isinstance(site_index_val, int):
+            site_indices = [site_index_val]
+        elif isinstance(site_index_val, list):
+            if len(site_index_val) == 0:
+                raise ValueError("site_index list cannot be empty")
+            if not all(isinstance(idx, int) for idx in site_index_val):
+                raise ValueError("All values in site_index list must be integers")
+            site_indices = site_index_val
+        else:
+            raise ValueError(
+                f"site_index must be an integer or a list of integers, got: {type(site_index_val)}"
+            )
     
     # Use first site index for element extraction
     site_idx = site_indices[0]
