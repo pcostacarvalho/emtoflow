@@ -803,24 +803,14 @@ def generate_dos_analysis(
     print("DOS ANALYSIS")
     print(f"{'='*70}")
     print(f"DOS file: {dos_file}")
-    print(f"DOS file exists: {dos_file.exists()}")
-    if dos_file.exists():
-        print(f"DOS file size: {dos_file.stat().st_size} bytes")
 
     # Create DOS analysis directory
     dos_output_dir = phase_path / "dos_analysis"
     dos_output_dir.mkdir(parents=True, exist_ok=True)
-    print(f"DOS output directory: {dos_output_dir}")
-    print(f"DOS output directory exists: {dos_output_dir.exists()}")
-    print(f"DOS output directory is writable: {os.access(dos_output_dir, os.W_OK)}")
 
     # Parse DOS
     try:
         parser = DOSParser(str(dos_file))
-        print(f"✓ DOS file parsed successfully")
-        print(f"  Atom info count: {len(parser.atom_info)}")
-        print(f"  Has total_down: {parser.data.get('total_down') is not None}")
-        print(f"  Has total_up: {parser.data.get('total_up') is not None}")
     except Exception as e:
         import traceback
         print(f"✗ Failed to parse DOS file: {e}")
@@ -845,13 +835,9 @@ def generate_dos_analysis(
     
     try:
         plotter = DOSPlotter(parser)
-        print(f"✓ DOSPlotter created successfully")
 
         # Total DOS
         total_plot = dos_output_dir / "dos_total.png"
-        print(f"Attempting to create total DOS plot: {total_plot}")
-        print(f"  Output directory exists: {dos_output_dir.exists()}")
-        print(f"  Output directory is writable: {os.access(dos_output_dir, os.W_OK)}")
         
         fig, ax = plotter.plot_total(
             spin_polarized=True,
@@ -860,22 +846,15 @@ def generate_dos_analysis(
             xlim=xlim,
             ylim=ylim,
         )
-        print(f"✓ plot_total() returned figure and axes")
-        print(f"  Setting xlim to: {xlim}")
-        if ylim is not None:
-            print(f"  Setting ylim to: {ylim}")
         
-        print(f"  Calling fig.savefig({total_plot})...")
         fig.savefig(total_plot, dpi=300, bbox_inches='tight')
         plt.close(fig)
-        print(f"  savefig() completed, figure closed")
         
         # Verify file was actually created
-        if total_plot.exists():
-            file_size = total_plot.stat().st_size
-            print(f"✓ Total DOS plot saved: {total_plot} ({file_size} bytes)")
-        else:
+        if not total_plot.exists():
             raise RuntimeError(f"Failed to save total DOS plot: {total_plot} (file does not exist after savefig)")
+        
+        print(f"✓ Total DOS plot saved: {total_plot}")
 
         # Sublattice DOS (if available)
         if parser.atom_info:
@@ -896,11 +875,11 @@ def generate_dos_analysis(
                 plt.close(fig)
                 
                 # Verify file was actually created
-                if sublat_plot.exists():
-                    sublattice_plots.append(str(sublat_plot))
-                    print(f"✓ Sublattice {sublat} DOS plot saved: {sublat_plot}")
-                else:
+                if not sublat_plot.exists():
                     raise RuntimeError(f"Failed to save sublattice {sublat} DOS plot: {sublat_plot} (file does not exist after savefig)")
+                
+                sublattice_plots.append(str(sublat_plot))
+                print(f"✓ Sublattice {sublat} DOS plot saved: {sublat_plot}")
         else:
             print("Note: No atom info found, skipping sublattice DOS plots")
 
