@@ -12,6 +12,7 @@ from typing import List
 
 from modules.structure_builder import create_emto_structure
 from modules.alloy_loop import format_composition_name
+from modules.inputs.jobs_tetralith import create_master_job_scripts
 from utils.config_parser import (
     load_and_validate_config,
     validate_generate_percentages_config
@@ -155,6 +156,14 @@ def generate_percentage_configs(master_config_path: str,
 
     print("-" * 70)
     print(f"✓ Generated {len(generated_files)} YAML files in {base_folder_path}\n")
+
+    # Create job scripts if requested
+    if master_config.get('create_master_job_script', False):
+        create_master_job_scripts(
+            generated_files=generated_files,
+            master_config=master_config,
+            output_dir=base_folder_path
+        )
 
     return generated_files
 

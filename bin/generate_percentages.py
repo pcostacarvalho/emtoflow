@@ -9,6 +9,10 @@ each representing a different alloy composition percentage.
 After generating the files, users can manually submit each composition
 to run_optimization.py when ready.
 
+If create_master_job_script is enabled in the master config, the script
+will automatically create individual SLURM job scripts for each YAML file
+and a master script to submit them all.
+
 Usage:
     python bin/generate_percentages.py <master_config.yaml> [output_dir]
 
@@ -37,8 +41,12 @@ Next Steps:
     python bin/run_optimization.py Fe60_Pt40.yaml
     ...
 
-    Or submit to SLURM:
-    sbatch wrapper_Fe50_Pt50.sh
+    Or if create_master_job_script is enabled, submit all jobs at once:
+
+    bash <output_dir>/master_job_script.sh
+
+    Or submit individual jobs to SLURM:
+    sbatch job_Fe50_Pt50.sh
 """
 
 import sys
@@ -124,20 +132,38 @@ def main():
         print("NEXT STEPS:")
         print("-" * 80)
         print("\n1. Review the generated YAML files to verify compositions")
-        print("\n2. Submit each composition individually:")
-        print(f"\n   python bin/run_optimization.py {Path(output_location) / 'COMPOSITION.yaml'}")
-        print("\n   Examples:")
-
-        # Show first 3 files as examples
-        for i, filepath in enumerate(generated_files[:3], 1):
-            filename = Path(filepath).name
-            print(f"     python bin/run_optimization.py {Path(output_location) / filename}")
-
-        if len(generated_files) > 3:
-            print(f"     ... ({len(generated_files) - 3} more files)")
-
-        print("\n3. Or submit to SLURM (if using cluster):")
-        print("\n   sbatch wrapper_COMPOSITION.sh")
+        
+        # Check if job scripts were created
+        from utils.config_parser import load_and_validate_config
+        config_dict = load_and_validate_config(master_config)
+        if config_dict.get('create_master_job_script', False):
+            # Job scripts are created in the same directory as YAML files
+            # Use the directory of the first generated file
+            if generated_files:
+                scripts_dir = Path(generated_files[0]).parent
+                print("\n2. Submit all jobs at once using the master script:")
+                print(f"\n   bash {scripts_dir / 'master_job_script.sh'}")
+                print("\n   Or submit individual jobs:")
+                print(f"\n   sbatch {scripts_dir / 'job_COMPOSITION.sh'}")
+                print("\n   Examples:")
+                for i, filepath in enumerate(generated_files[:3], 1):
+                    filename = Path(filepath).stem
+                    print(f"     sbatch {scripts_dir / f'job_{filename}.sh'}")
+                if len(generated_files) > 3:
+                    print(f"     ... ({len(generated_files) - 3} more jobs)")
+            else:
+                print("\n2. No files generated, cannot create job scripts")
+        else:
+            print("\n2. Submit each composition individually:")
+            print(f"\n   python bin/run_optimization.py {Path(output_location) / 'COMPOSITION.yaml'}")
+            print("\n   Examples:")
+            # Show first 3 files as examples
+            for i, filepath in enumerate(generated_files[:3], 1):
+                filename = Path(filepath).name
+                print(f"     python bin/run_optimization.py {Path(output_location) / filename}")
+            if len(generated_files) > 3:
+                print(f"     ... ({len(generated_files) - 3} more files)")
+        
         print("\n" + "=" * 80 + "\n")
 
         sys.exit(0)

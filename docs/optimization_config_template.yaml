@@ -172,6 +172,15 @@ job_mode: "serial"                   # Job execution mode:
                                      # "serial" = Sequential execution (default)
                                      # "parallel" = Parallel execution with dependencies
 
+# Master job script for batch submission (only used with generate_percentages)
+create_master_job_script: false      # Generate master script to submit multiple YAML files (default: false)
+                                     # When enabled in generate_percentages, automatically creates:
+                                     #   - Individual job scripts (job_<composition>.sh) for each generated YAML file
+                                     #   - A master script (master_job_script.sh) that submits all jobs
+                                     # Uses slurm_account, prcs, and slurm_time from this config
+                                     # Note: Only works when running generate_percentages.py
+                                     # All scripts are created in the same directory as the generated YAML files
+
 
 # ------------------------------------------------------------------------------
 # EXECUTABLE PATHS - Paths to EMTO binaries

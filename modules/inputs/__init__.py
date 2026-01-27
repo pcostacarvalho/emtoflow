@@ -17,7 +17,8 @@ from modules.inputs.kfcd import create_kfcd_input
 from modules.inputs.eos_emto import create_eos_input, parse_eos_output, morse_energy
 from modules.inputs.jobs_tetralith import (
     write_serial_sbatch,
-    write_parallel_sbatch
+    write_parallel_sbatch,
+    create_master_job_scripts
 )
 __all__ = [
     'create_kstr_input',
@@ -27,6 +28,7 @@ __all__ = [
     'create_eos_input',
     'write_serial_sbatch',
     'write_parallel_sbatch',
+    'create_master_job_scripts',
     'parse_eos_output',
     'morse_energy'
 ]
