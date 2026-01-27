@@ -1141,16 +1141,30 @@ def detect_expansion_needed(
     # Check 3: Energy monotonic at boundaries (only if check_monotonic=True)
     # Skip this check after expansion - equilibrium position is sufficient
     if check_monotonic and len(energy_values) >= 2:
-        energy_at_max = energy_values[-1]
-        energy_before_max = energy_values[-2]
-        if energy_at_max < energy_before_max:
-            return True, f"Energy still decreasing at maximum parameter ({param_max:.6f})"
+        # Find the actual minimum energy point in the data
+        min_energy_idx = np.argmin(energy_values)
         
-        # Check if energy still increasing at minimum
-        energy_at_min = energy_values[0]
-        energy_after_min = energy_values[1]
-        if energy_at_min > energy_after_min:
-            return True, f"Energy still increasing at minimum parameter ({param_min:.6f})"
+        # Check if minimum is at the maximum parameter boundary
+        if min_energy_idx == len(energy_values) - 1:
+            # Minimum is at the last point - check if energy is still decreasing
+            # (becoming more negative) as we approach the boundary
+            energy_at_max = energy_values[-1]
+            energy_before_max = energy_values[-2]
+            if energy_at_max < energy_before_max:
+                return True, f"Energy minimum at maximum parameter ({param_max:.6f}) - still decreasing"
+        
+        # Check if minimum is at the minimum parameter boundary
+        elif min_energy_idx == 0:
+            # Minimum is at the first point - check if energy is still decreasing
+            # (becoming more negative) as we move away from the boundary
+            # This suggests the true minimum might be below the minimum parameter
+            energy_at_min = energy_values[0]
+            energy_after_min = energy_values[1]
+            if energy_at_min > energy_after_min:  # Energy decreasing (becoming more negative)
+                return True, f"Energy minimum at minimum parameter ({param_min:.6f}) - still decreasing"
+        
+        # If minimum is in the middle of the range (not at boundaries), no expansion needed
+        # The equilibrium check above already verified it's within range
     
     return False, ""
 
