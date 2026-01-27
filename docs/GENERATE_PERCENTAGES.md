@@ -87,7 +87,7 @@ loop_perc:
   step: 20
   start: 0
   end: 100
-  element_index: 0
+  site_index: 0
 ```
 
 ## Output

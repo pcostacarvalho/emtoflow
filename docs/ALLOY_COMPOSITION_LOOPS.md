@@ -53,11 +53,35 @@ loop_perc:
 - The same element symbols (order should match)
 - The same percentages will be applied to all sites in each iteration
 
+**For CIF method with substitutions:**
+- **Recommended**: Use `substitution_elements` to specify elements directly:
+  ```yaml
+  loop_perc:
+    enabled: true
+    substitution_elements: ['Cu', 'Mg']  # Specify elements directly
+    step: 10
+    phase_diagram: true
+  ```
+- **Legacy**: Use `site_index` to identify elements via structure sites:
+  ```yaml
+  loop_perc:
+    enabled: true
+    site_index: [0, 1]  # Sites corresponding to Cu and Mg
+    step: 10
+    phase_diagram: true
+  ```
+- All substitutions must have the same elements (e.g., both Cu and Mg substitutions have ['Cu', 'Mg'])
+- The same percentages will be applied to ALL matching substitutions
+- Substitutions replace ALL sites of each specified element, so `substitution_elements` is clearer than `site_index`
+
 ### Three Modes
 
 1. **Explicit list**: Specify exact compositions
 2. **Phase diagram**: Generate all valid combinations with uniform step
-3. **Single element sweep**: Vary one element while others adjust automatically
+3. **Single element sweep**: Vary first element while others adjust automatically
+   - Always varies the first element (index 0)
+   - Concentrations always match the element order in the site definition
+   - Example: For `elements: ['Cu', 'Mg']`, concentrations are `[Cu%, Mg%]`
 
 ## Legacy Approach: Automatic Loop
 

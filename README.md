@@ -438,7 +438,6 @@ loop_perc:
   end: 100
   step: 10
   site_index: 0
-  element_index: 0
 ```
 
 ### Parallel Execution

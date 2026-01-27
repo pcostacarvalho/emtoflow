@@ -94,14 +94,16 @@ def run_with_percentage_loop(config: Dict[str, Any], workflow_runner):
 
     else:
         # Mode 3: Single element sweep
+        # Always varies first element (index 0) - concentrations always match element order
+        elem_idx = 0
         compositions = generate_single_sweep(
             n_elements,
-            loop_config['element_index'],
+            elem_idx,
             loop_config['start'],
             loop_config['end'],
             loop_config['step']
         )
-        elem_name = base_site['elements'][loop_config['element_index']]
+        elem_name = base_site['elements'][elem_idx]
         print(f"Mode: Single element sweep for {elem_name} ({len(compositions)} compositions)")
 
     # Print site information

@@ -82,7 +82,6 @@ def set_defaults(config):
         loop_config.setdefault('start', 0)
         loop_config.setdefault('end', 100)
         loop_config.setdefault('site_index', 0)
-        loop_config.setdefault('element_index', 0)
         loop_config.setdefault('phase_diagram', False)
         loop_config.setdefault('percentages', None)
 
@@ -145,7 +144,6 @@ loop_perc:
   start: null        # Not used in this mode
   end: null          # Not used in this mode
   site_index: 0
-  element_index: null  # Not used in this mode
   phase_diagram: false
   percentages: null  # Not used in this mode
 

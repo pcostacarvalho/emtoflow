@@ -569,18 +569,6 @@ def validate_loop_perc_config(config: Dict[str, Any]) -> None:
             f"start ({loop_config['start']}) must be <= end ({loop_config['end']})"
         )
 
-    # Validate element_index
-    if loop_config['element_index'] is not None:
-        elem_idx = loop_config['element_index']
-        if not isinstance(elem_idx, int):
-            raise ConfigValidationError(
-                f"element_index must be an integer, got: {type(elem_idx)}"
-            )
-        if elem_idx < 0 or elem_idx >= n_elements:
-            raise ConfigValidationError(
-                f"element_index {elem_idx} is out of range. "
-                f"Must be between 0 and {n_elements - 1}"
-            )
 
     # Validate percentages list (explicit mode)
     if loop_config['percentages'] is not None:
@@ -911,14 +899,6 @@ def validate_generate_percentages_config(config: Dict[str, Any]) -> None:
         # Note: We can't validate the range here without loading the structure,
         # which is done in generate_percentages module
 
-    # Validate element_index if provided
-    if loop_config.get('element_index') is not None:
-        elem_idx = loop_config['element_index']
-        if not isinstance(elem_idx, int):
-            raise ConfigValidationError(
-                f"loop_perc.element_index must be an integer, got: {type(elem_idx)}"
-            )
-        # Note: Range validation requires structure, done in generate_percentages
 
 
 
@@ -1086,7 +1066,6 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
             'start': 0,
             'end': 100,
             'site_index': 0,
-            'element_index': 0,
             'phase_diagram': False,
             'percentages': None,
         }

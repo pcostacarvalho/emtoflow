@@ -81,7 +81,6 @@ class TestCompositionGeneration:
     def test_single_element_sweep(self):
         """Test Mode 3: Single element sweep."""
         loop_config = {
-            'element_index': 0,
             'start': 0,
             'end': 100,
             'step': 20
@@ -437,7 +436,6 @@ class TestIntegration:
                 'enabled': True,
                 'step': 50,  # Only 3 compositions: 0, 50, 100
                 'site_index': 0,
-                'element_index': 0,
                 'start': 0,
                 'end': 100,
                 'phase_diagram': False

@@ -348,7 +348,11 @@ loop_perc: null                      # Set to a dictionary to enable alloy compo
 #                                    # Can be integer (single site) or list [0, 1] (multiple sites)
 #                                    # When list: same percentages applied to all sites
 #                                    # All sites must have same number of elements
-#   element_index: 0                 # Element index within site (0-based, default: 0)
+#                                    # Concentrations always match element order in site
+#   substitution_elements: null     # For CIF method: specify elements directly (recommended)
+#                                    # Example: ['Cu', 'Mg'] - updates substitutions for these elements
+#                                    # More intuitive than site_index for substitutions
+#                                    # All specified substitutions must have same elements
 #   phase_diagram: false             # Generate phase diagram data (default: false)
 #   percentages: null                # Custom list of percentages (overrides start/end/step)
 #                                    # Format: [[p1_elem1, p1_elem2], [p2_elem1, p2_elem2], ...]
@@ -361,10 +365,11 @@ loop_perc: null                      # Set to a dictionary to enable alloy compo
 #   end: 100
 #   step: 10
 #   site_index: 0        # First site at position [0, 0, 0]
-#   element_index: 0     # Cu is first element in ['Cu', 'Mg']
+#                        # Single element sweep always varies first element (Cu)
+#                        # Concentrations match element order: [Cu%, Mg%]
 
 # Example 2: Vary multiple sites simultaneously with same percentages
-# For structure with two sites:
+# For parameter method (lat, a, sites):
 #   sites:
 #     - position: [0, 0, 0]
 #       elements: ['Cu', 'Mg']
@@ -378,6 +383,25 @@ loop_perc: null                      # Set to a dictionary to enable alloy compo
 #   site_index: [0, 1]  # List of sites - apply same percentages to both sites
 #   phase_diagram: true    # Generate all combinations
 # Note: Both sites must have same elements ['Cu', 'Mg'] and same number of elements
+
+# Example 3: Vary multiple substitutions simultaneously (CIF method)
+# For CIF file with Cu and Mg sites:
+#   substitutions:
+#     Cu:
+#       elements: ['Cu', 'Mg']
+#       concentrations: [0.1, 0.9]
+#     Mg:
+#       elements: ['Cu', 'Mg']
+#       concentrations: [0.0, 1.0]
+# loop_perc:
+#   enabled: true
+#   step: 10
+#   substitution_elements: ['Cu', 'Mg']  # Specify elements directly (recommended)
+#   # OR use site_index: [0, 1]  # Legacy: sites corresponding to Cu and Mg base elements
+#   phase_diagram: true
+# Note: Both substitutions must have same elements ['Cu', 'Mg']
+#       The same percentages will be applied to BOTH Cu and Mg substitutions
+#       Substitutions replace ALL sites of each element, so specifying elements is clearer
 
 # ==============================================================================
 # END OF CONFIGURATION TEMPLATE

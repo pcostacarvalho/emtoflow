@@ -66,8 +66,8 @@ def create_yaml_for_composition(base_config: Dict[str, Any],
     # Update concentrations based on input method
     if is_cif_method:
         # CIF + substitutions method
-        # For CIF method, all sites should correspond to the same substitution
-        # (validated in determine_loop_site), so we only need to update once
+        # Updates ALL substitution entries with matching elements
+        # This allows varying multiple base elements (e.g., Cu and Mg) simultaneously
         new_config = update_substitutions(new_config, elements, concentrations)
     else:
         # Parameter method (lat, a, sites)
@@ -93,15 +93,16 @@ def update_substitutions(config: Dict[str, Any],
     """
     Update substitutions section for CIF-based configs.
 
-    Find which substitution entry corresponds to the elements being varied
-    and update its concentrations.
+    Updates ALL substitution entries that have matching elements.
+    This allows varying multiple base elements (e.g., Cu and Mg) simultaneously
+    when they have the same substitution elements.
 
     Parameters
     ----------
     config : dict
         Configuration with substitutions section
     elements : list
-        Elements being varied (e.g., ['Fe', 'Co'])
+        Elements being varied (e.g., ['Cu', 'Mg'])
     concentrations : list
         New concentrations (fractions 0-1)
 
@@ -118,34 +119,35 @@ def update_substitutions(config: Dict[str, Any],
     if not config.get('substitutions'):
         raise ValueError("Config must have substitutions section for CIF method")
 
-    # Find matching substitution entry
+    # Find ALL matching substitution entries
     # Match is when substitution elements equal our elements (order-independent)
     elements_set = set(elements)
-    matched = False
+    matched_keys = []
 
     for elem_key, subst_dict in config['substitutions'].items():
         subst_elements = set(subst_dict.get('elements', []))
 
         if subst_elements == elements_set:
-            # Found match - update concentrations
-            # Need to match order of elements in substitution
-            subst_elem_list = subst_dict['elements']
+            # Found match - will update concentrations
+            matched_keys.append(elem_key)
 
-            # Create mapping from element to new concentration
-            elem_to_conc = {elem: conc for elem, conc in zip(elements, concentrations)}
-
-            # Update in correct order
-            new_concentrations = [elem_to_conc[elem] for elem in subst_elem_list]
-            config['substitutions'][elem_key]['concentrations'] = new_concentrations
-
-            matched = True
-            break
-
-    if not matched:
+    if not matched_keys:
         raise ValueError(
             f"No substitution found for elements {elements}.\n"
             f"Available substitutions: {list(config['substitutions'].keys())}"
         )
+
+    # Update all matching substitutions
+    for elem_key in matched_keys:
+        subst_dict = config['substitutions'][elem_key]
+        subst_elem_list = subst_dict['elements']
+
+        # Create mapping from element to new concentration
+        elem_to_conc = {elem: conc for elem, conc in zip(elements, concentrations)}
+
+        # Update in correct order
+        new_concentrations = [elem_to_conc[elem] for elem in subst_elem_list]
+        config['substitutions'][elem_key]['concentrations'] = new_concentrations
 
     return config
 

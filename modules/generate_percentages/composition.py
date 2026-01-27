@@ -105,51 +105,103 @@ def determine_loop_site(config: Dict[str, Any],
                     f"but site {idx} has {len(sites[idx]['elements'])} elements."
                 )
 
-    # CIF method: substitutions define which element(s) are variable; use the structure
-    # only to identify which base element sits on the selected site.
+    # CIF method: substitutions define which element(s) are variable
     elif config.get('substitutions') is not None:
-        # Validate all site indices
-        for idx in site_indices:
-            if idx >= len(structure_pmg.sites):
-                raise ValueError(
-                    f"site_index {idx} is out of range for the canonical structure.\n"
-                    f"Structure has {len(structure_pmg.sites)} sites (0-indexed)."
-                )
-
-        site = structure_pmg.sites[site_idx]
-        # Determine base element for this site
-        if len(site.species) == 1:
-            base_element = list(site.species.keys())[0].symbol
-        else:
-            # Mixed occupancy CIF: choose dominant component as base element for lookup
-            base_element = max(site.species.items(), key=lambda kv: kv[1])[0].symbol
-
-        subst = config['substitutions'].get(base_element)
-        if subst is None:
-            raise ValueError(
-                f"Selected site_index {site_idx} corresponds to base element '{base_element}', "
-                f"but no substitutions entry was found for it.\n"
-                f"Available substitutions: {list(config['substitutions'].keys())}"
-            )
-
-        elements = subst.get('elements', [])
-        concentrations = subst.get('concentrations', [])
+        loop_config = config['loop_perc']
         
-        # For CIF method with multiple sites, verify all sites correspond to same substitution
-        # (This is a limitation - all sites must have the same base element)
-        for idx in site_indices[1:]:
-            other_site = structure_pmg.sites[idx]
-            if len(other_site.species) == 1:
-                other_base = list(other_site.species.keys())[0].symbol
-            else:
-                other_base = max(other_site.species.items(), key=lambda kv: kv[1])[0].symbol
+        # Check if elements are specified directly (preferred for substitutions)
+        if 'substitution_elements' in loop_config and loop_config['substitution_elements'] is not None:
+            # Direct element specification - clearer for substitutions
+            # For substitutions, we don't need site_indices (substitutions apply to all sites of that element)
+            substitution_elements = loop_config['substitution_elements']
+            if not isinstance(substitution_elements, list):
+                substitution_elements = [substitution_elements]
             
-            if other_base != base_element:
+            # Validate all specified elements have substitutions
+            for elem in substitution_elements:
+                if elem not in config['substitutions']:
+                    raise ValueError(
+                        f"Element '{elem}' specified in substitution_elements "
+                        f"but no substitutions entry found for it.\n"
+                        f"Available substitutions: {list(config['substitutions'].keys())}"
+                    )
+            
+            # Get first substitution to get element info
+            first_subst = config['substitutions'][substitution_elements[0]]
+            elements = first_subst.get('elements', [])
+            concentrations = first_subst.get('concentrations', [])
+            
+            # Verify all substitutions have same elements
+            for elem in substitution_elements[1:]:
+                other_subst = config['substitutions'][elem]
+                other_elements = set(other_subst.get('elements', []))
+                if other_elements != set(elements):
+                    raise ValueError(
+                        f"All substitutions must have the same elements. "
+                        f"Substitution '{substitution_elements[0]}' has elements {list(elements)}, "
+                        f"but substitution '{elem}' has elements {list(other_elements)}."
+                    )
+            
+            # For substitutions, site_indices is not meaningful (substitutions apply to all sites)
+            # Return empty list to indicate we're using substitution_elements
+            site_indices = []
+        
+        else:
+            # Legacy: use site_index to identify elements (backward compatibility)
+            # Validate all site indices
+            for idx in site_indices:
+                if idx >= len(structure_pmg.sites):
+                    raise ValueError(
+                        f"site_index {idx} is out of range for the canonical structure.\n"
+                        f"Structure has {len(structure_pmg.sites)} sites (0-indexed)."
+                    )
+
+            site = structure_pmg.sites[site_idx]
+            # Determine base element for this site
+            if len(site.species) == 1:
+                base_element = list(site.species.keys())[0].symbol
+            else:
+                # Mixed occupancy CIF: choose dominant component as base element for lookup
+                base_element = max(site.species.items(), key=lambda kv: kv[1])[0].symbol
+
+            subst = config['substitutions'].get(base_element)
+            if subst is None:
                 raise ValueError(
-                    f"For CIF method with multiple sites, all sites must correspond to the same "
-                    f"substitution element. Site {site_idx} has '{base_element}', "
-                    f"but site {idx} has '{other_base}'."
+                    f"Selected site_index {site_idx} corresponds to base element '{base_element}', "
+                    f"but no substitutions entry was found for it.\n"
+                    f"Available substitutions: {list(config['substitutions'].keys())}.\n"
+                    f"Tip: Use 'substitution_elements' to specify elements directly."
                 )
+
+            elements = subst.get('elements', [])
+            concentrations = subst.get('concentrations', [])
+            
+            # For CIF method with multiple sites, verify all sites have substitutions
+            # with matching elements (can have different base elements, e.g., Cu and Mg)
+            for idx in site_indices[1:]:
+                other_site = structure_pmg.sites[idx]
+                if len(other_site.species) == 1:
+                    other_base = list(other_site.species.keys())[0].symbol
+                else:
+                    other_base = max(other_site.species.items(), key=lambda kv: kv[1])[0].symbol
+                
+                other_subst = config['substitutions'].get(other_base)
+                if other_subst is None:
+                    raise ValueError(
+                        f"Selected site_index {idx} corresponds to base element '{other_base}', "
+                        f"but no substitutions entry was found for it.\n"
+                        f"Available substitutions: {list(config['substitutions'].keys())}.\n"
+                        f"Tip: Use 'substitution_elements' to specify elements directly."
+                    )
+                
+                # Verify substitution has same elements (order-independent)
+                other_elements = set(other_subst.get('elements', []))
+                if other_elements != set(elements):
+                    raise ValueError(
+                        f"For CIF method with multiple sites, all substitutions must have the same elements. "
+                        f"Site {site_idx} (base '{base_element}') has elements {list(elements)}, "
+                        f"but site {idx} (base '{other_base}') has elements {list(other_elements)}."
+                    )
 
     else:
         raise ValueError(
@@ -217,7 +269,8 @@ def generate_compositions(loop_config: Dict[str, Any],
 
     # Mode 3: Single element sweep
     else:
-        elem_idx = loop_config.get('element_index', 0)
+        # Always varies first element (index 0) - concentrations always match element order
+        elem_idx = 0
         start = loop_config.get('start', 0)
         end = loop_config.get('end', 100)
         step = loop_config.get('step', 10)

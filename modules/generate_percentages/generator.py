@@ -112,10 +112,21 @@ def generate_percentage_configs(master_config_path: str,
 
     print(f"\nGenerating YAML files for {len(compositions)} compositions")
     print(f"Elements: {elements}")
-    if len(site_indices) == 1:
+    
+    # Check if using substitution_elements (CIF method)
+    loop_config = master_config.get('loop_perc', {})
+    if master_config.get('substitutions') and loop_config.get('substitution_elements'):
+        substitution_elements = loop_config['substitution_elements']
+        if not isinstance(substitution_elements, list):
+            substitution_elements = [substitution_elements]
+        print(f"Substitution elements: {substitution_elements} (all sites of these elements will be updated)")
+    elif len(site_indices) == 1:
         print(f"Site index: {site_indices[0]}")
-    else:
+    elif len(site_indices) > 1:
         print(f"Site indices: {site_indices} (same percentages applied to all)")
+    else:
+        print("Using substitution_elements (CIF method)")
+    
     print(f"Base folder: {base_folder}")
     print(f"Output directory: {base_folder_path}")
     print("-" * 70)
