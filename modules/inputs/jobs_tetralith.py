@@ -355,7 +355,7 @@ module load Mambaforge/23.3.1-1-hpc1
 conda activate env
 
 # Run optimization with this YAML file
-python {run_optimization_abs} "{yaml_path.resolve()}"
+python {run_optimization_abs} "{yaml_path.resolve()}" > {job_name}.log
 """
 
         # Write individual job script
