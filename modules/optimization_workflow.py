@@ -828,6 +828,7 @@ class OptimizationWorkflow:
                         print(f"✓ DOS analysis completed successfully")
                         print(f"  Total plot: {total_plot}")
                         print(f"  Sublattice plots: {len(dos_results.get('sublattice_plots', []))}")
+                        print(f"  ITA plots: {len(dos_results.get('ita_plots', []))}")
                     else:
                         print(f"⚠ Warning: DOS analysis reported success but plots not found")
                         print(f"  Expected total plot: {total_plot}")

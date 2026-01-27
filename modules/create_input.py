@@ -297,6 +297,7 @@ def create_emto_inputs(config):
     nkx = cfg['nkx']
     nky = cfg['nky']
     nkz = cfg['nkz']
+    depth = cfg['depth']
     ca_ratios = cfg['ca_ratios']
     sws_values = cfg['sws_values']
     auto_generate = cfg['auto_generate']
@@ -500,7 +501,8 @@ def create_emto_inputs(config):
                 magnetic=magnetic if magnetic is not None else 'F',
                 nkx=nkx,
                 nky=nky,
-                nkz=nkz
+                nkz=nkz,
+                depth=depth
             )
  
             # Create KFCD input

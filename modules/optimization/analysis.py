@@ -832,6 +832,7 @@ def generate_dos_analysis(
     # Generate plots
     total_plot = None
     sublattice_plots = []
+    ita_plots = []
     
     try:
         plotter = DOSPlotter(parser)
@@ -880,8 +881,37 @@ def generate_dos_analysis(
                 
                 sublattice_plots.append(str(sublat_plot))
                 print(f"✓ Sublattice {sublat} DOS plot saved: {sublat_plot}")
+
+            # ITA DOS (per atom type)
+            # Group ITAs by sublattice and enumerate to get ITA_index
+            for sublat in sublattices:
+                # Get all ITAs on this sublattice
+                itas_on_sublat = [(num, elem) for num, elem, sub in parser.atom_info if sub == sublat]
+                
+                # Plot each ITA on this sublattice
+                for ita_index, (ita_num, element) in enumerate(itas_on_sublat, start=1):
+                    ita_plot = dos_output_dir / f"dos_ita_s{sublat}_i{ita_index}_{element}.png"
+                    fig, ax = plotter.plot_ITA(
+                        sublattice=sublat,
+                        ITA_index=ita_index,
+                        orbital='total',
+                        spin_polarized=True,
+                        save=None,
+                        show=False,
+                        xlim=xlim,
+                        ylim=ylim,
+                    )
+                    fig.savefig(ita_plot, dpi=300, bbox_inches='tight')
+                    plt.close(fig)
+                    
+                    # Verify file was actually created
+                    if not ita_plot.exists():
+                        raise RuntimeError(f"Failed to save ITA DOS plot: {ita_plot} (file does not exist after savefig)")
+                    
+                    ita_plots.append(str(ita_plot))
+                    print(f"✓ ITA {ita_index} ({element.upper()}, sublattice {sublat}) DOS plot saved: {ita_plot}")
         else:
-            print("Note: No atom info found, skipping sublattice DOS plots")
+            print("Note: No atom info found, skipping sublattice and ITA DOS plots")
 
     except Exception as e:
         import traceback
@@ -896,6 +926,7 @@ def generate_dos_analysis(
         'dos_file': str(dos_file),
         'total_plot': str(total_plot) if 'total_plot' in locals() else None,
         'sublattice_plots': sublattice_plots if 'sublattice_plots' in locals() else [],
+        'ita_plots': ita_plots if 'ita_plots' in locals() else [],
         'plot_range': dos_plot_range,
         'ylim': dos_ylim,
         'atom_info': [
@@ -1033,9 +1064,15 @@ def generate_summary_report(
             # Count actual plots that exist
             total_plot_path = dos.get('total_plot')
             sublattice_plots = dos.get('sublattice_plots', [])
-            plot_count = (1 if total_plot_path and Path(total_plot_path).exists() else 0) + len([p for p in sublattice_plots if Path(p).exists()])
+            ita_plots = dos.get('ita_plots', [])
+            plot_count = (1 if total_plot_path and Path(total_plot_path).exists() else 0) + \
+                        len([p for p in sublattice_plots if Path(p).exists()]) + \
+                        len([p for p in ita_plots if Path(p).exists()])
             report.append(f"DOS plots generated: {plot_count}")
-            report.append(f"Plot range: {dos.get('plot_range')} eV")
+            report.append(f"  - Total DOS: 1")
+            report.append(f"  - Sublattice plots: {len([p for p in sublattice_plots if Path(p).exists()])}")
+            report.append(f"  - ITA plots: {len([p for p in ita_plots if Path(p).exists()])}")
+            report.append(f"Plot range: {dos.get('plot_range')} Ry")
 
     report.append("\n" + "=" * 80)
     report.append("END OF REPORT")

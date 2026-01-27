@@ -1023,6 +1023,9 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
         'nkz': 21,                       # K-mesh divisions along z (default: 21)
         'rescale_k': False,              # Rescale k-points based on lattice parameters
 
+        # KGRN calculation parameters
+        'depth': 1.100,                  # DEPTH parameter for KGRN (default: 1.100)
+
         # Analysis defaults
         'generate_plots': True,
         'export_csv': True,

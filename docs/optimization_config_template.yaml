@@ -121,6 +121,11 @@ rescale_k: false                     # Enable k-point rescaling (default: false)
                                      # Formula: N'_i = (a_ref × N_ref) / a'_i, rounded to nearest integer
                                      # Applied once at initial file creation (same k-mesh for all phases)
 
+# KGRN calculation parameters
+depth: 1.100                         # DEPTH parameter for KGRN (default: 1.100)
+                                     # Controls the depth of the calculation
+                                     # Format: 7 characters maximum (e.g., "  1.100")
+
 # ------------------------------------------------------------------------------
 # OPTIMIZATION FLAGS - Enable/disable optimization phases
 # ------------------------------------------------------------------------------

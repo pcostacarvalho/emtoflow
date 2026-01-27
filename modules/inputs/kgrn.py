@@ -1,5 +1,5 @@
 
-def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic, nkx, nky, nkz):
+def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic, nkx, nky, nkz, depth=1.100):
     """
     Create a KGRN (self-consistent KKR) input file for EMTO from structure dict.
 
@@ -85,7 +85,7 @@ FRC...=  N DOS..=  Y OPS..=  N AFM..=  {magnetic:>1} CRT..=  M STMP..= A
 Lmaxh.=  8 Lmaxt=  4 NFI..= 31 FIXG.=  2 SHF..=  0 SOFC.=  Y
 KMSH...= S IBZ..={lat:>3} NKX..={nkx:>3} NKY..={nky:>3} NKZ..={nkz:>3} FBZ..=  N
 ZMSH...= E NZ1..= 16 NZ2..= 16 NZ3..= 16 NRES.=  4 NZD..=999
-DEPTH..=  1.100 IMAGZ.=  0.005 EPS...=  0.200 ELIM..= -1.000
+DEPTH..={depth:>7.3f} IMAGZ.=  0.005 EPS...=  0.200 ELIM..= -1.000
 AMIX...=  0.010 VMIX..=   0.70 EFMIX.=  0.900 VMTZ..=  0.000
 TOLE...= 1.d-07 TOLEF.= 1.d-08 TOLCPA= 1.d-06 TFERMI=  300.0 (K)
 SWS....= {SWS:>6.3f} MMOM..=  0.000
