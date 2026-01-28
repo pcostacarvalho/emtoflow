@@ -33,7 +33,8 @@ def optimize_ca_ratio(
     run_calculations_func: Callable,
     validate_calculations_func: Callable,
     run_eos_fit_func: Callable,
-    results_dict: Dict[str, Any]
+    results_dict: Dict[str, Any],
+    strict: bool = True
 ) -> Tuple[float, Dict[str, Any]]:
     """
     Phase 1: c/a ratio optimization.
@@ -63,6 +64,10 @@ def optimize_ca_ratio(
         Function to run EOS fit
     results_dict : dict
         Workflow results dictionary to update
+    strict : bool, optional
+        If True, raise RuntimeError on missing output files (user-provided values).
+        If False, skip missing files and continue (auto-generated values).
+        Default: True
 
     Returns
     -------
@@ -73,7 +78,8 @@ def optimize_ca_ratio(
     Raises
     ------
     RuntimeError
-        If calculations fail or output files not found
+        If strict=True and calculations fail or output files not found.
+        If strict=False but fewer than 3 successful calculations (insufficient for EOS fitting).
     """
     print(f"\n{'#'*70}")
     print("# PHASE 1: c/a RATIO OPTIMIZATION")
@@ -128,7 +134,8 @@ def optimize_ca_ratio(
         phase_path=phase_path,
         ca_ratios=ca_ratios,
         sws_values=sws_list,
-        job_name=config['job_name']
+        job_name=config['job_name'],
+        strict=strict
     )
 
     # Parse energies from KFCD outputs
@@ -141,15 +148,23 @@ def optimize_ca_ratio(
         kfcd_file = phase_path / "fcd" / f"{file_id}.prn"
 
         if not kfcd_file.exists():
-            raise RuntimeError(
-                f"KFCD output not found: {kfcd_file}\n"
-                f"Calculation may have failed. Check log files in {phase_path}"
-            )
+            if strict:
+                raise RuntimeError(
+                    f"KFCD output not found: {kfcd_file}\n"
+                    f"Calculation may have failed. Check log files in {phase_path}"
+                )
+            else:
+                print(f"  ⚠ Skipping missing c/a={ca:.4f}: {kfcd_file}")
+                continue
 
         try:
             results = parse_kfcd(str(kfcd_file), functional=config.get('functional', 'GGA'))
             if results.total_energy is None:
-                raise RuntimeError(f"No total energy found in {kfcd_file}")
+                if strict:
+                    raise RuntimeError(f"No total energy found in {kfcd_file}")
+                else:
+                    print(f"  ⚠ Skipping c/a={ca:.4f}: No total energy in {kfcd_file}")
+                    continue
 
             ca_values.append(ca)
             energy_values.append(results.energies_by_functional['system']['GGA'])
@@ -157,7 +172,27 @@ def optimize_ca_ratio(
             print(f"  c/a = {ca:.4f}: E = {results.energies_by_functional['system']['GGA']:.6f} Ry")
 
         except Exception as e:
-            raise RuntimeError(f"Failed to parse {kfcd_file}: {e}")
+            if strict:
+                raise RuntimeError(f"Failed to parse {kfcd_file}: {e}")
+            else:
+                print(f"  ⚠ Skipping c/a={ca:.4f}: Failed to parse {kfcd_file}: {e}")
+                continue
+    
+    # Check if we have enough points for EOS fitting
+    if len(ca_values) < 3:
+        error_msg = (
+            f"Insufficient data points for EOS fitting: only {len(ca_values)} successful calculations "
+            f"out of {len(ca_ratios)} requested c/a ratios.\n"
+            f"Successful c/a ratios: {ca_values}\n"
+            f"Missing c/a ratios: {[c for c in ca_ratios if c not in ca_values]}"
+        )
+        if strict:
+            raise RuntimeError(error_msg)
+        else:
+            raise RuntimeError(
+                f"{error_msg}\n"
+                f"Note: Even in lenient mode, at least 3 successful calculations are required for EOS fitting."
+            )
 
     # Prepare data for EOS fitting
     # Always saves current workflow data to file (automatic)
@@ -730,7 +765,8 @@ def optimize_sws(
     run_calculations_func: Callable,
     validate_calculations_func: Callable,
     run_eos_fit_func: Callable,
-    results_dict: Dict[str, Any]
+    results_dict: Dict[str, Any],
+    strict: bool = True
 ) -> Tuple[float, Dict[str, Any]]:
     """
     Phase 2: SWS optimization at optimal c/a ratio.
@@ -758,6 +794,10 @@ def optimize_sws(
         Function to run EOS fit
     results_dict : dict
         Workflow results dictionary to update
+    strict : bool, optional
+        If True, raise RuntimeError on missing output files (user-provided values).
+        If False, skip missing files and continue (auto-generated values).
+        Default: True
 
     Returns
     -------
@@ -768,7 +808,8 @@ def optimize_sws(
     Raises
     ------
     RuntimeError
-        If calculations fail or output files not found
+        If strict=True and calculations fail or output files not found.
+        If strict=False but fewer than 3 successful calculations (insufficient for EOS fitting).
     """
     print(f"\n{'#'*70}")
     print("# PHASE 2: SWS OPTIMIZATION")
@@ -809,7 +850,8 @@ def optimize_sws(
         phase_path=phase_path,
         ca_ratios=[optimal_ca],
         sws_values=sws_values,
-        job_name=config['job_name']
+        job_name=config['job_name'],
+        strict=strict
     )
 
     # Parse energies from KFCD outputs
@@ -822,15 +864,23 @@ def optimize_sws(
         kfcd_file = phase_path / "fcd" / f"{file_id}.prn"
 
         if not kfcd_file.exists():
-            raise RuntimeError(
-                f"KFCD output not found: {kfcd_file}\n"
-                f"Calculation may have failed. Check log files in {phase_path}"
-            )
+            if strict:
+                raise RuntimeError(
+                    f"KFCD output not found: {kfcd_file}\n"
+                    f"Calculation may have failed. Check log files in {phase_path}"
+                )
+            else:
+                print(f"  ⚠ Skipping missing SWS={sws:.4f}: {kfcd_file}")
+                continue
 
         try:
             results = parse_kfcd(str(kfcd_file), functional=config.get('functional', 'GGA'))
             if results.total_energy is None:
-                raise RuntimeError(f"No total energy found in {kfcd_file}")
+                if strict:
+                    raise RuntimeError(f"No total energy found in {kfcd_file}")
+                else:
+                    print(f"  ⚠ Skipping SWS={sws:.4f}: No total energy in {kfcd_file}")
+                    continue
 
             sws_parsed.append(sws)
             energy_values.append(results.energies_by_functional['system']['GGA'])
@@ -838,7 +888,27 @@ def optimize_sws(
             print(f"  SWS = {sws:.4f}: E = {results.energies_by_functional['system']['GGA']:.6f} Ry")
 
         except Exception as e:
-            raise RuntimeError(f"Failed to parse {kfcd_file}: {e}")
+            if strict:
+                raise RuntimeError(f"Failed to parse {kfcd_file}: {e}")
+            else:
+                print(f"  ⚠ Skipping SWS={sws:.4f}: Failed to parse {kfcd_file}: {e}")
+                continue
+    
+    # Check if we have enough points for EOS fitting
+    if len(sws_parsed) < 3:
+        error_msg = (
+            f"Insufficient data points for EOS fitting: only {len(sws_parsed)} successful calculations "
+            f"out of {len(sws_values)} requested SWS values.\n"
+            f"Successful SWS values: {sws_parsed}\n"
+            f"Missing SWS values: {[s for s in sws_values if s not in sws_parsed]}"
+        )
+        if strict:
+            raise RuntimeError(error_msg)
+        else:
+            raise RuntimeError(
+                f"{error_msg}\n"
+                f"Note: Even in lenient mode, at least 3 successful calculations are required for EOS fitting."
+            )
 
     # Prepare data for EOS fitting
     # Always saves current workflow data to file (automatic)

@@ -300,7 +300,8 @@ class OptimizationWorkflow:
         phase_path: Union[str, Path],
         ca_ratios: List[float],
         sws_values: List[float],
-        job_name: str
+        job_name: str,
+        strict: bool = True
     ) -> None:
         """
         Validate that EMTO calculations completed successfully.
@@ -320,78 +321,18 @@ class OptimizationWorkflow:
             SWS values that were calculated
         job_name : str
             Job identifier used in filenames
+        strict : bool, optional
+            If True, raise RuntimeError on missing files (user-provided values).
+            If False, only warn on missing files (auto-generated values).
+            Default: True
 
         Raises
         ------
         RuntimeError
-            If any calculation failed or output files are missing/incomplete
+            If strict=True and any calculation failed or output files are missing/incomplete
         """
-        phase_path = Path(phase_path)
-
-        print(f"\n{'='*70}")
-        print(f"VALIDATING CALCULATIONS")
-        print(f"{'='*70}")
-
-        errors = []
-
-        # For each c/a ratio, check KSTR and SHAPE outputs
-        for ca_ratio in ca_ratios:
-            file_id = f"{job_name}_{ca_ratio:.2f}"
-
-            # Check KSTR output in smx directory
-            kstr_out = phase_path / f"smx/{file_id}.prn"
-            if not kstr_out.exists():
-                errors.append(f"Missing KSTR output: {kstr_out}")
-            else:
-                # Check for success indicator
-                with open(kstr_out, 'r') as f:
-                    content = f.read()
-                    if "KSTR:     Finished at:" not in content:
-                        errors.append(f"KSTR did not complete successfully: {kstr_out}")
-                    else:
-                        print(f"✓ KSTR completed for c/a={ca_ratio:.2f}")
-
-        # For each (c/a, sws) pair, check KGRN and KFCD outputs
-        for ca_ratio in ca_ratios:
-            for sws in sws_values:
-                file_id = f"{job_name}_{ca_ratio:.2f}_{sws:.2f}"
-
-                # Check KGRN output
-                kgrn_out = phase_path / f"{file_id}.prn"
-                if not kgrn_out.exists():
-                    errors.append(f"Missing KGRN output: {kgrn_out}")
-                else:
-                    # Check for success indicator
-                    with open(kgrn_out, 'r') as f:
-                        content = f.read()
-                        if "KGRN: OK  Finished at:" not in content:
-                            errors.append(f"KGRN did not complete successfully: {kgrn_out}")
-                        else:
-                            print(f"✓ KGRN completed for c/a={ca_ratio:.2f}, SWS={sws:.2f}")
-
-                # Check KFCD output
-                kfcd_out = phase_path / f"fcd/{file_id}.prn"
-                if not kfcd_out.exists():
-                    errors.append(f"Missing KFCD output: {kfcd_out}")
-                else:
-                    # Check for success indicator
-                    with open(kfcd_out, 'r') as f:
-                        content = f.read()
-                        if "KFCD: OK  Finished at:" not in content:
-                            errors.append(f"KFCD did not complete successfully: {kfcd_out}")
-                        else:
-                            print(f"✓ KFCD completed for c/a={ca_ratio:.2f}, SWS={sws:.2f}")
-
-        print(f"{'='*70}\n")
-
-        if errors:
-            error_msg = "\n".join(errors)
-            raise RuntimeError(
-                f"Calculation validation failed with {len(errors)} error(s):\n{error_msg}\n\n"
-                f"Please check the calculation logs in: {phase_path}"
-            )
-
-        print("✓ All calculations validated successfully\n")
+        from modules.optimization.execution import validate_calculations
+        validate_calculations(phase_path, ca_ratios, sws_values, job_name, strict=strict)
 
     def _run_eos_fit(
         self,
@@ -459,7 +400,8 @@ class OptimizationWorkflow:
         self,
         structure: Dict[str, Any],
         ca_ratios: List[float],
-        initial_sws: Union[float, List[float]]
+        initial_sws: Union[float, List[float]],
+        strict: bool = True
     ) -> Tuple[float, Dict[str, Any]]:
         """
         Phase 1: c/a ratio optimization.
@@ -474,6 +416,10 @@ class OptimizationWorkflow:
             List of c/a ratios to test
         initial_sws : float or list of float
             Initial SWS value(s) for c/a optimization
+        strict : bool, optional
+            If True, raise errors on missing values (user-provided).
+            If False, skip missing values (auto-generated).
+            Default: True
 
         Returns
         -------
@@ -492,14 +438,16 @@ class OptimizationWorkflow:
             run_calculations_func=self._run_calculations,
             validate_calculations_func=self._validate_calculations,
             run_eos_fit_func=self._run_eos_fit,
-            results_dict=self.results
+            results_dict=self.results,
+            strict=strict
         )
 
     def optimize_sws(
         self,
         structure: Dict[str, Any],
         sws_values: List[float],
-        optimal_ca: float
+        optimal_ca: float,
+        strict: bool = True
     ) -> Tuple[float, Dict[str, Any]]:
         """
         Phase 2: SWS optimization at optimal c/a ratio.
@@ -514,6 +462,10 @@ class OptimizationWorkflow:
             List of SWS values to test
         optimal_ca : float
             Optimal c/a ratio from Phase 1
+        strict : bool, optional
+            If True, raise errors on missing values (user-provided).
+            If False, skip missing values (auto-generated).
+            Default: True
 
         Returns
         -------
@@ -740,10 +692,19 @@ class OptimizationWorkflow:
         print("STEP 2: PARAMETER PREPARATION")
         print("=" * 80)
 
+        # Track whether values are user-provided (list with >1 element) vs auto-generated
+        # This determines strict vs lenient validation
+        ca_ratios_original = self.config.get('ca_ratios')
+        sws_values_original = self.config.get('sws_values')
+        
+        # Check if user explicitly provided lists (strict mode)
+        ca_strict = isinstance(ca_ratios_original, list) and len(ca_ratios_original) > 1
+        sws_strict = isinstance(sws_values_original, list) and len(sws_values_original) > 1
+
         try:
             ca_list, sws_list = self._prepare_ranges(
-                self.config.get('ca_ratios'),
-                self.config.get('sws_values'),
+                ca_ratios_original,
+                sws_values_original,
                 structure=structure
             )
         except Exception as e:
@@ -757,7 +718,8 @@ class OptimizationWorkflow:
                 optimal_ca, ca_results = self.optimize_ca_ratio(
                     structure=structure,
                     ca_ratios=ca_list,
-                    initial_sws=initial_sws
+                    initial_sws=initial_sws,
+                    strict=ca_strict
                 )
             except Exception as e:
                 raise RuntimeError(f"c/a optimization failed: {e}")
@@ -778,7 +740,8 @@ class OptimizationWorkflow:
                 optimal_sws, sws_results = self.optimize_sws(
                     structure=structure,
                     sws_values=sws_list,
-                    optimal_ca=optimal_ca
+                    optimal_ca=optimal_ca,
+                    strict=sws_strict
                 )
             except Exception as e:
                 raise RuntimeError(f"SWS optimization failed: {e}")

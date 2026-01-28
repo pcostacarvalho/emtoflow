@@ -97,7 +97,8 @@ def validate_calculations(
     phase_path: Union[str, Path],
     ca_ratios: List[float],
     sws_values: List[float],
-    job_name: str
+    job_name: str,
+    strict: bool = True
 ) -> None:
     """
     Validate that EMTO calculations completed successfully.
@@ -117,19 +118,26 @@ def validate_calculations(
         SWS values that were calculated
     job_name : str
         Job identifier used in filenames
+    strict : bool, optional
+        If True, raise RuntimeError on missing files (user-provided values).
+        If False, only warn on missing files (auto-generated values).
+        Default: True
 
     Raises
     ------
     RuntimeError
-        If any calculation failed or output files are missing/incomplete
+        If strict=True and any calculation failed or output files are missing/incomplete
     """
     phase_path = Path(phase_path)
 
     print(f"\n{'='*70}")
     print(f"VALIDATING CALCULATIONS")
+    if not strict:
+        print(f"(Lenient mode: missing values will be skipped)")
     print(f"{'='*70}")
 
     errors = []
+    warnings = []
 
     # For each c/a ratio, check KSTR and SHAPE outputs
     for ca_ratio in ca_ratios:
@@ -138,13 +146,21 @@ def validate_calculations(
         # Check KSTR output in smx directory
         kstr_out = phase_path / f"smx/{file_id}.prn"
         if not kstr_out.exists():
-            errors.append(f"Missing KSTR output: {kstr_out}")
+            msg = f"Missing KSTR output: {kstr_out}"
+            if strict:
+                errors.append(msg)
+            else:
+                warnings.append(msg)
         else:
             # Check for success indicator
             with open(kstr_out, 'r') as f:
                 content = f.read()
                 if "KSTR:     Finished at:" not in content:
-                    errors.append(f"KSTR did not complete successfully: {kstr_out}")
+                    msg = f"KSTR did not complete successfully: {kstr_out}"
+                    if strict:
+                        errors.append(msg)
+                    else:
+                        warnings.append(msg)
                 else:
                     print(f"✓ KSTR completed for c/a={ca_ratio:.2f}")
 
@@ -156,31 +172,55 @@ def validate_calculations(
             # Check KGRN output
             kgrn_out = phase_path / f"{file_id}.prn"
             if not kgrn_out.exists():
-                errors.append(f"Missing KGRN output: {kgrn_out}")
+                msg = f"Missing KGRN output: {kgrn_out}"
+                if strict:
+                    errors.append(msg)
+                else:
+                    warnings.append(msg)
             else:
                 # Check for success indicator
                 with open(kgrn_out, 'r') as f:
                     content = f.read()
                     if "KGRN: OK  Finished at:" not in content:
-                        errors.append(f"KGRN did not complete successfully: {kgrn_out}")
+                        msg = f"KGRN did not complete successfully: {kgrn_out}"
+                        if strict:
+                            errors.append(msg)
+                        else:
+                            warnings.append(msg)
                     else:
                         print(f"✓ KGRN completed for c/a={ca_ratio:.2f}, SWS={sws:.2f}")
 
             # Check KFCD output
             kfcd_out = phase_path / f"fcd/{file_id}.prn"
             if not kfcd_out.exists():
-                errors.append(f"Missing KFCD output: {kfcd_out}")
+                msg = f"Missing KFCD output: {kfcd_out}"
+                if strict:
+                    errors.append(msg)
+                else:
+                    warnings.append(msg)
             else:
                 # Check for success indicator
                 with open(kfcd_out, 'r') as f:
                     content = f.read()
                     if "KFCD: OK  Finished at:" not in content:
-                        errors.append(f"KFCD did not complete successfully: {kfcd_out}")
+                        msg = f"KFCD did not complete successfully: {kfcd_out}"
+                        if strict:
+                            errors.append(msg)
+                        else:
+                            warnings.append(msg)
                     else:
                         print(f"✓ KFCD completed for c/a={ca_ratio:.2f}, SWS={sws:.2f}")
 
     print(f"{'='*70}\n")
 
+    # Print warnings if any (lenient mode)
+    if warnings:
+        print(f"⚠ Warning: {len(warnings)} calculation(s) missing or incomplete:")
+        for warning in warnings:
+            print(f"  - {warning}")
+        print("  These will be skipped during result extraction.\n")
+
+    # Raise errors if any (strict mode)
     if errors:
         error_msg = "\n".join(errors)
         raise RuntimeError(
@@ -188,4 +228,5 @@ def validate_calculations(
             f"Please check the calculation logs in: {phase_path}"
         )
 
-    print("✓ All calculations validated successfully\n")
+    if not warnings and not errors:
+        print("✓ All calculations validated successfully\n")
