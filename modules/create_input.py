@@ -304,6 +304,11 @@ def create_emto_inputs(config):
     efgs = cfg['efgs']
     hx = cfg['hx']
     nx = cfg['nx']
+    amix = cfg['amix']
+    vmix = cfg['vmix']
+    imagz = cfg['imagz']
+    eps = cfg['eps']
+    nz0 = cfg['nz0']
     ca_ratios = cfg['ca_ratios']
     sws_values = cfg['sws_values']
     auto_generate = cfg['auto_generate']
@@ -514,7 +519,12 @@ def create_emto_inputs(config):
                 tolef=tolef,
                 efgs=efgs,
                 hx=hx,
-                nx=nx
+                nx=nx,
+                amix=amix,
+                vmix=vmix,
+                imagz=imagz,
+                eps=eps,
+                nz0=nz0
             )
  
             # Create KFCD input

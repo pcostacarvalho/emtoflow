@@ -1,5 +1,5 @@
 
-def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic, nkx, nky, nkz, depth=1.100, efmix=0.900, tolcpa=1e-06, tolef=1e-08, efgs=0.000, hx=0.101, nx=5):
+def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic, nkx, nky, nkz, depth=1.100, efmix=0.900, tolcpa=1e-06, tolef=1e-08, efgs=0.000, hx=0.101, nx=5, amix=0.010, vmix=0.70, imagz=0.005, eps=0.200, nz0=16):
     """
     Create a KGRN (self-consistent KKR) input file for EMTO from structure dict.
 
@@ -44,6 +44,16 @@ def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic, nkx, nk
         HX parameter for KGRN (default: 0.101)
     nx : int, optional
         NX parameter for KGRN (default: 5)
+    amix : float, optional
+        AMIX parameter for KGRN (default: 0.010)
+    vmix : float, optional
+        VMIX parameter for KGRN (default: 0.70)
+    imagz : float, optional
+        IMAGZ parameter for KGRN (default: 0.005)
+    eps : float, optional
+        EPS parameter for KGRN (default: 0.200)
+    nz0 : int, optional
+        NZ0 parameter for KGRN (default: 16)
 
     Notes
     -----
@@ -111,11 +121,11 @@ FRC...=  N DOS..=  Y OPS..=  N AFM..=  {magnetic:>1} CRT..=  M STMP..= A
 Lmaxh.=  8 Lmaxt=  4 NFI..= 31 FIXG.=  2 SHF..=  0 SOFC.=  Y
 KMSH...= S IBZ..={lat:>3} NKX..={nkx:>3} NKY..={nky:>3} NKZ..={nkz:>3} FBZ..=  N
 ZMSH...= E NZ1..= 16 NZ2..= 16 NZ3..= 16 NRES.=  4 NZD..=999
-DEPTH..={depth:>7.3f} IMAGZ.=  0.005 EPS...=  0.200 ELIM..= -1.000
-AMIX...=  0.010 VMIX..=   0.70 EFMIX.=  {efmix:>6.3f} VMTZ..=  0.000
+DEPTH..= {depth:>6.3f} IMAGZ.= {imagz:>6.3f} EPS...= {eps:>6.3f} ELIM..= -1.000
+AMIX...= {amix:>6.3f} VMIX..= {vmix:>6.2f} EFMIX.= {efmix:>6.3f} VMTZ..=  0.000
 TOLE...= 1.d-07 TOLEF.= {tolef_str} TOLCPA= {tolcpa_str} TFERMI=  300.0 (K)
 SWS....= {SWS:>6.3f} MMOM..=  0.000
-EFGS...=  {efgs:>6.3f} HX....=  {hx:>6.3f} NX...= {nx:>3} NZ0..= 16 KPOLE=  0
+EFGS...= {efgs:>6.3f} HX....= {hx:>6.3f} NX...={nx:>3} NZ0..={nz0:>3} KPOLE=  0
 **********************************************************************
 Sort:  information for alloy:                                        *
 ******************************SS-screeining*|***Magnetic structure ***

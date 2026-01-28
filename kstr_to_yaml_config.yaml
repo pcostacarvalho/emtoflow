@@ -1,0 +1,208 @@
+# ==============================================================================
+# YAML Configuration Generated from KSTR Input
+# ==============================================================================
+# Cu-Mg structure with 16 Cu atoms and 32 Mg atoms
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# BASIC SETTINGS
+# ------------------------------------------------------------------------------
+output_path: "output_directory"
+job_name: "kstr_reproduction"
+
+# ------------------------------------------------------------------------------
+# STRUCTURE INPUT
+# ------------------------------------------------------------------------------
+cif_file: null
+
+# Lattice parameters (from POSCAR/CIF format)
+lat: 8                              # Simple orthorhombic (LAT=8)
+a: 5.2624998093                     # Lattice parameter a (Angstroms)
+b: 9.0277996063                     # Lattice parameter b (Angstroms)
+c: 18.3069992065                    # Lattice parameter c (Angstroms)
+alpha: 90.0                         # Lattice angles (all 90° for orthorhombic)
+beta: 90.0
+gamma: 90.0
+
+# Atomic sites with fractional coordinates
+# First 16 sites are Cu, next 32 sites are Mg
+sites:
+  # Cu sites (1-16) - Cu concentration = 1.0, Mg concentration = 0.0
+  - position: [0.125000000, 0.125000000, 0.498600000]
+    elements: ['Cu', 'Mg']
+    concentrations: [1.0, 0.0]
+  - position: [0.875000000, 0.875000000, 0.501400000]
+    elements: ['Cu', 'Mg']
+    concentrations: [1.0, 0.0]
+  - position: [0.625000000, 0.625000000, 0.498600000]
+    elements: ['Cu', 'Mg']
+    concentrations: [1.0, 0.0]
+  - position: [0.375000000, 0.375000000, 0.501400000]
+    elements: ['Cu', 'Mg']
+    concentrations: [1.0, 0.0]
+  - position: [0.625000000, 0.125000000, 0.251400000]
+    elements: ['Cu', 'Mg']
+    concentrations: [1.0, 0.0]
+  - position: [0.375000000, 0.875000000, 0.748600000]
+    elements: ['Cu', 'Mg']
+    concentrations: [1.0, 0.0]
+  - position: [0.125000000, 0.625000000, 0.251400000]
+    elements: ['Cu', 'Mg']
+    concentrations: [1.0, 0.0]
+  - position: [0.875000000, 0.375000000, 0.748600000]
+    elements: ['Cu', 'Mg']
+    concentrations: [1.0, 0.0]
+  - position: [0.125000000, 0.625000000, 0.998600000]
+    elements: ['Cu', 'Mg']
+    concentrations: [1.0, 0.0]
+  - position: [0.875000000, 0.375000000, 0.001400000]
+    elements: ['Cu', 'Mg']
+    concentrations: [1.0, 0.0]
+  - position: [0.625000000, 0.125000000, 0.998600000]
+    elements: ['Cu', 'Mg']
+    concentrations: [1.0, 0.0]
+  - position: [0.375000000, 0.875000000, 0.001400000]
+    elements: ['Cu', 'Mg']
+    concentrations: [1.0, 0.0]
+  - position: [0.625000000, 0.625000000, 0.751400000]
+    elements: ['Cu', 'Mg']
+    concentrations: [1.0, 0.0]
+  - position: [0.375000000, 0.375000000, 0.248600000]
+    elements: ['Cu', 'Mg']
+    concentrations: [1.0, 0.0]
+  - position: [0.125000000, 0.125000000, 0.751400000]
+    elements: ['Cu', 'Mg']
+    concentrations: [1.0, 0.0]
+  - position: [0.875000000, 0.875000000, 0.248600000]
+    elements: ['Cu', 'Mg']
+    concentrations: [1.0, 0.0]
+  # Mg sites (17-48) - Cu concentration = 0.0, Mg concentration = 1.0
+  - position: [0.125000000, 0.125000000, 0.041480000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.875000000, 0.875000000, 0.958520000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.625000000, 0.625000000, 0.041480000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.375000000, 0.375000000, 0.958520000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.625000000, 0.125000000, 0.708520000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.375000000, 0.875000000, 0.291480000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.125000000, 0.625000000, 0.708520000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.875000000, 0.375000000, 0.291480000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.125000000, 0.625000000, 0.541480000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.875000000, 0.375000000, 0.458520000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.625000000, 0.125000000, 0.541480000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.375000000, 0.875000000, 0.458520000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.625000000, 0.625000000, 0.208520000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.375000000, 0.375000000, 0.791480000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.125000000, 0.125000000, 0.208520000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.875000000, 0.875000000, 0.791480000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.125000000, 0.459790000, 0.125000000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.875000000, 0.540210000, 0.875000000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.625000000, 0.290210000, 0.125000000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.375000000, 0.709790000, 0.875000000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.625000000, 0.459790000, 0.625000000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.375000000, 0.540210000, 0.375000000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.125000000, 0.290210000, 0.625000000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.875000000, 0.709790000, 0.375000000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.125000000, 0.959790000, 0.625000000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.875000000, 0.040210000, 0.375000000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.625000000, 0.790210000, 0.625000000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.375000000, 0.209790000, 0.375000000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.625000000, 0.959790000, 0.125000000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.375000000, 0.040210000, 0.875000000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.125000000, 0.790210000, 0.125000000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+  - position: [0.875000000, 0.209790000, 0.875000000]
+    elements: ['Cu', 'Mg']
+    concentrations: [0.0, 1.0]
+
+# ------------------------------------------------------------------------------
+# EMTO CALCULATION PARAMETERS
+# ------------------------------------------------------------------------------
+dmax: 1.8                                # Maximum distance parameter (default)
+
+# ------------------------------------------------------------------------------
+# OPTIMIZATION SETTINGS (adjust as needed)
+# ------------------------------------------------------------------------------
+optimize_ca: false
+optimize_sws: false
+optimize_dmax: false
+
+# ------------------------------------------------------------------------------
+# KGRN CALCULATION PARAMETERS
+# ------------------------------------------------------------------------------
+amix: 0.010                            # AMIX parameter for KGRN (default: 0.010)
+                                       # Mixing parameter for charge density
+vmix: 0.70                             # VMIX parameter for KGRN (default: 0.70)
+                                       # Mixing parameter for potential
+imagz: 0.005                           # IMAGZ parameter for KGRN (default: 0.005)
+                                       # Imaginary part of energy for Green's function
+eps: 0.200                             # EPS parameter for KGRN (default: 0.200)
+                                       # Energy parameter for integration
+
+# ------------------------------------------------------------------------------
+# OTHER SETTINGS (use defaults or adjust as needed)
+# ------------------------------------------------------------------------------
+magnetic: "P"
+functional: "GGA"
+nkx: 21
+nky: 21
+nkz: 21

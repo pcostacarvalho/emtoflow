@@ -146,6 +146,21 @@ hx: 0.101                            # HX parameter for KGRN (default: 0.101)
 nx: 5                                # NX parameter for KGRN (default: 5)
                                      # Number of energy points
 
+amix: 0.010                          # AMIX parameter for KGRN (default: 0.010)
+                                     # Mixing parameter for charge density
+
+vmix: 0.70                           # VMIX parameter for KGRN (default: 0.70)
+                                     # Mixing parameter for potential
+
+imagz: 0.005                         # IMAGZ parameter for KGRN (default: 0.005)
+                                     # Imaginary part of energy for complex contour integration
+
+eps: 0.200                           # EPS parameter for KGRN (default: 0.200)
+                                     # Energy parameter for integration
+
+nz0: 16                              # NZ0 parameter for KGRN (default: 16)
+                                     # Number of z-points for integration
+
 # ------------------------------------------------------------------------------
 # OPTIMIZATION FLAGS - Enable/disable optimization phases
 # ------------------------------------------------------------------------------

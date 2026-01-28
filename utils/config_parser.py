@@ -1031,6 +1031,11 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
         'efgs': 0.000,                   # EFGS parameter for KGRN (default: 0.000)
         'hx': 0.101,                     # HX parameter for KGRN (default: 0.101)
         'nx': 5,                         # NX parameter for KGRN (default: 5)
+        'amix': 0.010,                   # AMIX parameter for KGRN (default: 0.010)
+        'vmix': 0.70,                    # VMIX parameter for KGRN (default: 0.70)
+        'imagz': 0.005,                  # IMAGZ parameter for KGRN (default: 0.005)
+        'eps': 0.200,                    # EPS parameter for KGRN (default: 0.200)
+        'nz0': 16,                       # NZ0 parameter for KGRN (default: 16)
 
         # Analysis defaults
         'generate_plots': True,
