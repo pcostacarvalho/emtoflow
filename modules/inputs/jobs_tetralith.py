@@ -34,9 +34,11 @@ for r in {ratios_str}; do
 
         # Check KSTR completion via .prn content
         if [ ! -f {id_ratio}_${{r}}.prn ] || ! grep -q "KSTR:     Finished at:" {id_ratio}_${{r}}.prn 2>/dev/null; then
-            echo "KSTR failed: .prn file missing or incomplete!"
+            echo "KSTR failed for c/a=$r: .prn file missing or incomplete!"
             grep "Try DMAX" smx_${{r}}.log
-            exit 1
+            echo "Skipping entire c/a=$r ratio (SHAPE, KGRN, KFCD will not run for this ratio)"
+            cd ../
+            continue
         else
             echo "DONE!"
         fi
@@ -56,8 +58,10 @@ for r in {ratios_str}; do
 
         # Check SHAPE completion via log content
         if [ ! -f shp_${{r}}.log ] || ! grep -q "Shape function completed" shp_${{r}}.log 2>/dev/null; then
-            echo "SHAPE failed!"
-            exit 1
+            echo "SHAPE failed for c/a=$r!"
+            echo "Skipping entire c/a=$r ratio (KGRN, KFCD will not run for this ratio)"
+            cd ../
+            continue
         else
             echo "DONE!"
         fi
@@ -78,8 +82,9 @@ for r in {ratios_str}; do
 
             # Check KGRN completion via .prn content
             if [ ! -f {id_ratio}_${{r}}_${{v}}.prn ] || ! grep -q "KGRN: OK  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
-                echo "KGRN failed!"
-                exit 1
+                echo "KGRN failed for c/a=$r, SWS=$v!"
+                echo "Skipping c/a=$r, SWS=$v (KFCD will not run for this combination)"
+                continue
             else
                 echo "DONE!"
             fi
@@ -96,8 +101,10 @@ for r in {ratios_str}; do
 
             # Check KFCD completion via .prn content
             if [ ! -f {id_ratio}_${{r}}_${{v}}.prn ] || ! grep -q "KFCD: OK  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
-                echo "KFCD failed!"
-                exit 1
+                echo "KFCD failed for c/a=$r, SWS=$v!"
+                echo "Skipping c/a=$r, SWS=$v and continuing to next SWS value..."
+                cd ../
+                continue
             else
                 echo "DONE!"
             fi

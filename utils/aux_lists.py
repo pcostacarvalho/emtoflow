@@ -91,23 +91,33 @@ def prepare_ranges(ca_ratios, sws_values, ca_step, sws_step, n_points, lat=None)
         return ca_list, sws_list
 
 
-def rescale_kpoints(lattice_params: Tuple[float, float, float]) -> Tuple[int, int, int]:
+def rescale_kpoints(lattice_params: Tuple[float, float, float], lat: Optional[int] = None) -> Tuple[int, int, int]:
     """
     Rescale k-points based on primitive cell lattice parameters using hard-coded reference.
 
     Maintains constant k-point density in reciprocal space when lattice parameters
     change. Uses a reference convergence study (lat=5, Simple Tetragonal) as baseline.
+    Enforces symmetry constraints based on lattice type (e.g., cubic lattices require nkx=nky=nkz).
 
     Parameters
     ----------
     lattice_params : tuple of (float, float, float)
         Current primitive cell lattice parameters (a, b, c) in Angstroms.
         Should be obtained from structure_pmg.lattice.a/b/c.
+    lat : int, optional
+        EMTO lattice type (1-14). If provided, enforces symmetry constraints:
+        - Cubic (1,2,3): a=b=c → nkx=nky=nkz
+        - Hexagonal (4): a=b≠c → nkx=nky≠nkz
+        - Tetragonal (5,6): a=b≠c → nkx=nky≠nkz
+        - Trigonal/Rhombohedral (7): a=b=c → nkx=nky=nkz
+        - Orthorhombic (8-11): a≠b≠c → all can be different
+        - Monoclinic (12,13): a≠b≠c → all can be different
+        - Triclinic (14): a≠b≠c → all can be different
 
     Returns
     -------
     tuple of (int, int, int)
-        Rescaled k-mesh (nkx, nky, nkz) rounded to nearest integers
+        Rescaled k-mesh (nkx, nky, nkz) rounded to nearest integers, respecting symmetry
 
     Notes
     -----
@@ -130,12 +140,12 @@ def rescale_kpoints(lattice_params: Tuple[float, float, float]) -> Tuple[int, in
     Examples
     --------
     >>> # Structure with same lattice as reference
-    >>> rescale_kpoints((3.86, 3.86, 3.76))
+    >>> rescale_kpoints((3.86, 3.86, 3.76), lat=5)
     (21, 21, 21)
 
-    >>> # Structure with doubled a-parameter
-    >>> rescale_kpoints((7.72, 3.86, 3.76))
-    (11, 21, 21)
+    >>> # Cubic lattice - enforces nkx=nky=nkz
+    >>> rescale_kpoints((3.86, 3.86, 3.86), lat=2)
+    (21, 21, 21)
 
     >>> # Laves phase structure
     >>> rescale_kpoints((5.0, 5.0, 8.0))
@@ -171,5 +181,21 @@ def rescale_kpoints(lattice_params: Tuple[float, float, float]) -> Tuple[int, in
     nkx = max(1, nkx)
     nky = max(1, nky)
     nkz = max(1, nkz)
+
+    # Enforce symmetry constraints based on lattice type
+    if lat is not None:
+        if lat in CUBIC_LATTICES:
+            # Cubic (lat=1,2,3): a=b=c → nkx=nky=nkz
+            # Use average of all three (rounded) to respect symmetry
+            nkx = nky = nkz = round((nkx + nky + nkz) / 3.0)
+        elif lat == 7:
+            # Trigonal/Rhombohedral (lat=7): a=b=c → nkx=nky=nkz
+            nkx = nky = nkz = round((nkx + nky + nkz) / 3.0)
+        elif lat in [4, 5, 6]:
+            # Hexagonal (lat=4) and Tetragonal (lat=5,6): a=b≠c → nkx=nky≠nkz
+            # Use average of nkx and nky
+            nkx = nky = round((nkx + nky) / 2.0)
+        # For orthorhombic (8-11), monoclinic (12-13), and triclinic (14),
+        # all parameters can be different, so no constraints needed
 
     return (nkx, nky, nkz)

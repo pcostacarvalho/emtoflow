@@ -408,8 +408,9 @@ def create_emto_inputs(config):
             structure_pmg.lattice.c
         )
 
-        # Calculate rescaled k-points
-        nkx, nky, nkz = rescale_kpoints(lattice_params)
+        # Calculate rescaled k-points with symmetry constraints
+        # Pass lattice type to enforce symmetry (e.g., cubic → nkx=nky=nkz)
+        nkx, nky, nkz = rescale_kpoints(lattice_params, lat=structure_dict['lat'])
 
         print(f"\n  K-point rescaling enabled (using primitive cell):")
         print(f"    Primitive cell parameters: a={lattice_params[0]:.3f} Å, "
