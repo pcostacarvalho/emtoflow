@@ -1025,6 +1025,12 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
 
         # KGRN calculation parameters
         'depth': 1.100,                  # DEPTH parameter for KGRN (default: 1.100)
+        'efmix': 0.900,                  # EFMIX parameter for KGRN (default: 0.900)
+        'tolcpa': 1e-06,                 # TOLCPA parameter for KGRN (default: 1.d-06)
+        'tolef': 1e-08,                  # TOLEF parameter for KGRN (default: 1.d-08)
+        'efgs': 0.000,                   # EFGS parameter for KGRN (default: 0.000)
+        'hx': 0.101,                     # HX parameter for KGRN (default: 0.101)
+        'nx': 5,                         # NX parameter for KGRN (default: 5)
 
         # Analysis defaults
         'generate_plots': True,

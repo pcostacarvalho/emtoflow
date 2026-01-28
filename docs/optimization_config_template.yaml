@@ -126,6 +126,26 @@ depth: 1.100                         # DEPTH parameter for KGRN (default: 1.100)
                                      # Controls the depth of the calculation
                                      # Format: 7 characters maximum (e.g., "  1.100")
 
+efmix: 0.900                         # EFMIX parameter for KGRN (default: 0.900)
+                                     # Fermi energy mixing parameter
+
+tolcpa: 1.0e-06                      # TOLCPA parameter for KGRN (default: 1.d-06)
+                                     # Tolerance for CPA convergence
+                                     # Format: Fortran scientific notation (e.g., 1.d-06)
+
+tolef: 1.0e-08                       # TOLEF parameter for KGRN (default: 1.d-08)
+                                     # Tolerance for Fermi energy convergence
+                                     # Format: Fortran scientific notation (e.g., 1.d-08)
+
+efgs: 0.000                          # EFGS parameter for KGRN (default: 0.000)
+                                     # Fermi energy for Green's function
+
+hx: 0.101                            # HX parameter for KGRN (default: 0.101)
+                                     # Step size for energy integration
+
+nx: 5                                # NX parameter for KGRN (default: 5)
+                                     # Number of energy points
+
 # ------------------------------------------------------------------------------
 # OPTIMIZATION FLAGS - Enable/disable optimization phases
 # ------------------------------------------------------------------------------

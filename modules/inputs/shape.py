@@ -28,8 +28,12 @@ NPRN..=  0 IVEF.=  3
 """
 
     # Add ASR lines based on NQ3
+    # Format: ASR(1.)= 1.0 for i <= 9, ASR(10)= 1.0 for i >= 10
     for i in range(1, NQ3 + 1):
-        template += f"ASR({i}).= 1.0\n"
+        if i <= 9:
+            template += f"ASR({i}).= 1.0\n"
+        else:
+            template += f"ASR({i})= 1.0\n"
 
     with open(f"{path}/shp/{id_ratio}.dat", "w") as f:
         f.write(template)
