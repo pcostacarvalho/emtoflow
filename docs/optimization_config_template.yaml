@@ -66,8 +66,10 @@ substitutions: null
 # Direct specification (use ONE of these for each parameter)
 ca_ratios: null                      # List of c/a ratios: [0.96, 0.98, 1.00, 1.02, 1.04]
                                      # If null: uses structure's c/a ratio
+                                     # If single value: auto-generates range around it (if auto_generate=true)
 sws_values: null                     # List of SWS values: [2.60, 2.65, 2.70]
                                      # If null: calculates from structure volume
+                                     # If single value: auto-generates range around it (if auto_generate=true)
 
 # Auto-generation from single values (creates range around provided value)
 auto_generate: false                 # Auto-generate ranges if single value provided (default: false)
@@ -80,6 +82,15 @@ n_points: 7                          # Number of points in auto-generated range 
 # Initial SWS for c/a optimization (Phase 1)
 initial_sws: null                    # SWS value(s) to use during c/a optimization
                                      # If null: uses middle value from sws_values
+
+# Missing value handling:
+# - User-provided lists (explicit lists with >1 element): Strict validation
+#   → Missing values cause errors (workflow stops)
+# - Auto-generated values (single value, null, or auto-calculated): Lenient validation
+#   → Missing values are skipped with warnings (workflow continues)
+# - Minimum requirement: At least 3 successful calculations required for EOS fitting
+#   → Even in lenient mode, workflow fails if <3 successful calculations
+# - Job scripts automatically skip failed values and continue to next parameter
 
 
 # ------------------------------------------------------------------------------
@@ -167,6 +178,14 @@ nz0: 16                              # NZ0 parameter for KGRN (default: 16)
 
 optimize_ca: false                   # Enable c/a ratio optimization (Phase 1)
 optimize_sws: false                  # Enable SWS (volume) optimization (Phase 2)
+
+# Note on missing values during optimization:
+# - If calculations fail for specific c/a or SWS values, the workflow behavior depends
+#   on whether values were user-provided or auto-generated:
+#   * User-provided lists: Workflow stops with error (strict validation)
+#   * Auto-generated values: Missing values are skipped, workflow continues (lenient)
+# - Job scripts automatically skip failed values and continue processing remaining values
+# - At least 3 successful calculations are required for EOS fitting (applies to both modes)
 
 
 # ------------------------------------------------------------------------------
