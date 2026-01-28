@@ -613,7 +613,8 @@ def run_calculations_for_parameter_values(
     config: Dict[str, Any],
     structure: Dict[str, Any],
     run_calculations_func: Callable,
-    validate_calculations_func: Callable
+    validate_calculations_func: Callable,
+    strict: bool = False
 ) -> Tuple[List[float], List[float]]:
     """
     Run calculations for given parameter values.
@@ -636,6 +637,10 @@ def run_calculations_for_parameter_values(
         Function to run calculations
     validate_calculations_func : callable
         Function to validate calculations
+    strict : bool, optional
+        If True, raise RuntimeError on missing output files (user-provided values).
+        If False, skip missing files and continue (auto-generated values).
+        Default: False (expansion values are always auto-generated)
     
     Returns
     -------
@@ -666,12 +671,13 @@ def run_calculations_for_parameter_values(
             script_name=script_name
         )
         
-        # Validate calculations
+        # Validate calculations (expansion values are always auto-generated, so use strict=False)
         validate_calculations_func(
             phase_path=phase_path,
             ca_ratios=[optimal_ca],
             sws_values=parameter_values,
-            job_name=config['job_name']
+            job_name=config['job_name'],
+            strict=strict
         )
         
         # Parse energies
@@ -720,12 +726,13 @@ def run_calculations_for_parameter_values(
             script_name=script_name
         )
         
-        # Validate calculations
+        # Validate calculations (expansion values are always auto-generated, so use strict=False)
         validate_calculations_func(
             phase_path=phase_path,
             ca_ratios=parameter_values,
             sws_values=[initial_sws],
-            job_name=config['job_name']
+            job_name=config['job_name'],
+            strict=strict
         )
         
         # Parse energies
