@@ -932,6 +932,27 @@ def optimize_sws(
     )
 
     # Validate calculations completed successfully
+    # #region agent log
+    import time
+    log_data = {
+        'sessionId': 'debug-session',
+        'runId': 'validation-debug',
+        'hypothesisId': 'E',
+        'location': 'phase_execution.py:935',
+        'message': 'Initial validation in optimize_sws',
+        'data': {
+            'sws_values': [float(x) for x in sws_values],
+            'strict': strict,
+            'sws_range': [float(min(sws_values)), float(max(sws_values))] if sws_values else None
+        },
+        'timestamp': int(time.time() * 1000)
+    }
+    try:
+        with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+            f.write(json.dumps(log_data) + '\n')
+    except: pass
+    # #endregion
+    
     validate_calculations_func(
         phase_path=phase_path,
         ca_ratios=[optimal_ca],

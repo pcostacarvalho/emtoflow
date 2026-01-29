@@ -84,13 +84,19 @@ initial_sws: null                    # SWS value(s) to use during c/a optimizati
                                      # If null: uses middle value from sws_values
 
 # Missing value handling:
-# - User-provided lists (explicit lists with >1 element): Strict validation
+# - User-provided lists (explicit lists with >1 element): Strict validation by default
 #   → Missing values cause errors (workflow stops)
 # - Auto-generated values (single value, null, or auto-calculated): Lenient validation
 #   → Missing values are skipped with warnings (workflow continues)
+# - lenient_validation: Override to use lenient mode even for user-provided lists
+#   → Set to true to skip missing values even when you explicitly provide a list
 # - Minimum requirement: At least 3 successful calculations required for EOS fitting
 #   → Even in lenient mode, workflow fails if <3 successful calculations
 # - Job scripts automatically skip failed values and continue to next parameter
+
+lenient_validation: false              # Use lenient validation for all values (default: false)
+                                       # When true: Missing values are skipped even for user-provided lists
+                                       # When false: Strict validation for user-provided lists, lenient for auto-generated
 
 
 # ------------------------------------------------------------------------------

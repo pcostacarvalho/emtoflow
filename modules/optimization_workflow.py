@@ -698,8 +698,10 @@ class OptimizationWorkflow:
         sws_values_original = self.config.get('sws_values')
         
         # Check if user explicitly provided lists (strict mode)
-        ca_strict = isinstance(ca_ratios_original, list) and len(ca_ratios_original) > 1
-        sws_strict = isinstance(sws_values_original, list) and len(sws_values_original) > 1
+        # But allow override via config flag to always use lenient mode
+        lenient_validation = self.config.get('lenient_validation', False)
+        ca_strict = not lenient_validation and isinstance(ca_ratios_original, list) and len(ca_ratios_original) > 1
+        sws_strict = not lenient_validation and isinstance(sws_values_original, list) and len(sws_values_original) > 1
 
         try:
             ca_list, sws_list = self._prepare_ranges(
