@@ -685,23 +685,34 @@ def plot_eos_fit(
 
     # Calculate smooth fitted curve based on EOS type
     if eos_type == 'morse':
-        # Use Morse equation
-        if not eos_fit.additional_params:
-            raise RuntimeError("Morse parameters not found in EOS fit")
+        # Use Morse equation if parameters are available
+        if eos_fit.additional_params:
+            # Check if all required Morse parameters are present
+            required_params = ['a', 'b', 'c', 'lambda']
+            missing_params = [p for p in required_params if p not in eos_fit.additional_params]
+            
+            if not missing_params:
+                # All parameters present - use Morse equation
+                a = eos_fit.additional_params['a']
+                b = eos_fit.additional_params['b']
+                c = eos_fit.additional_params['c']
+                lambda_param = eos_fit.additional_params['lambda']
 
-        a = eos_fit.additional_params['a']
-        b = eos_fit.additional_params['b']
-        c = eos_fit.additional_params['c']
-        lambda_param = eos_fit.additional_params['lambda']
+                # Calculate relative energies and find offset
+                e_relative_data = [morse_energy(r, a, b, c, lambda_param) for r in r_data]
+                offset = efit_data[0] - e_relative_data[0]
 
-        # Calculate relative energies and find offset
-        e_relative_data = [morse_energy(r, a, b, c, lambda_param) for r in r_data]
-        offset = efit_data[0] - e_relative_data[0]
-
-        # Generate smooth curve
-        e_smooth = np.array([morse_energy(r, a, b, c, lambda_param) + offset
-                             for r in r_smooth])
-
+                # Generate smooth curve
+                e_smooth = np.array([morse_energy(r, a, b, c, lambda_param) + offset
+                                     for r in r_smooth])
+            else:
+                # Some parameters missing - fall back to interpolation
+                print(f"  Warning: Morse parameters missing ({missing_params}), using interpolation instead")
+                e_smooth = np.interp(r_smooth, r_data, efit_data)
+        else:
+            # No additional_params - fall back to interpolation
+            print(f"  Warning: Morse parameters not found in EOS fit, using interpolation instead")
+            e_smooth = np.interp(r_smooth, r_data, efit_data)
     else:
         # For other EOS types, use the efit values directly
         # Interpolate for smooth curve

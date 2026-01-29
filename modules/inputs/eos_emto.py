@@ -316,22 +316,39 @@ def parse_morse_fit(lines: List[str], start_idx: int) -> Optional[EOSParameters]
                 params['gamma'] = float('nan') if val_str.upper() == 'NAN' else float(val_str)
 
         # Extract Morse-specific parameters
+        # Handle case where Fortran prints ****************** (number too large/small for format)
         if 'a        =' in line:
-            match = re.search(r'=\s*([\d.E+-]+)', line)
-            if match:
-                morse_params['a'] = float(match.group(1))
+            if '****' in line or re.search(r'=\s*\*+', line):
+                # Parameter value overflowed - skip it (will use interpolation fallback)
+                pass
+            else:
+                match = re.search(r'=\s*([\d.E+-]+)', line)
+                if match:
+                    morse_params['a'] = float(match.group(1))
         elif 'b        =' in line:
-            match = re.search(r'=\s*([\d.E+-]+)', line)
-            if match:
-                morse_params['b'] = float(match.group(1))
+            if '****' in line or re.search(r'=\s*\*+', line):
+                # Parameter value overflowed - skip it (will use interpolation fallback)
+                pass
+            else:
+                match = re.search(r'=\s*([\d.E+-]+)', line)
+                if match:
+                    morse_params['b'] = float(match.group(1))
         elif 'c        =' in line:
-            match = re.search(r'=\s*([\d.E+-]+)', line)
-            if match:
-                morse_params['c'] = float(match.group(1))
+            if '****' in line or re.search(r'=\s*\*+', line):
+                # Parameter value overflowed - skip it (will use interpolation fallback)
+                pass
+            else:
+                match = re.search(r'=\s*([\d.E+-]+)', line)
+                if match:
+                    morse_params['c'] = float(match.group(1))
         elif 'lambda   =' in line:
-            match = re.search(r'=\s*([\d.E+-]+)', line)
-            if match:
-                morse_params['lambda'] = float(match.group(1))
+            if '****' in line or re.search(r'=\s*\*+', line):
+                # Parameter value overflowed - skip it (will use interpolation fallback)
+                pass
+            else:
+                match = re.search(r'=\s*([\d.E+-]+)', line)
+                if match:
+                    morse_params['lambda'] = float(match.group(1))
 
         i += 1
 
