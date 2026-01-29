@@ -484,7 +484,8 @@ class OptimizationWorkflow:
             run_calculations_func=self._run_calculations,
             validate_calculations_func=self._validate_calculations,
             run_eos_fit_func=self._run_eos_fit,
-            results_dict=self.results
+            results_dict=self.results,
+            strict=strict
         )
 
     def run_optimized_calculation(
