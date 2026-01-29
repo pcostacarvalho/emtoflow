@@ -700,8 +700,45 @@ class OptimizationWorkflow:
         # Check if user explicitly provided lists (strict mode)
         # But allow override via config flag to always use lenient mode
         lenient_validation = self.config.get('lenient_validation', False)
+        
+        # For c/a: strict only if user provided a list with >1 element AND lenient_validation is False
         ca_strict = not lenient_validation and isinstance(ca_ratios_original, list) and len(ca_ratios_original) > 1
-        sws_strict = not lenient_validation and isinstance(sws_values_original, list) and len(sws_values_original) > 1
+        
+        # For SWS: strict only if user provided a list with >1 element AND lenient_validation is False
+        # If sws_values is None or a single value, it's auto-generated → always lenient
+        # If initial_sws is used to generate range, it's auto-generated → always lenient
+        if sws_values_original is None or isinstance(sws_values_original, (int, float)):
+            # Auto-generated from structure or single value → always lenient
+            sws_strict = False
+        else:
+            # User-provided list → strict unless lenient_validation override
+            sws_strict = not lenient_validation and isinstance(sws_values_original, list) and len(sws_values_original) > 1
+        
+        # #region agent log
+        import json
+        import time
+        log_data = {
+            'sessionId': 'debug-session',
+            'runId': 'strict-debug',
+            'hypothesisId': 'F',
+            'location': 'optimization_workflow.py:704',
+            'message': 'Determining strict flags for validation',
+            'data': {
+                'ca_ratios_original': str(ca_ratios_original),
+                'sws_values_original': str(sws_values_original),
+                'lenient_validation': lenient_validation,
+                'ca_strict': ca_strict,
+                'sws_strict': sws_strict,
+                'ca_is_list': isinstance(ca_ratios_original, list),
+                'sws_is_list': isinstance(sws_values_original, list)
+            },
+            'timestamp': int(time.time() * 1000)
+        }
+        try:
+            with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps(log_data) + '\n')
+        except: pass
+        # #endregion
 
         try:
             ca_list, sws_list = self._prepare_ranges(
