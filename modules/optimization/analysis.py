@@ -731,17 +731,17 @@ def plot_eos_fit(
     if title is None:
         title = f'Equation of State: {eos_fit.eos_type}'
     
-    # Add composition to title if provided
+    # Add composition to title if provided and it matches the percentage pattern
     if composition:
         # Try to parse composition from string like 'Cu30_Mg70'
-        comp_match = re.match(r'Cu(\d+)_Mg(\d+)', composition)
+        comp_match = re.match(r'.*Cu(\d+)_Mg(\d+)', composition)
         if comp_match:
             cu_percent = comp_match.group(1)
             mg_percent = comp_match.group(2)
-            title = f'{title} - Cu{cu_percent}Mg{mg_percent}'
-        else:
-            # Use composition string as-is if pattern doesn't match
-            title = f'{title} - {composition}'
+            # Only add if title doesn't already contain the composition
+            comp_str = f'Cu{cu_percent}Mg{mg_percent}'
+            if comp_str not in title:
+                title = f'{title} ({comp_str})'
     
     ax.set_title(title, fontsize=13, fontweight='bold')
 
