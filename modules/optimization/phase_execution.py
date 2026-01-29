@@ -623,6 +623,10 @@ def optimize_ca_ratio(
             eos_output_file = phase_path / f"{config['job_name']}_ca_final.out"
         else:
             eos_output_file = phase_path / f"{config['job_name']}_ca.out"
+        
+        # Get composition from output_path (e.g., "Cu30_Mg70")
+        composition_str = config.get('output_path', config.get('job_name', None))
+        
         plot_eos_fit(
             eos_output_file=eos_output_file,
             output_path=phase_path,
@@ -630,7 +634,7 @@ def optimize_ca_ratio(
             variable_units='',
             title=f"c/a Ratio Optimization - {config['job_name']}",
             eos_type=plot_eos_type,
-            composition=config.get('job_name', None)
+            composition=composition_str
         )
     except Exception as e:
         print(f"Warning: Failed to generate EOS plot: {e}")
@@ -1492,6 +1496,10 @@ def optimize_sws(
             eos_output_file = phase_path / f"{config['job_name']}_sws_final.out"
         else:
             eos_output_file = phase_path / f"{config['job_name']}_sws.out"
+        
+        # Get composition from output_path (e.g., "Cu30_Mg70")
+        composition_str = config.get('output_path', config.get('job_name', None))
+        
         plot_eos_fit(
             eos_output_file=eos_output_file,
             output_path=phase_path,
@@ -1499,7 +1507,7 @@ def optimize_sws(
             variable_units='Bohr',
             title=f"Wigner-Seitz Radius Optimization - {config['job_name']}",
             eos_type=plot_eos_type,
-            composition=config.get('job_name', None)
+            composition=composition_str
         )
     except Exception as e:
         print(f"Warning: Failed to generate EOS plot: {e}")
