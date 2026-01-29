@@ -340,9 +340,57 @@ def optimize_ca_ratio(
             print(f"\n⚠ Expansion needed: {reason}")
             
             # Estimate Morse EOS minimum (use workflow points, not merged with saved data)
+            # #region agent log
+            import json
+            import time
+            log_data = {
+                'sessionId': 'debug-session',
+                'runId': 'expansion-debug-ca',
+                'hypothesisId': 'A',
+                'location': 'phase_execution.py:343',
+                'message': 'Before estimate_morse_minimum (c/a) - input data',
+                'data': {
+                    'ca_workflow_points': [float(x) for x in ca_workflow_points],
+                    'energy_workflow_points': [float(x) for x in energy_workflow_points],
+                    'eos_optimal_ca': float(optimal_ca) if not np.isnan(optimal_ca) else None,
+                    'ca_range': [float(min(ca_workflow_points)), float(max(ca_workflow_points))]
+                },
+                'timestamp': int(time.time() * 1000)
+            }
+            try:
+                with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+                    f.write(json.dumps(log_data) + '\n')
+            except: pass
+            # #endregion
+            
             morse_min, morse_energy, morse_info = estimate_morse_minimum(
                 ca_workflow_points, energy_workflow_points
             )
+            
+            # #region agent log
+            log_data2 = {
+                'sessionId': 'debug-session',
+                'runId': 'expansion-debug-ca',
+                'hypothesisId': 'B',
+                'location': 'phase_execution.py:365',
+                'message': 'After estimate_morse_minimum (c/a) - comparison with EOS',
+                'data': {
+                    'morse_min': float(morse_min),
+                    'eos_optimal_ca': float(optimal_ca) if not np.isnan(optimal_ca) else None,
+                    'difference': float(abs(morse_min - optimal_ca)) if not np.isnan(optimal_ca) else None,
+                    'morse_info': {
+                        'is_valid': morse_info.get('is_valid', False),
+                        'r_squared': float(morse_info.get('r_squared', 0.0)),
+                        'morse_params': morse_info.get('morse_params', {})
+                    }
+                },
+                'timestamp': int(time.time() * 1000)
+            }
+            try:
+                with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+                    f.write(json.dumps(log_data2) + '\n')
+            except: pass
+            # #endregion
             
             # Always use the calculated Morse minimum (global minimum of curve)
             # Warn if fit quality is poor, but still use the calculated value
@@ -358,13 +406,45 @@ def optimize_ca_ratio(
                 print(f"  Morse EOS estimate: minimum at {morse_min:.6f} "
                       f"(R² = {morse_info['r_squared']:.3f})")
             
+            # Sanity check: If Morse estimate is very different from EOS optimal, use EOS optimal instead
+            # This prevents expansion to completely wrong ranges
+            if not np.isnan(optimal_ca) and abs(morse_min - optimal_ca) > 0.1:  # More than 0.1 c/a difference
+                print(f"  ⚠ WARNING: Morse estimate ({morse_min:.6f}) differs significantly from EOS optimal ({optimal_ca:.6f})")
+                print(f"  Using EOS optimal value ({optimal_ca:.6f}) for expansion instead")
+                expansion_center = optimal_ca
+            else:
+                expansion_center = morse_min
+            
             # Generate new parameter vector (use same number of points as initial)
             initial_n_points = len(ca_values_for_fit)
             new_ca_values = generate_parameter_vector_around_estimate(
-                estimated_minimum=morse_min,
+                estimated_minimum=expansion_center,
                 step_size=config.get('ca_step', 0.02),
                 n_points=initial_n_points
             )
+            
+            # #region agent log
+            log_data3 = {
+                'sessionId': 'debug-session',
+                'runId': 'expansion-debug-ca',
+                'hypothesisId': 'C',
+                'location': 'phase_execution.py:395',
+                'message': 'Generated expansion range (c/a)',
+                'data': {
+                    'expansion_center': float(expansion_center),
+                    'morse_min': float(morse_min),
+                    'eos_optimal_ca': float(optimal_ca) if not np.isnan(optimal_ca) else None,
+                    'new_range': [float(min(new_ca_values)), float(max(new_ca_values))],
+                    'ca_step': float(config.get('ca_step', 0.02)),
+                    'n_points': int(initial_n_points)
+                },
+                'timestamp': int(time.time() * 1000)
+            }
+            try:
+                with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+                    f.write(json.dumps(log_data3) + '\n')
+            except: pass
+            # #endregion
             
             # Identify which points need calculation
             existing_set = set(ca_values_for_fit)
@@ -1064,9 +1144,57 @@ def optimize_sws(
             print(f"\n⚠ Expansion needed: {reason}")
             
             # Estimate Morse EOS minimum (use workflow points, not merged with saved data)
+            # #region agent log
+            import json
+            import time
+            log_data = {
+                'sessionId': 'debug-session',
+                'runId': 'expansion-debug',
+                'hypothesisId': 'A',
+                'location': 'phase_execution.py:1067',
+                'message': 'Before estimate_morse_minimum - input data',
+                'data': {
+                    'sws_workflow_points': [float(x) for x in sws_workflow_points],
+                    'energy_workflow_points': [float(x) for x in energy_workflow_points],
+                    'eos_optimal_sws': float(optimal_sws),
+                    'sws_range': [float(min(sws_workflow_points)), float(max(sws_workflow_points))]
+                },
+                'timestamp': int(time.time() * 1000)
+            }
+            try:
+                with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+                    f.write(json.dumps(log_data) + '\n')
+            except: pass
+            # #endregion
+            
             morse_min, morse_energy, morse_info = estimate_morse_minimum(
                 sws_workflow_points, energy_workflow_points
             )
+            
+            # #region agent log
+            log_data2 = {
+                'sessionId': 'debug-session',
+                'runId': 'expansion-debug',
+                'hypothesisId': 'B',
+                'location': 'phase_execution.py:1084',
+                'message': 'After estimate_morse_minimum - comparison with EOS',
+                'data': {
+                    'morse_min': float(morse_min),
+                    'eos_optimal_sws': float(optimal_sws),
+                    'difference': float(abs(morse_min - optimal_sws)),
+                    'morse_info': {
+                        'is_valid': morse_info.get('is_valid', False),
+                        'r_squared': float(morse_info.get('r_squared', 0.0)),
+                        'morse_params': morse_info.get('morse_params', {})
+                    }
+                },
+                'timestamp': int(time.time() * 1000)
+            }
+            try:
+                with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+                    f.write(json.dumps(log_data2) + '\n')
+            except: pass
+            # #endregion
             
             # Always use the calculated Morse minimum (global minimum of curve)
             # Warn if fit quality is poor, but still use the calculated value
@@ -1082,20 +1210,75 @@ def optimize_sws(
                 print(f"  Morse EOS estimate: minimum at {morse_min:.6f} "
                       f"(R² = {morse_info['r_squared']:.3f})")
             
+            # #region agent log
+            # Sanity check: Compare Morse estimate to EOS optimal
+            if abs(morse_min - optimal_sws) > 0.5:  # More than 0.5 Bohr difference
+                log_data3 = {
+                    'sessionId': 'debug-session',
+                    'runId': 'expansion-debug',
+                    'hypothesisId': 'C',
+                    'location': 'phase_execution.py:1100',
+                    'message': 'Large discrepancy detected between Morse estimate and EOS optimal',
+                    'data': {
+                        'morse_min': float(morse_min),
+                        'eos_optimal_sws': float(optimal_sws),
+                        'difference': float(abs(morse_min - optimal_sws)),
+                        'sws_range': [float(min(sws_workflow_points)), float(max(sws_workflow_points))]
+                    },
+                    'timestamp': int(time.time() * 1000)
+                }
+                try:
+                    with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+                        f.write(json.dumps(log_data3) + '\n')
+                except: pass
+            # #endregion
+            
+            # Sanity check: If Morse estimate is very different from EOS optimal, use EOS optimal instead
+            # This prevents expansion to completely wrong ranges
+            if abs(morse_min - optimal_sws) > 0.5:  # More than 0.5 Bohr difference
+                print(f"  ⚠ WARNING: Morse estimate ({morse_min:.6f}) differs significantly from EOS optimal ({optimal_sws:.6f})")
+                print(f"  Using EOS optimal value ({optimal_sws:.6f}) for expansion instead")
+                expansion_center = optimal_sws
+            else:
+                expansion_center = morse_min
+            
             # Generate new parameter vector (use same number of points as initial)
             initial_n_points = len(sws_values_for_fit)
             new_sws_values = generate_parameter_vector_around_estimate(
-                estimated_minimum=morse_min,
+                estimated_minimum=expansion_center,
                 step_size=config.get('sws_step', 0.05),
                 n_points=initial_n_points
             )
+            
+            # #region agent log
+            log_data4 = {
+                'sessionId': 'debug-session',
+                'runId': 'expansion-debug',
+                'hypothesisId': 'D',
+                'location': 'phase_execution.py:1115',
+                'message': 'Generated expansion range',
+                'data': {
+                    'expansion_center': float(expansion_center),
+                    'morse_min': float(morse_min),
+                    'eos_optimal_sws': float(optimal_sws),
+                    'new_range': [float(min(new_sws_values)), float(max(new_sws_values))],
+                    'sws_step': float(config.get('sws_step', 0.05)),
+                    'n_points': int(initial_n_points)
+                },
+                'timestamp': int(time.time() * 1000)
+            }
+            try:
+                with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+                    f.write(json.dumps(log_data4) + '\n')
+            except: pass
+            # #endregion
             
             # Identify which points need calculation
             existing_set = set(sws_values_for_fit)
             new_points_to_calculate = [v for v in new_sws_values if v not in existing_set]
             
             print(f"  Generating new vector with {len(new_sws_values)} points "
-                  f"centered around {morse_min:.6f}")
+                  f"centered around {expansion_center:.6f}")
             print(f"  New points to calculate: {len(new_points_to_calculate)}")
             print(f"  New range: [{min(new_sws_values):.4f}, {max(new_sws_values):.4f}]")
             
