@@ -705,14 +705,18 @@ class OptimizationWorkflow:
         ca_strict = not lenient_validation and isinstance(ca_ratios_original, list) and len(ca_ratios_original) > 1
         
         # For SWS: strict only if user provided a list with >1 element AND lenient_validation is False
+        # If lenient_validation is True, always use lenient mode
         # If sws_values is None or a single value, it's auto-generated → always lenient
         # If initial_sws is used to generate range, it's auto-generated → always lenient
-        if sws_values_original is None or isinstance(sws_values_original, (int, float)):
+        if lenient_validation:
+            # User explicitly requested lenient validation → always lenient
+            sws_strict = False
+        elif sws_values_original is None or isinstance(sws_values_original, (int, float)):
             # Auto-generated from structure or single value → always lenient
             sws_strict = False
         else:
             # User-provided list → strict unless lenient_validation override
-            sws_strict = not lenient_validation and isinstance(sws_values_original, list) and len(sws_values_original) > 1
+            sws_strict = isinstance(sws_values_original, list) and len(sws_values_original) > 1
         
         # #region agent log
         import json
