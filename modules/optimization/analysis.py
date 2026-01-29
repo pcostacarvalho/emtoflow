@@ -562,7 +562,8 @@ def plot_eos_fit(
     variable_name: str = 'R',
     variable_units: str = 'au',
     title: Optional[str] = None,
-    eos_type: str = 'morse'
+    eos_type: str = 'morse',
+    composition: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Generate EOS fit plot from EMTO EOS output.
@@ -590,6 +591,8 @@ def plot_eos_fit(
     eos_type : str, optional
         Which EOS fit to plot: 'morse', 'polynomial', 'birch_murnaghan',
         'murnaghan', 'spline'. Default: 'morse'
+    composition : str, optional
+        Composition string (e.g., 'Cu30_Mg70') to include in title
 
     Returns
     -------
@@ -634,6 +637,8 @@ def plot_eos_fit(
     ...     title='Wigner-Seitz Radius Optimization'
     ... )
     """
+    import re
+    
     eos_output_file = Path(eos_output_file)
     output_path = Path(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -725,6 +730,19 @@ def plot_eos_fit(
 
     if title is None:
         title = f'Equation of State: {eos_fit.eos_type}'
+    
+    # Add composition to title if provided
+    if composition:
+        # Try to parse composition from string like 'Cu30_Mg70'
+        comp_match = re.match(r'Cu(\d+)_Mg(\d+)', composition)
+        if comp_match:
+            cu_percent = comp_match.group(1)
+            mg_percent = comp_match.group(2)
+            title = f'{title} - Cu{cu_percent}Mg{mg_percent}'
+        else:
+            # Use composition string as-is if pattern doesn't match
+            title = f'{title} - {composition}'
+    
     ax.set_title(title, fontsize=13, fontweight='bold')
 
     ax.legend(fontsize=10, loc='best')

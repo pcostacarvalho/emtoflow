@@ -629,7 +629,8 @@ def optimize_ca_ratio(
             variable_name='c/a',
             variable_units='',
             title=f"c/a Ratio Optimization - {config['job_name']}",
-            eos_type=plot_eos_type
+            eos_type=plot_eos_type,
+            composition=config.get('job_name', None)
         )
     except Exception as e:
         print(f"Warning: Failed to generate EOS plot: {e}")
@@ -1497,7 +1498,8 @@ def optimize_sws(
             variable_name='R_WS',
             variable_units='Bohr',
             title=f"Wigner-Seitz Radius Optimization - {config['job_name']}",
-            eos_type=plot_eos_type
+            eos_type=plot_eos_type,
+            composition=config.get('job_name', None)
         )
     except Exception as e:
         print(f"Warning: Failed to generate EOS plot: {e}")

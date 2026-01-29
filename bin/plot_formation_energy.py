@@ -28,12 +28,15 @@ def plot_formation_energy(data_file="formation_energies.dat"):
     cu_percentages = data[:, 0]
     formation_energies = data[:, 1]
     
+    # Convert Cu percentages to Mg percentages
+    mg_percentages = 100 - cu_percentages
+    
     # Create plot
     plt.figure(figsize=(10, 6))
-    plt.plot(cu_percentages, formation_energies, 'o-', linewidth=2, markersize=8, 
+    plt.plot(mg_percentages, formation_energies, 'o-', linewidth=2, markersize=8, 
              color='royalblue', label='Formation Energy')
     plt.axhline(y=0, color='gray', linestyle='--', linewidth=1, alpha=0.5)
-    plt.xlabel('Cu Percentage (%)', fontsize=12)
+    plt.xlabel('Mg Percentage (%)', fontsize=12)
     plt.ylabel('Formation Energy (Ry)', fontsize=12)
     plt.title('Formation Energy of Cu-Mg Alloys', fontsize=14)
     plt.grid(True, alpha=0.3)
@@ -67,13 +70,16 @@ def plot_raw_energy(data_file="energies_raw.dat"):
     cu_percentages = data[:, 0]
     energies = data[:, 1]
     
+    # Convert Cu percentages to Mg percentages
+    mg_percentages = 100 - cu_percentages
+    
     # Create plot
     plt.figure(figsize=(10, 6))
-    plt.plot(cu_percentages, energies, 'o-', linewidth=2, markersize=8, 
+    plt.plot(mg_percentages, energies, 'o-', linewidth=2, markersize=8, 
              color='forestgreen', label='Total Energy')
-    plt.xlabel('Cu Percentage (%)', fontsize=12)
+    plt.xlabel('Mg Percentage (%)', fontsize=12)
     plt.ylabel('Total Energy (Ry)', fontsize=12)
-    plt.title('Total Energy vs Cu Percentage', fontsize=14)
+    plt.title('Total Energy vs Mg Percentage', fontsize=14)
     plt.grid(True, alpha=0.3)
     plt.legend(fontsize=10)
     plt.tight_layout()
