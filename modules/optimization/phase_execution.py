@@ -341,7 +341,6 @@ def optimize_ca_ratio(
             
             # Estimate Morse EOS minimum (use workflow points, not merged with saved data)
             # #region agent log
-            import json
             import time
             log_data = {
                 'sessionId': 'debug-session',
@@ -1145,7 +1144,6 @@ def optimize_sws(
             
             # Estimate Morse EOS minimum (use workflow points, not merged with saved data)
             # #region agent log
-            import json
             import time
             log_data = {
                 'sessionId': 'debug-session',
