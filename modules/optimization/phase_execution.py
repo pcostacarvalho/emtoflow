@@ -22,6 +22,7 @@ from modules.optimization.analysis import (
     prepare_data_for_eos_fit,
     load_parameter_energy_data
 )
+from modules.optimization.execution import _check_calculation_failed
 
 
 def optimize_ca_ratio(
@@ -156,6 +157,31 @@ def optimize_ca_ratio(
             else:
                 print(f"  ⚠ Skipping missing c/a={ca:.4f}: {kfcd_file}")
                 continue
+
+        # Check for failure patterns before parsing
+        # First check KGRN file (KFCD depends on KGRN)
+        kgrn_file = phase_path / f"{file_id}.prn"
+        if kgrn_file.exists():
+            with open(kgrn_file, 'r') as f:
+                kgrn_content = f.read()
+                is_failed, failure_reason = _check_calculation_failed(kgrn_content)
+                if is_failed:
+                    if strict:
+                        raise RuntimeError(f"KGRN calculation failed ({failure_reason}): {kgrn_file}")
+                    else:
+                        print(f"  ⚠ Skipping c/a={ca:.4f}: KGRN calculation failed ({failure_reason})")
+                        continue
+        
+        # Also check KFCD file itself
+        with open(kfcd_file, 'r') as f:
+            content = f.read()
+            is_failed, failure_reason = _check_calculation_failed(content)
+            if is_failed:
+                if strict:
+                    raise RuntimeError(f"KFCD calculation failed ({failure_reason}): {kfcd_file}")
+                else:
+                    print(f"  ⚠ Skipping c/a={ca:.4f}: KFCD calculation failed ({failure_reason})")
+                    continue
 
         try:
             results = parse_kfcd(str(kfcd_file), functional=config.get('functional', 'GGA'))
@@ -963,6 +989,31 @@ def optimize_sws(
             else:
                 print(f"  ⚠ Skipping missing SWS={sws:.4f}: {kfcd_file}")
                 continue
+
+        # Check for failure patterns before parsing
+        # First check KGRN file (KFCD depends on KGRN)
+        kgrn_file = phase_path / f"{file_id}.prn"
+        if kgrn_file.exists():
+            with open(kgrn_file, 'r') as f:
+                kgrn_content = f.read()
+                is_failed, failure_reason = _check_calculation_failed(kgrn_content)
+                if is_failed:
+                    if strict:
+                        raise RuntimeError(f"KGRN calculation failed ({failure_reason}): {kgrn_file}")
+                    else:
+                        print(f"  ⚠ Skipping SWS={sws:.4f}: KGRN calculation failed ({failure_reason})")
+                        continue
+        
+        # Also check KFCD file itself
+        with open(kfcd_file, 'r') as f:
+            content = f.read()
+            is_failed, failure_reason = _check_calculation_failed(content)
+            if is_failed:
+                if strict:
+                    raise RuntimeError(f"KFCD calculation failed ({failure_reason}): {kfcd_file}")
+                else:
+                    print(f"  ⚠ Skipping SWS={sws:.4f}: KFCD calculation failed ({failure_reason})")
+                    continue
 
         try:
             results = parse_kfcd(str(kfcd_file), functional=config.get('functional', 'GGA'))

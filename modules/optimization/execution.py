@@ -93,6 +93,32 @@ def run_calculations(
         raise ValueError(f"Invalid run_mode: {run_mode}. Must be 'sbatch' or 'local'")
 
 
+def _check_calculation_failed(content: str) -> tuple[bool, Optional[str]]:
+    """
+    Check if a calculation output indicates failure.
+    
+    Parameters
+    ----------
+    content : str
+        Content of the output file
+        
+    Returns
+    -------
+    tuple of (bool, Optional[str])
+        (is_failed, failure_reason) where is_failed is True if calculation failed,
+        and failure_reason describes why (None if not failed)
+    """
+    # Check for "Stop:" pattern (general failure indicator)
+    if "Stop:" in content:
+        return True, "contains 'Stop:' message"
+    
+    # Check for non-converged KGRN
+    if "KGRN: NC  Finished at:" in content:
+        return True, "KGRN did not converge (NC)"
+    
+    return False, None
+
+
 def validate_calculations(
     phase_path: Union[str, Path],
     ca_ratios: List[float],
@@ -107,6 +133,10 @@ def validate_calculations(
     - KSTR: "KSTR:     Finished at:"
     - KGRN: "KGRN: OK  Finished at:"
     - KFCD: "KFCD: OK  Finished at:"
+    
+    Also detects and skips failed calculations:
+    - Files containing "Stop:" message
+    - Files with "KGRN: NC  Finished at:" (non-converged)
 
     Parameters
     ----------
@@ -155,7 +185,15 @@ def validate_calculations(
             # Check for success indicator
             with open(kstr_out, 'r') as f:
                 content = f.read()
-                if "KSTR:     Finished at:" not in content:
+                # Check for failure patterns
+                is_failed, failure_reason = _check_calculation_failed(content)
+                if is_failed:
+                    msg = f"KSTR failed ({failure_reason}): {kstr_out}"
+                    if strict:
+                        errors.append(msg)
+                    else:
+                        warnings.append(msg)
+                elif "KSTR:     Finished at:" not in content:
                     msg = f"KSTR did not complete successfully: {kstr_out}"
                     if strict:
                         errors.append(msg)
@@ -178,10 +216,18 @@ def validate_calculations(
                 else:
                     warnings.append(msg)
             else:
-                # Check for success indicator
+                # Check for success indicator and failure patterns
                 with open(kgrn_out, 'r') as f:
                     content = f.read()
-                    if "KGRN: OK  Finished at:" not in content:
+                    # Check for failure patterns first
+                    is_failed, failure_reason = _check_calculation_failed(content)
+                    if is_failed:
+                        msg = f"KGRN failed ({failure_reason}): {kgrn_out}"
+                        if strict:
+                            errors.append(msg)
+                        else:
+                            warnings.append(msg)
+                    elif "KGRN: OK  Finished at:" not in content:
                         msg = f"KGRN did not complete successfully: {kgrn_out}"
                         if strict:
                             errors.append(msg)
@@ -202,7 +248,15 @@ def validate_calculations(
                 # Check for success indicator
                 with open(kfcd_out, 'r') as f:
                     content = f.read()
-                    if "KFCD: OK  Finished at:" not in content:
+                    # Check for failure patterns
+                    is_failed, failure_reason = _check_calculation_failed(content)
+                    if is_failed:
+                        msg = f"KFCD failed ({failure_reason}): {kfcd_out}"
+                        if strict:
+                            errors.append(msg)
+                        else:
+                            warnings.append(msg)
+                    elif "KFCD: OK  Finished at:" not in content:
                         msg = f"KFCD did not complete successfully: {kfcd_out}"
                         if strict:
                             errors.append(msg)

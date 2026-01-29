@@ -73,9 +73,28 @@ for r in {ratios_str}; do
 
         echo "WSW: $v"
 
-        # Check if KGRN output already exists and is complete
-        if [ -f {id_ratio}_${{r}}_${{v}}.prn ] && [ -s {id_ratio}_${{r}}_${{v}}.prn ] && grep -q "KGRN: OK  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
-            echo "Skipping KGRN for c/a=$r, SWS=$v (output already exists and is complete)"
+        # Check if KGRN output already exists and should be skipped
+        # Skip if: (1) successful (OK), (2) failed (Stop:), or (3) non-converged (NC)
+        if [ -f {id_ratio}_${{r}}_${{v}}.prn ] && [ -s {id_ratio}_${{r}}_${{v}}.prn ]; then
+            if grep -q "KGRN: OK  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
+                echo "Skipping KGRN for c/a=$r, SWS=$v (output already exists and is complete)"
+            elif grep -q "Stop:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
+                echo "Skipping KGRN for c/a=$r, SWS=$v (calculation failed with Stop: message)"
+            elif grep -q "KGRN: NC  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
+                echo "Skipping KGRN for c/a=$r, SWS=$v (calculation did not converge)"
+            else
+                echo "Running KGRN:"
+                mpirun -n {prcs}  {kgrn_executable} < {id_ratio}_${{r}}_${{v}}.dat > kgrn_${{r}}_${{v}}.log
+
+                # Check KGRN completion via .prn content
+                if [ ! -f {id_ratio}_${{r}}_${{v}}.prn ] || ! grep -q "KGRN: OK  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
+                    echo "KGRN failed for c/a=$r, SWS=$v!"
+                    echo "Skipping c/a=$r, SWS=$v (KFCD will not run for this combination)"
+                    continue
+                else
+                    echo "DONE!"
+                fi
+            fi
         else
             echo "Running KGRN:"
             mpirun -n {prcs}  {kgrn_executable} < {id_ratio}_${{r}}_${{v}}.dat > kgrn_${{r}}_${{v}}.log
@@ -213,9 +232,27 @@ id_ratio="{id_ratio}"
 r={r_fmt}
 v={v_fmt}
 
-# Check if KGRN output already exists and is complete
-if [ -f {id_ratio}_${{r}}_${{v}}.prn ] && [ -s {id_ratio}_${{r}}_${{v}}.prn ] && grep -q "KGRN: OK  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
-    echo "Skipping KGRN for c/a=$r, SWS=$v (output already exists and is complete)"
+# Check if KGRN output already exists and should be skipped
+# Skip if: (1) successful (OK), (2) failed (Stop:), or (3) non-converged (NC)
+if [ -f {id_ratio}_${{r}}_${{v}}.prn ] && [ -s {id_ratio}_${{r}}_${{v}}.prn ]; then
+    if grep -q "KGRN: OK  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
+        echo "Skipping KGRN for c/a=$r, SWS=$v (output already exists and is complete)"
+    elif grep -q "Stop:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
+        echo "Skipping KGRN for c/a=$r, SWS=$v (calculation failed with Stop: message)"
+    elif grep -q "KGRN: NC  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
+        echo "Skipping KGRN for c/a=$r, SWS=$v (calculation did not converge)"
+    else
+        echo "Running KGRN:"
+        mpirun -n {prcs} {kgrn_executable} < {id_ratio}_${{r}}_${{v}}.dat > kgrn_${{r}}_${{v}}.log
+
+        # Check KGRN completion via .prn content
+        if [ ! -f {id_ratio}_${{r}}_${{v}}.prn ] || ! grep -q "KGRN: OK  Finished at:" {id_ratio}_${{r}}_${{v}}.prn 2>/dev/null; then
+            echo "KGRN failed!"
+            exit 1
+        else
+            echo "DONE!"
+        fi
+    fi
 else
     echo "Running KGRN:"
     mpirun -n {prcs} {kgrn_executable} < {id_ratio}_${{r}}_${{v}}.dat > kgrn_${{r}}_${{v}}.log
