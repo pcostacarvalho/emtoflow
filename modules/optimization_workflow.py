@@ -719,37 +719,6 @@ class OptimizationWorkflow:
             # User-provided list → strict unless lenient_validation override
             sws_strict = isinstance(sws_values_original, list) and len(sws_values_original) > 1
         
-        # #region agent log
-        import json
-        import time
-        log_data = {
-            'sessionId': 'debug-session',
-            'runId': 'strict-debug',
-            'hypothesisId': 'A',
-            'location': 'optimization_workflow.py:722',
-            'message': 'Determining strict flags for validation',
-            'data': {
-                'ca_ratios_original': str(ca_ratios_original),
-                'ca_ratios_original_type': str(type(ca_ratios_original)),
-                'sws_values_original': str(sws_values_original),
-                'sws_values_original_type': str(type(sws_values_original)),
-                'lenient_validation': lenient_validation,
-                'lenient_validation_type': str(type(lenient_validation)),
-                'ca_strict': ca_strict,
-                'sws_strict': sws_strict,
-                'ca_is_list': isinstance(ca_ratios_original, list),
-                'sws_is_list': isinstance(sws_values_original, list),
-                'sws_is_none': sws_values_original is None,
-                'sws_is_number': isinstance(sws_values_original, (int, float))
-            },
-            'timestamp': int(time.time() * 1000)
-        }
-        try:
-            with open('debug.log', 'a') as f:
-                f.write(json.dumps(log_data) + '\n')
-        except: pass
-        # #endregion
-
         try:
             ca_list, sws_list = self._prepare_ranges(
                 ca_ratios_original,
@@ -785,26 +754,6 @@ class OptimizationWorkflow:
         # Step 4: SWS optimization (optional)
         optimal_sws = None
         if self.config.get('optimize_sws', False):
-            # #region agent log
-            log_data_sws = {
-                'sessionId': 'debug-session',
-                'runId': 'strict-debug',
-                'hypothesisId': 'B',
-                'location': 'optimization_workflow.py:788',
-                'message': 'Calling optimize_sws',
-                'data': {
-                    'sws_strict': sws_strict,
-                    'sws_list_len': len(sws_list),
-                    'sws_list': [float(x) for x in sws_list]
-                },
-                'timestamp': int(time.time() * 1000)
-            }
-            try:
-                with open('debug.log', 'a') as f:
-                    f.write(json.dumps(log_data_sws) + '\n')
-            except: pass
-            # #endregion
-            
             try:
                 optimal_sws, sws_results = self.optimize_sws(
                     structure=structure,

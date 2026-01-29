@@ -130,30 +130,6 @@ def validate_calculations(
     """
     phase_path = Path(phase_path)
 
-    # #region agent log
-    import json
-    import time
-    log_data = {
-        'sessionId': 'debug-session',
-        'runId': 'validation-execution',
-        'hypothesisId': 'C',
-        'location': 'execution.py:133',
-        'message': 'validate_calculations called',
-        'data': {
-            'strict': strict,
-            'ca_ratios': [float(x) for x in ca_ratios],
-            'sws_values': [float(x) for x in sws_values],
-            'job_name': job_name,
-            'phase_path': str(phase_path)
-        },
-        'timestamp': int(time.time() * 1000)
-    }
-    try:
-        with open('debug.log', 'a') as f:
-            f.write(json.dumps(log_data) + '\n')
-    except: pass
-    # #endregion
-
     print(f"\n{'='*70}")
     print(f"VALIDATING CALCULATIONS")
     if not strict:
@@ -246,27 +222,6 @@ def validate_calculations(
 
     # Raise errors if any (strict mode)
     if errors:
-        # #region agent log
-        log_data_err = {
-            'sessionId': 'debug-session',
-            'runId': 'validation-execution',
-            'hypothesisId': 'C',
-            'location': 'execution.py:226',
-            'message': 'Raising RuntimeError for validation failures',
-            'data': {
-                'strict': strict,
-                'num_errors': len(errors),
-                'errors': errors[:5],  # First 5 errors only
-                'num_warnings': len(warnings)
-            },
-            'timestamp': int(time.time() * 1000)
-        }
-        try:
-            with open('debug.log', 'a') as f:
-                f.write(json.dumps(log_data_err) + '\n')
-        except: pass
-        # #endregion
-        
         error_msg = "\n".join(errors)
         raise RuntimeError(
             f"Calculation validation failed with {len(errors)} error(s):\n{error_msg}\n\n"
