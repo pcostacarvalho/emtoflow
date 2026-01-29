@@ -731,15 +731,16 @@ def plot_eos_fit(
     if title is None:
         title = f'Equation of State: {eos_fit.eos_type}'
     
-    # Add composition to title if provided and it matches the percentage pattern
+    # Add composition to title and filename if provided and it matches the percentage pattern
+    comp_str = None
     if composition:
         # Try to parse composition from string like 'Cu30_Mg70'
         comp_match = re.match(r'.*Cu(\d+)_Mg(\d+)', composition)
         if comp_match:
             cu_percent = comp_match.group(1)
             mg_percent = comp_match.group(2)
-            # Only add if title doesn't already contain the composition
             comp_str = f'Cu{cu_percent}Mg{mg_percent}'
+            # Only add to title if not already present
             if comp_str not in title:
                 title = f'{title} ({comp_str})'
     
@@ -750,8 +751,11 @@ def plot_eos_fit(
 
     plt.tight_layout()
 
-    # Save plot
-    plot_file = output_path / f"eos_plot_{eos_type}.png"
+    # Save plot - include composition in filename if available
+    if comp_str:
+        plot_file = output_path / f"eos_plot_{eos_type}_{comp_str}.png"
+    else:
+        plot_file = output_path / f"eos_plot_{eos_type}.png"
     plt.savefig(plot_file, dpi=150, bbox_inches='tight')
     plt.close()
 
