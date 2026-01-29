@@ -677,6 +677,11 @@ def plot_eos_fit(
     r_data = [p.r for p in eos_fit.data_points]
     etot_data = [p.etot for p in eos_fit.data_points]
     efit_data = [p.efit for p in eos_fit.data_points]
+    
+    # Debug: Print data points being plotted
+    print(f"  Plotting {len(r_data)} data points from EOS output:")
+    for i, (r, etot) in enumerate(zip(r_data, etot_data)):
+        print(f"    Point {i+1}: R={r:.4f}, E={etot:.6f} Ry")
 
     # Generate smooth curve for plotting
     r_min = min(r_data)
@@ -706,17 +711,23 @@ def plot_eos_fit(
                 e_smooth = np.array([morse_energy(r, a, b, c, lambda_param) + offset
                                      for r in r_smooth])
             else:
-                # Some parameters missing - fall back to interpolation
-                print(f"  Warning: Morse parameters missing ({missing_params}), using interpolation instead")
-                e_smooth = np.interp(r_smooth, r_data, efit_data)
+                # Some parameters missing - fall back to smooth interpolation
+                print(f"  Warning: Morse parameters missing ({missing_params}), using cubic spline interpolation instead")
+                from scipy.interpolate import CubicSpline
+                cs = CubicSpline(r_data, efit_data)
+                e_smooth = cs(r_smooth)
         else:
-            # No additional_params - fall back to interpolation
-            print(f"  Warning: Morse parameters not found in EOS fit, using interpolation instead")
-            e_smooth = np.interp(r_smooth, r_data, efit_data)
+            # No additional_params - fall back to smooth interpolation
+            print(f"  Warning: Morse parameters not found in EOS fit, using cubic spline interpolation instead")
+            from scipy.interpolate import CubicSpline
+            cs = CubicSpline(r_data, efit_data)
+            e_smooth = cs(r_smooth)
     else:
         # For other EOS types, use the efit values directly
-        # Interpolate for smooth curve
-        e_smooth = np.interp(r_smooth, r_data, efit_data)
+        # Use cubic spline for smooth interpolation
+        from scipy.interpolate import CubicSpline
+        cs = CubicSpline(r_data, efit_data)
+        e_smooth = cs(r_smooth)
 
     # Create plot
     plt.rcParams.update({'font.size': 12})
