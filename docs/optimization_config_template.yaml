@@ -203,7 +203,7 @@ optimize_sws: false                  # Enable SWS (volume) optimization (Phase 2
 #
 # REQUIREMENTS:
 #   - Requires at least 2 c/a ratios (or set auto_generate=true)
-#   - Requires kstr_executable path
+#   - Requires kstrmo_executable path
 #   - Processes ratios sequentially (not in parallel)
 #   - Uses early termination for ~300-600x speedup
 

@@ -357,7 +357,7 @@ def optimize_ca_ratio(
                 'timestamp': int(time.time() * 1000)
             }
             try:
-                with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+                with open('debug.log', 'a') as f:
                     f.write(json.dumps(log_data) + '\n')
             except: pass
             # #endregion
@@ -386,7 +386,7 @@ def optimize_ca_ratio(
                 'timestamp': int(time.time() * 1000)
             }
             try:
-                with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+                with open('debug.log', 'a') as f:
                     f.write(json.dumps(log_data2) + '\n')
             except: pass
             # #endregion
@@ -440,7 +440,7 @@ def optimize_ca_ratio(
                 'timestamp': int(time.time() * 1000)
             }
             try:
-                with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+                with open('debug.log', 'a') as f:
                     f.write(json.dumps(log_data3) + '\n')
             except: pass
             # #endregion
@@ -948,7 +948,7 @@ def optimize_sws(
         'timestamp': int(time.time() * 1000)
     }
     try:
-        with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+        with open('debug.log', 'a') as f:
             f.write(json.dumps(log_data) + '\n')
     except: pass
     # #endregion
@@ -1181,7 +1181,7 @@ def optimize_sws(
                 'timestamp': int(time.time() * 1000)
             }
             try:
-                with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+                with open('debug.log', 'a') as f:
                     f.write(json.dumps(log_data) + '\n')
             except: pass
             # #endregion
@@ -1210,7 +1210,7 @@ def optimize_sws(
                 'timestamp': int(time.time() * 1000)
             }
             try:
-                with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+                with open('debug.log', 'a') as f:
                     f.write(json.dumps(log_data2) + '\n')
             except: pass
             # #endregion
@@ -1247,7 +1247,7 @@ def optimize_sws(
                     'timestamp': int(time.time() * 1000)
                 }
                 try:
-                    with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+                    with open('debug.log', 'a') as f:
                         f.write(json.dumps(log_data3) + '\n')
                 except: pass
             # #endregion
@@ -1287,7 +1287,7 @@ def optimize_sws(
                 'timestamp': int(time.time() * 1000)
             }
             try:
-                with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+                with open('debug.log', 'a') as f:
                     f.write(json.dumps(log_data4) + '\n')
             except: pass
             # #endregion

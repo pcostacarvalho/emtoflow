@@ -1342,7 +1342,7 @@ def estimate_morse_minimum(
             'timestamp': int(time.time() * 1000)
         }
         try:
-            with open('/Users/pamco116/Documents/GitHub/EMTO_input_automation/.cursor/debug.log', 'a') as f:
+            with open('debug.log', 'a') as f:
                 f.write(json.dumps(log_data) + '\n')
         except: pass
         # #endregion
