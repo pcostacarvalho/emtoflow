@@ -419,14 +419,29 @@ def optimize_ca_ratio(
             
             # Always use the calculated Morse minimum (global minimum of curve)
             # Warn if fit quality is poor, but still use the calculated value
-            if not morse_info['is_valid']:
+            if morse_info.get('safety_corrected'):
+                # Safety correction was applied (e.g., pushed estimate beyond max for expansion)
+                if morse_info['is_valid']:
+                    print(f"  Morse EOS estimate: minimum at {morse_min:.6f} "
+                          f"(R² = {morse_info['r_squared']:.3f})")
+                    print(f"  (Adjusted beyond data range for expansion)")
+                else:
+                    print(f"  ⚠ Morse fit estimated minimum below data range")
+                    print(f"  Using maximum parameter value: {morse_min:.6f}")
+                    print(f"  (Energy is decreasing - minimum likely beyond this value)")
+            elif not morse_info['is_valid']:
                 if morse_info.get('error'):
                     print(f"  ⚠ Morse fit failed: {morse_info['error']}")
                     print(f"  Using minimum from data: {morse_min:.6f}")
-                else:
+                elif morse_info['r_squared'] < 0.7:
                     print(f"  ⚠ Morse fit quality is poor (R² = {morse_info['r_squared']:.3f})")
                     print(f"  Using calculated Morse minimum: {morse_min:.6f}")
                     print(f"  (Fit quality is low - estimate may be unreliable)")
+                else:
+                    # R² is good but fit marked invalid for other reasons (e.g., invalid parameters)
+                    print(f"  ⚠ Morse fit has issues (R² = {morse_info['r_squared']:.3f})")
+                    print(f"  Using calculated Morse minimum: {morse_min:.6f}")
+                    print(f"  (Fit may be unreliable despite good R²)")
             else:
                 print(f"  Morse EOS estimate: minimum at {morse_min:.6f} "
                       f"(R² = {morse_info['r_squared']:.3f})")
@@ -1252,14 +1267,29 @@ def optimize_sws(
             
             # Always use the calculated Morse minimum (global minimum of curve)
             # Warn if fit quality is poor, but still use the calculated value
-            if not morse_info['is_valid']:
+            if morse_info.get('safety_corrected'):
+                # Safety correction was applied (e.g., pushed estimate beyond max for expansion)
+                if morse_info['is_valid']:
+                    print(f"  Morse EOS estimate: minimum at {morse_min:.6f} "
+                          f"(R² = {morse_info['r_squared']:.3f})")
+                    print(f"  (Adjusted beyond data range for expansion)")
+                else:
+                    print(f"  ⚠ Morse fit estimated minimum below data range")
+                    print(f"  Using maximum parameter value: {morse_min:.6f}")
+                    print(f"  (Energy is decreasing - minimum likely beyond this value)")
+            elif not morse_info['is_valid']:
                 if morse_info.get('error'):
                     print(f"  ⚠ Morse fit failed: {morse_info['error']}")
                     print(f"  Using minimum from data: {morse_min:.6f}")
-                else:
+                elif morse_info['r_squared'] < 0.7:
                     print(f"  ⚠ Morse fit quality is poor (R² = {morse_info['r_squared']:.3f})")
                     print(f"  Using calculated Morse minimum: {morse_min:.6f}")
                     print(f"  (Fit quality is low - estimate may be unreliable)")
+                else:
+                    # R² is good but fit marked invalid for other reasons (e.g., invalid parameters)
+                    print(f"  ⚠ Morse fit has issues (R² = {morse_info['r_squared']:.3f})")
+                    print(f"  Using calculated Morse minimum: {morse_min:.6f}")
+                    print(f"  (Fit may be unreliable despite good R²)")
             else:
                 print(f"  Morse EOS estimate: minimum at {morse_min:.6f} "
                       f"(R² = {morse_info['r_squared']:.3f})")

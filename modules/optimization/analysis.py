@@ -1387,15 +1387,29 @@ def estimate_morse_minimum(
         # Check energy trend
         energy_decreasing = energy_values[-1] < energy_values[0]
         param_max = float(np.max(param_values))
+        param_min = float(np.min(param_values))
         
         # Safety check: If energy is decreasing, the minimum should be >= max(param_values)
-        # If estimated minimum is smaller than max, the estimation is wrong - use max instead
-        if energy_decreasing and estimated_min_param < param_max:
-            # Estimation is wrong - energy is decreasing so minimum should be beyond max
+        # If estimated minimum is less than max, the fit may be unreliable.
+        # However, we allow the estimate to be beyond max (which is desired for expansion).
+        safety_corrected = False
+        if energy_decreasing and estimated_min_param < param_min:
+            # Estimated minimum is below the minimum parameter - this is definitely wrong
+            # Use max parameter as fallback (since energy is decreasing, minimum should be beyond max)
             estimated_min_param = param_max
             estimated_min_energy = float(energy_values[np.argmax(param_values)])
-            # Mark as invalid since we had to correct it
+            safety_corrected = True
             is_valid = False
+        elif energy_decreasing and estimated_min_param <= param_max:
+            # Estimated minimum is at or below max, but energy is decreasing
+            # For expansion purposes, we want to go beyond max, so add a small offset
+            # Use 5% beyond max as a conservative expansion target
+            expansion_offset = param_max * 0.05
+            estimated_min_param = param_max + expansion_offset
+            # Recalculate energy at new parameter using Morse function
+            estimated_min_energy = morse_func(estimated_min_param, a, b, c, lam)
+            safety_corrected = True
+            # Don't mark as invalid - this is a reasonable adjustment for expansion
         
         # Always use the calculated Morse minimum (global minimum of curve)
         # User wants the global minimum of the curve, not the data minimum
@@ -1411,7 +1425,8 @@ def estimate_morse_minimum(
             },
             'r_squared': float(r_squared),
             'rms': float(rms),
-            'is_valid': bool(is_valid)
+            'is_valid': bool(is_valid),
+            'safety_corrected': bool(safety_corrected)
         }
         
     except Exception as e:
