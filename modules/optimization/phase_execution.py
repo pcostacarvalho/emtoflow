@@ -382,9 +382,9 @@ def optimize_ca_ratio(
             )
         
         if needs_expansion:
-                print(f"\n⚠ Expansion needed: {reason}")
-                
-                # Estimate Morse EOS minimum (use workflow points, not merged with saved data)
+            print(f"\n⚠ Expansion needed: {reason}")
+            
+            # Estimate Morse EOS minimum (use workflow points, not merged with saved data)
             # #region agent log
             import time
             log_data = {
@@ -1260,9 +1260,9 @@ def optimize_sws(
             )
         
         if needs_expansion:
-                print(f"\n⚠ Expansion needed: {reason}")
-                
-                # Estimate Morse EOS minimum (use workflow points, not merged with saved data)
+            print(f"\n⚠ Expansion needed: {reason}")
+            
+            # Estimate Morse EOS minimum (use workflow points, not merged with saved data)
             # #region agent log
             import time
             log_data = {
