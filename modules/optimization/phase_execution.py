@@ -370,25 +370,18 @@ def optimize_ca_ratio(
     
     # Check if expansion is needed (similar to optimize_sws)
     expansion_metadata = {}
-    skip_calculations = config.get('skip_calculations', False)
     
     if config.get('eos_auto_expand_range', False):
-        # Skip expansion if skip_calculations is enabled (expansion requires new calculations)
-        if skip_calculations:
-            print("\n⚠ WARNING: Expansion skipped because skip_calculations=True")
-            print("  Expansion requires running new calculations, which is disabled.")
-            print("  Using optimal value from initial fit: {:.6f}".format(optimal_ca))
+        # If EOS fit failed, we definitely need expansion
+        if eos_fit_failed:
+            needs_expansion = True
+            reason = f"EOS fit failed: {eos_fit_error_msg}"
         else:
-            # If EOS fit failed, we definitely need expansion
-            if eos_fit_failed:
-                needs_expansion = True
-                reason = f"EOS fit failed: {eos_fit_error_msg}"
-            else:
-                needs_expansion, reason = detect_expansion_needed(
-                    eos_results, ca_values_for_fit, energy_values_for_fit, optimal_ca
-                )
-            
-            if needs_expansion:
+            needs_expansion, reason = detect_expansion_needed(
+                eos_results, ca_values_for_fit, energy_values_for_fit, optimal_ca
+            )
+        
+        if needs_expansion:
                 print(f"\n⚠ Expansion needed: {reason}")
                 
                 # Estimate Morse EOS minimum (use workflow points, not merged with saved data)
@@ -808,17 +801,17 @@ def run_calculations_for_parameter_values(
         if optimal_ca is None:
             raise ValueError("optimal_ca required for SWS optimization")
         
+        # Create EMTO inputs (always create inputs, even in skip_calculations mode)
+        phase_config = {
+            **config,
+            'output_path': str(phase_path),
+            'ca_ratios': [optimal_ca],
+            'sws_values': parameter_values,
+        }
+        
+        create_emto_inputs(phase_config)
+        
         if not skip_calculations:
-            # Create EMTO inputs
-            phase_config = {
-                **config,
-                'output_path': str(phase_path),
-                'ca_ratios': [optimal_ca],
-                'sws_values': parameter_values,
-            }
-            
-            create_emto_inputs(phase_config)
-            
             # Run calculations
             script_name = f"run_{config['job_name']}.sh"
             run_calculations_func(
@@ -867,17 +860,17 @@ def run_calculations_for_parameter_values(
         if isinstance(initial_sws, list):
             initial_sws = initial_sws[0]  # Use first value if list
         
+        # Create EMTO inputs (always create inputs, even in skip_calculations mode)
+        phase_config = {
+            **config,
+            'output_path': str(phase_path),
+            'ca_ratios': parameter_values,
+            'sws_values': [initial_sws],
+        }
+        
+        create_emto_inputs(phase_config)
+        
         if not skip_calculations:
-            # Create EMTO inputs
-            phase_config = {
-                **config,
-                'output_path': str(phase_path),
-                'ca_ratios': parameter_values,
-                'sws_values': [initial_sws],
-            }
-            
-            create_emto_inputs(phase_config)
-            
             # Run calculations
             script_name = f"run_{config['job_name']}.sh"
             run_calculations_func(
@@ -1255,25 +1248,18 @@ def optimize_sws(
     # Check if expansion is needed
     expansion_metadata = {}
     expansion_used = False
-    skip_calculations = config.get('skip_calculations', False)
     
     if config.get('eos_auto_expand_range', False):
-        # Skip expansion if skip_calculations is enabled (expansion requires new calculations)
-        if skip_calculations:
-            print("\n⚠ WARNING: Expansion skipped because skip_calculations=True")
-            print("  Expansion requires running new calculations, which is disabled.")
-            print("  Using optimal value from initial fit: {:.6f}".format(optimal_sws))
+        # If EOS fit failed, we definitely need expansion
+        if eos_fit_failed:
+            needs_expansion = True
+            reason = f"EOS fit failed: {eos_fit_error_msg}"
         else:
-            # If EOS fit failed, we definitely need expansion
-            if eos_fit_failed:
-                needs_expansion = True
-                reason = f"EOS fit failed: {eos_fit_error_msg}"
-            else:
-                needs_expansion, reason = detect_expansion_needed(
-                    eos_results, sws_values_for_fit, energy_values_for_fit, optimal_sws
-                )
-            
-            if needs_expansion:
+            needs_expansion, reason = detect_expansion_needed(
+                eos_results, sws_values_for_fit, energy_values_for_fit, optimal_sws
+            )
+        
+        if needs_expansion:
                 print(f"\n⚠ Expansion needed: {reason}")
                 
                 # Estimate Morse EOS minimum (use workflow points, not merged with saved data)
