@@ -66,17 +66,9 @@ sort -n $OUTPUT_RAW -o $OUTPUT_RAW
 echo ""
 echo "Raw energies saved to: $OUTPUT_RAW"
 
-# Check if we have pure element energies
-if [ -z "${energies[0]}" ] || [ -z "${energies[100]}" ]; then
-    echo ""
-    echo "Warning: Missing pure element energies (Cu0_Mg100 or Cu100_Mg0)"
-    echo "Cannot calculate formation energies without reference states."
-    exit 1
-fi
-
-# Get reference energies
-E_Cu=${energies[100]}
-E_Mg=${energies[0]}
+# Fixed reference energies for pure elements
+E_Cu=-3310.060512  # Cu 100%
+E_Mg=-801.325741   # Mg 100%
 
 echo ""
 echo "========================================================"
