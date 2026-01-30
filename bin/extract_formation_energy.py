@@ -131,8 +131,8 @@ def main():
         return
     
     # Calculate formation energies
-    E_Cu_pure = 3310.060512 #results[100]  # Cu100_Mg0
-    E_Mg_pure = 801.325741 #results[0]    # Cu0_Mg100
+    E_Cu_pure = -3310.060512 #results[100]  # Cu100_Mg0
+    E_Mg_pure = -801.325741 #results[0]    # Cu0_Mg100
     
     print("\n" + "=" * 60)
     print(f"Reference energies:")
