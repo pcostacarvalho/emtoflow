@@ -310,10 +310,10 @@ cd ../
     # Write submission script
     submit_script = "#!/bin/bash\n# Submit all jobs independently (no dependencies)\n"
     
-    # Submit preparation jobs
-    for r in ratios:  
-        r_fmt = f"{r:.2f}"
-        submit_script += f'sbatch {job_name}_prep_r{r_fmt}.sh\n'
+    # Submit preparation jobs (commented out for now)
+    # for r in ratios:  
+    #     r_fmt = f"{r:.2f}"
+    #     submit_script += f'sbatch {job_name}_prep_r{r_fmt}.sh\n'
     
     # Submit computation jobs (no dependencies)
     for r in ratios:  
