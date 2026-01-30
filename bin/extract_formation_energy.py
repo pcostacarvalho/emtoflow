@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Extract phase 3 energies from EMTO calculations and compute formation energies.
+Uses energy per site from fcd calculation outputs.
 """
 
 import os
@@ -9,47 +10,58 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
+import sys
+
+# Add parent directory to path to import modules
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from modules.extract_results import parse_kfcd
 
 
-def extract_phase3_energy(folder_path):
+def find_fcd_prn_file(folder_path):
     """
-    Extract final energy from workflow_results.json in the folder.
+    Find the fcd/prn file in the folder structure.
+    Looks in: phase3_optimized_calculation/fcd/*.prn or fcd/*.prn
     """
     folder = Path(folder_path)
     
-    # Look for workflow_results.json
-    json_file = folder / "workflow_results.json"
+    # Try phase3_optimized_calculation/fcd/*.prn first
+    phase3_fcd = folder / "phase3_optimized_calculation" / "fcd"
+    if phase3_fcd.exists():
+        prn_files = list(phase3_fcd.glob("*.prn"))
+        if prn_files:
+            return prn_files[0]  # Return first .prn file found
     
-    if json_file.exists():
-        try:
-            with open(json_file, 'r') as f:
-                data = json.load(f)
-            
-            # Primary: Check for final_energy (standard key in workflow results)
-            if 'final_energy' in data:
-                return float(data['final_energy'])
-            
-            # Fallback: Try other possible keys
-            possible_keys = [
-                'total_energy',
-                'energy',
-                'phase_3_energy',
-                'phase3_energy',
-            ]
-            
-            for key in possible_keys:
-                if key in data:
-                    return float(data[key])
-            
-            print(f"  Warning: Could not find energy in {json_file}")
-            print(f"  Available keys: {list(data.keys())}")
-            
-        except json.JSONDecodeError:
-            print(f"  Error: Could not parse JSON in {json_file}")
-        except Exception as e:
-            print(f"  Error reading {json_file}: {e}")
+    # Try fcd/*.prn
+    fcd_dir = folder / "fcd"
+    if fcd_dir.exists():
+        prn_files = list(fcd_dir.glob("*.prn"))
+        if prn_files:
+            return prn_files[0]  # Return first .prn file found
     
     return None
+
+
+def extract_phase3_energy(folder_path, functional='GGA'):
+    """
+    Extract total energy and energy per site from fcd/prn file.
+    Returns: (total_energy, energy_per_site) or (None, None) if not found
+    """
+    prn_file = find_fcd_prn_file(folder_path)
+    
+    if prn_file is None:
+        return None, None
+    
+    try:
+        results = parse_kfcd(str(prn_file), functional=functional)
+        
+        total_energy = results.total_energy
+        energy_per_site = results.energy_per_site
+        
+        return total_energy, energy_per_site
+        
+    except Exception as e:
+        print(f"  Error parsing {prn_file}: {e}")
+        return None, None
 
 
 def parse_composition(folder_name):
@@ -80,64 +92,46 @@ def main():
         print("No composition folders found (Cu*_Mg* pattern)")
         return
     
-    print("Extracting phase 3 energies from workflow_results.json files...")
+    print("Extracting phase 3 energies from fcd/prn files...")
     print("-" * 60)
+    
+    # Dictionary to store energy per site: {Cu_percent: energy_per_site}
+    results_per_site = {}
+    # Dictionary to store total energies: {Cu_percent: total_energy}
+    results_total = {}
     
     for folder in composition_folders:
         cu_percent, mg_percent = parse_composition(folder.name)
         if cu_percent is None:
             continue
         
-        energy = extract_phase3_energy(folder)
+        total_energy, energy_per_site = extract_phase3_energy(folder)
         
-        if energy is not None:
-            results[cu_percent] = energy
-            print(f"{folder.name:15s} Cu: {cu_percent:3d}%  Energy: {energy:12.6f} Ry")
+        if energy_per_site is not None:
+            results_per_site[cu_percent] = energy_per_site
+            if total_energy is not None:
+                results_total[cu_percent] = total_energy
+            print(f"{folder.name:15s} Cu: {cu_percent:3d}%  Total: {total_energy:12.6f} Ry  Per site: {energy_per_site:12.6f} Ry/site")
         else:
             print(f"{folder.name:15s} Cu: {cu_percent:3d}%  Energy: NOT FOUND")
+    
+    # Use energy per site for formation energy calculations
+    results = results_per_site
     
     if not results:
         print("\nNo energies were extracted. Please check the file structure.")
         return
     
-    # Check if we have pure elements
-    if 0 not in results or 100 not in results:
-        print("\nWarning: Missing pure element energies (Cu0_Mg100 or Cu100_Mg0)")
-        print("Cannot calculate formation energies without reference states.")
-        
-        # Just save raw energies
-        output_file = "energies_raw.dat"
-        with open(output_file, 'w') as f:
-            f.write("# Cu_percent  Energy(Ry)\n")
-            for cu_percent in sorted(results.keys()):
-                f.write(f"{cu_percent:5d}  {results[cu_percent]:15.8f}\n")
-        
-        print(f"\nRaw energies saved to: {output_file}")
-        
-        # Plot raw energies
-        cu_percentages = np.array(sorted(results.keys()))
-        energies = np.array([results[cp] for cp in cu_percentages])
-        
-        plt.figure(figsize=(10, 6))
-        plt.plot(cu_percentages, energies, 'o-', linewidth=2, markersize=8)
-        plt.xlabel('Cu Percentage (%)', fontsize=12)
-        plt.ylabel('Total Energy (Ry)', fontsize=12)
-        plt.title('Total Energy vs Cu Percentage', fontsize=14)
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-        plt.savefig('energy_vs_composition.png', dpi=300)
-        print(f"Plot saved to: energy_vs_composition.png")
-        
-        return
-    
-    # Calculate formation energies
-    E_Cu_pure = -3310.060512 #results[100]  # Cu100_Mg0
-    E_Mg_pure = -400.662871 #results[0]    # Cu0_Mg100
+    # Calculate formation energies using energy per site
+    # Use fixed reference values for pure elements (energy per site)
+    # These are the fixed reference values provided by the user
+    E_Cu_pure = -3310.060512  # Cu 100% (Ry/site)
+    E_Mg_pure = -400.662871   # Mg 100% (Ry/site)
     
     print("\n" + "=" * 60)
-    print(f"Reference energies:")
-    print(f"  E(Cu 100%) = {E_Cu_pure:.6f} Ry")
-    print(f"  E(Mg 100%) = {E_Mg_pure:.6f} Ry")
+    print(f"Reference energies (per site):")
+    print(f"  E(Cu 100%) = {E_Cu_pure:.6f} Ry/site")
+    print(f"  E(Mg 100%) = {E_Mg_pure:.6f} Ry/site")
     print("=" * 60)
     
     formation_energies = {}
@@ -157,23 +151,28 @@ def main():
         
         formation_energies[cu_percent] = E_form
         
-        print(f"Cu{cu_percent:3d}_Mg{mg_percent:3d}  E_form = {E_form:12.6f} Ry")
+        print(f"Cu{cu_percent:3d}_Mg{mg_percent:3d}  E_form = {E_form:12.6f} Ry/site")
     
     # Save to file
     output_file = "formation_energies.dat"
     with open(output_file, 'w') as f:
-        f.write("# Cu_percent  FormationEnergy(Ry)\n")
+        f.write("# Cu_percent  FormationEnergy(Ry/site)\n")
         for cu_percent in sorted(formation_energies.keys()):
             f.write(f"{cu_percent:5d}  {formation_energies[cu_percent]:15.8f}\n")
     
     print(f"\nFormation energies saved to: {output_file}")
     
-    # Also save raw energies
+    # Also save raw energies (energy per site)
     output_file_raw = "energies_raw.dat"
     with open(output_file_raw, 'w') as f:
-        f.write("# Cu_percent  Energy(Ry)\n")
+        f.write("# Cu_percent  EnergyPerSite(Ry/site)  TotalEnergy(Ry)\n")
         for cu_percent in sorted(results.keys()):
-            f.write(f"{cu_percent:5d}  {results[cu_percent]:15.8f}\n")
+            energy_per_site = results[cu_percent]
+            total_energy = results_total.get(cu_percent, None)
+            if total_energy is not None:
+                f.write(f"{cu_percent:5d}  {energy_per_site:15.8f}  {total_energy:15.8f}\n")
+            else:
+                f.write(f"{cu_percent:5d}  {energy_per_site:15.8f}  {'N/A':>15s}\n")
     
     print(f"Raw energies saved to: {output_file_raw}")
     
@@ -186,8 +185,8 @@ def main():
              color='royalblue', label='Formation Energy')
     plt.axhline(y=0, color='gray', linestyle='--', linewidth=1, alpha=0.5)
     plt.xlabel('Cu Percentage (%)', fontsize=12)
-    plt.ylabel('Formation Energy (Ry)', fontsize=12)
-    plt.title('Formation Energy of Cu-Mg Alloys', fontsize=14)
+    plt.ylabel('Formation Energy (Ry/site)', fontsize=12)
+    plt.title('Formation Energy of Cu-Mg Alloys (per site)', fontsize=14)
     plt.grid(True, alpha=0.3)
     plt.legend(fontsize=10)
     plt.tight_layout()

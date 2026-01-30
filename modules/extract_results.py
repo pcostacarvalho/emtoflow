@@ -27,6 +27,7 @@ class EMTOResults:
     
     # Convergence data
     total_energy: Optional[float] = None
+    energy_per_site: Optional[float] = None  # Energy per site (Ry/site)
     free_energy: Optional[float] = None
     kinetic_energy: Optional[float] = None
     
@@ -311,39 +312,67 @@ def parse_kfcd(filepath: str, functional: str = 'GGA') -> EMTOResults:
                         if match:
                             results.energies_by_functional[atom_key]['LAG'] = float(match.group(1))
         
-        # Extract total system energies
+        # Extract total system energies (both total energy and energy per site)
         if '*Total energy:' in line:
             for j in range(i+1, min(i+15, len(lines))):
                 energy_line = lines[j]
                 
+                # Pattern: TOT-LDA   -3703.999348 (Ry)   -1851.999674 (Ry/site)   S=  2.953000 Bohr
                 if 'TOT-LDA' in energy_line:
-                    match = re.search(r'TOT-LDA\s+([-\d.]+)', energy_line)
-                    if match:
+                    # Extract total energy
+                    match_total = re.search(r'TOT-LDA\s+([-\d.]+)\s+\(Ry\)', energy_line)
+                    # Extract energy per site
+                    match_per_site = re.search(r'\(Ry\)\s+([-\d.]+)\s+\(Ry/site\)', energy_line)
+                    if match_total:
                         if 'system' not in results.energies_by_functional:
                             results.energies_by_functional['system'] = {}
-                        results.energies_by_functional['system']['LDA'] = float(match.group(1))
+                        results.energies_by_functional['system']['LDA'] = float(match_total.group(1))
+                    if match_per_site:
+                        if 'system' not in results.energies_by_functional:
+                            results.energies_by_functional['system'] = {}
+                        if 'energy_per_site' not in results.energies_by_functional['system']:
+                            results.energies_by_functional['system']['energy_per_site'] = {}
+                        results.energies_by_functional['system']['energy_per_site']['LDA'] = float(match_per_site.group(1))
                 
                 elif 'TOT-GGA' in energy_line:
-                    match = re.search(r'TOT-GGA\s+([-\d.]+)', energy_line)
-                    if match:
+                    # Extract total energy
+                    match_total = re.search(r'TOT-GGA\s+([-\d.]+)\s+\(Ry\)', energy_line)
+                    # Extract energy per site
+                    match_per_site = re.search(r'\(Ry\)\s+([-\d.]+)\s+\(Ry/site\)', energy_line)
+                    if match_total:
                         if 'system' not in results.energies_by_functional:
                             results.energies_by_functional['system'] = {}
-                        results.energies_by_functional['system']['GGA'] = float(match.group(1))
+                        results.energies_by_functional['system']['GGA'] = float(match_total.group(1))
+                    if match_per_site:
+                        if 'system' not in results.energies_by_functional:
+                            results.energies_by_functional['system'] = {}
+                        if 'energy_per_site' not in results.energies_by_functional['system']:
+                            results.energies_by_functional['system']['energy_per_site'] = {}
+                        results.energies_by_functional['system']['energy_per_site']['GGA'] = float(match_per_site.group(1))
                 
                 elif 'TOT-LAG' in energy_line:
-                    match = re.search(r'TOT-LAG\s+([-\d.]+)', energy_line)
-                    if match:
+                    # Extract total energy
+                    match_total = re.search(r'TOT-LAG\s+([-\d.]+)\s+\(Ry\)', energy_line)
+                    # Extract energy per site
+                    match_per_site = re.search(r'\(Ry\)\s+([-\d.]+)\s+\(Ry/site\)', energy_line)
+                    if match_total:
                         if 'system' not in results.energies_by_functional:
                             results.energies_by_functional['system'] = {}
-                        results.energies_by_functional['system']['LAG'] = float(match.group(1))
+                        results.energies_by_functional['system']['LAG'] = float(match_total.group(1))
+                    if match_per_site:
+                        if 'system' not in results.energies_by_functional:
+                            results.energies_by_functional['system'] = {}
+                        if 'energy_per_site' not in results.energies_by_functional['system']:
+                            results.energies_by_functional['system']['energy_per_site'] = {}
+                        results.energies_by_functional['system']['energy_per_site']['LAG'] = float(match_per_site.group(1))
         
         i += 1
 
-    # Set total_energy to specified functional (with fallback to others)
+    # Set total_energy and energy_per_site to specified functional (with fallback to others)
     if 'system' in results.energies_by_functional:
         system_energies = results.energies_by_functional['system']
 
-        # Try to use the specified functional first
+        # Try to use the specified functional first for total energy
         if functional in system_energies:
             results.total_energy = system_energies[functional]
         # Fallback: try other functionals in order GGA > LDA > LAG
@@ -353,6 +382,20 @@ def parse_kfcd(filepath: str, functional: str = 'GGA') -> EMTOResults:
             results.total_energy = system_energies['LDA']
         elif 'LAG' in system_energies:
             results.total_energy = system_energies['LAG']
+        
+        # Set energy_per_site from the same functional
+        if 'energy_per_site' in system_energies:
+            energy_per_site_dict = system_energies['energy_per_site']
+            # Try to use the specified functional first
+            if functional in energy_per_site_dict:
+                results.energy_per_site = energy_per_site_dict[functional]
+            # Fallback: try other functionals in order GGA > LDA > LAG
+            elif 'GGA' in energy_per_site_dict:
+                results.energy_per_site = energy_per_site_dict['GGA']
+            elif 'LDA' in energy_per_site_dict:
+                results.energy_per_site = energy_per_site_dict['LDA']
+            elif 'LAG' in energy_per_site_dict:
+                results.energy_per_site = energy_per_site_dict['LAG']
 
     return results
 
