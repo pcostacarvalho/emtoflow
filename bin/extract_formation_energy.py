@@ -100,9 +100,39 @@ def main():
         print("\nNo energies were extracted. Please check the file structure.")
         return
     
-    # Fixed reference energies for pure elements
-    E_Cu_pure = -3310.060512  # Cu 100%
-    E_Mg_pure = -801.325741   # Mg 100%
+    # Check if we have pure elements
+    if 0 not in results or 100 not in results:
+        print("\nWarning: Missing pure element energies (Cu0_Mg100 or Cu100_Mg0)")
+        print("Cannot calculate formation energies without reference states.")
+        
+        # Just save raw energies
+        output_file = "energies_raw.dat"
+        with open(output_file, 'w') as f:
+            f.write("# Cu_percent  Energy(Ry)\n")
+            for cu_percent in sorted(results.keys()):
+                f.write(f"{cu_percent:5d}  {results[cu_percent]:15.8f}\n")
+        
+        print(f"\nRaw energies saved to: {output_file}")
+        
+        # Plot raw energies
+        cu_percentages = np.array(sorted(results.keys()))
+        energies = np.array([results[cp] for cp in cu_percentages])
+        
+        plt.figure(figsize=(10, 6))
+        plt.plot(cu_percentages, energies, 'o-', linewidth=2, markersize=8)
+        plt.xlabel('Cu Percentage (%)', fontsize=12)
+        plt.ylabel('Total Energy (Ry)', fontsize=12)
+        plt.title('Total Energy vs Cu Percentage', fontsize=14)
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.savefig('energy_vs_composition.png', dpi=300)
+        print(f"Plot saved to: energy_vs_composition.png")
+        
+        return
+    
+    # Calculate formation energies
+    E_Cu_pure = results[100]  # Cu100_Mg0
+    E_Mg_pure = results[0]    # Cu0_Mg100
     
     print("\n" + "=" * 60)
     print(f"Reference energies:")
