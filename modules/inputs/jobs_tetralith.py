@@ -153,7 +153,7 @@ done
 def write_parallel_sbatch(path, ratios, volumes, job_name, prcs=1, time="00:30:00", account="naiss2025-1-38", id_ratio="fept",
                           kstr_executable="kstr.exe", shape_executable="shape.exe",
                           kgrn_executable="kgrn_mpi.x", kfcd_executable="kfcd.exe"):
-    """Write parallel SBATCH scripts with proper dependencies."""
+    """Write parallel SBATCH scripts without dependencies (jobs run independently)."""
     
     # Stage 1: KSTR and SHAPE (one per ratio)
     for r in ratios: 
@@ -218,7 +218,7 @@ cd ../
         with open(f"{path}/{job_name}_prep_r{r_fmt}.sh", "w") as f:
             f.write(script)
 
-    # Stage 2: KGRN and KFCD (one per r,v pair, depends on Stage 1)
+    # Stage 2: KGRN and KFCD (one per r,v pair, runs independently)
     for r in ratios:
         r_fmt = f"{r:.2f}"
         r_var = r_fmt.replace('.', '_')
@@ -232,7 +232,6 @@ cd ../
 #SBATCH -n {prcs}
 #SBATCH -t {time}
 #SBATCH -J {job_name}_r{r_fmt}_v{v_fmt}
-#SBATCH --dependency=afterok:$PREP_R{r_var}_JOBID
 
 module load buildenv-intel/2023a-eb
 
@@ -309,20 +308,19 @@ cd ../
                 f.write(script)
     
     # Write submission script
-    submit_script = "#!/bin/bash\n# Submit preparation jobs and store job IDs\n"
+    submit_script = "#!/bin/bash\n# Submit all jobs independently (no dependencies)\n"
     
+    # Submit preparation jobs
     for r in ratios:  
         r_fmt = f"{r:.2f}"
-        r_var = r_fmt.replace('.', '_')
-        submit_script += f'PREP_R{r_var}_JOBID=$(sbatch --parsable {job_name}_prep_r{r_fmt}.sh)\n'
+        submit_script += f'sbatch {job_name}_prep_r{r_fmt}.sh\n'
     
-    submit_script += "\n# Submit computation jobs with dependencies\n"
+    # Submit computation jobs (no dependencies)
     for r in ratios:  
         r_fmt = f"{r:.2f}"
-        r_var = r_fmt.replace('.', '_')
         for v in volumes: 
             v_fmt = f"{v:.2f}"
-            submit_script += f'sbatch --dependency=afterok:$PREP_R{r_var}_JOBID {job_name}_r{r_fmt}_v{v_fmt}.sh\n'
+            submit_script += f'sbatch {job_name}_r{r_fmt}_v{v_fmt}.sh\n'
     
     with open(f"{path}/submit_{job_name}.sh", "w") as f:
         f.write(submit_script)
