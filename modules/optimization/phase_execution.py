@@ -108,48 +108,60 @@ def optimize_ca_ratio(
     print(f"  SWS values: {sws_list}")
     print(f"  Output path: {phase_path}\n")
 
-    # Create EMTO inputs
-    try:
-        phase_config = {
-            **config,  # All validated defaults from constructor
-            'output_path': str(phase_path),  # Override for this phase
-            'ca_ratios': ca_ratios,
-            'sws_values': sws_list,
-            # Only override what's different for this phase
-        }
+    # Check if we should skip calculations
+    skip_calculations = config.get('skip_calculations', False)
+    
+    if skip_calculations:
+        print("\n" + "="*70)
+        print("SKIP CALCULATIONS MODE: Skipping calculation execution")
+        print("Parsing existing results from output files...")
+        print("="*70 + "\n")
+    else:
+        # Create EMTO inputs
+        try:
+            phase_config = {
+                **config,  # All validated defaults from constructor
+                'output_path': str(phase_path),  # Override for this phase
+                'ca_ratios': ca_ratios,
+                'sws_values': sws_list,
+                # Only override what's different for this phase
+            }
 
-        create_emto_inputs(phase_config)
+            create_emto_inputs(phase_config)
 
-    except Exception as e:
-        raise RuntimeError(f"Failed to create EMTO inputs: {e}")
+        except Exception as e:
+            raise RuntimeError(f"Failed to create EMTO inputs: {e}")
 
-    # Run calculations
-    script_name = f"run_{config['job_name']}.sh"
-    run_calculations_func(
-        calculation_path=phase_path,
-        script_name=script_name
-    )
+        # Run calculations
+        script_name = f"run_{config['job_name']}.sh"
+        run_calculations_func(
+            calculation_path=phase_path,
+            script_name=script_name
+        )
 
-    # Validate calculations completed successfully
-    validate_calculations_func(
-        phase_path=phase_path,
-        ca_ratios=ca_ratios,
-        sws_values=sws_list,
-        job_name=config['job_name'],
-        strict=strict
-    )
+        # Validate calculations completed successfully
+        validate_calculations_func(
+            phase_path=phase_path,
+            ca_ratios=ca_ratios,
+            sws_values=sws_list,
+            job_name=config['job_name'],
+            strict=strict
+        )
 
     # Parse energies from KFCD outputs
     print("\nParsing energies from KFCD outputs...")
     ca_values = []
     energy_values = []
+    
+    # In skip_calculations mode, be more lenient with missing files
+    parse_strict = strict and not skip_calculations
 
     for i, (ca, sws) in enumerate(zip(ca_ratios, sws_list)):
         file_id = f"{config['job_name']}_{ca:.2f}_{sws:.2f}"
         kfcd_file = phase_path / "fcd" / f"{file_id}.prn"
 
         if not kfcd_file.exists():
-            if strict:
+            if parse_strict:
                 raise RuntimeError(
                     f"KFCD output not found: {kfcd_file}\n"
                     f"Calculation may have failed. Check log files in {phase_path}"
@@ -166,7 +178,7 @@ def optimize_ca_ratio(
                 kgrn_content = f.read()
                 is_failed, failure_reason = _check_calculation_failed(kgrn_content)
                 if is_failed:
-                    if strict:
+                    if parse_strict:
                         raise RuntimeError(f"KGRN calculation failed ({failure_reason}): {kgrn_file}")
                     else:
                         print(f"  ⚠ Skipping c/a={ca:.4f}: KGRN calculation failed ({failure_reason})")
@@ -177,7 +189,7 @@ def optimize_ca_ratio(
             content = f.read()
             is_failed, failure_reason = _check_calculation_failed(content)
             if is_failed:
-                if strict:
+                if parse_strict:
                     raise RuntimeError(f"KFCD calculation failed ({failure_reason}): {kfcd_file}")
                 else:
                     print(f"  ⚠ Skipping c/a={ca:.4f}: KFCD calculation failed ({failure_reason})")
@@ -186,7 +198,7 @@ def optimize_ca_ratio(
         try:
             results = parse_kfcd(str(kfcd_file), functional=config.get('functional', 'GGA'))
             if results.total_energy is None:
-                if strict:
+                if parse_strict:
                     raise RuntimeError(f"No total energy found in {kfcd_file}")
                 else:
                     print(f"  ⚠ Skipping c/a={ca:.4f}: No total energy in {kfcd_file}")
@@ -198,7 +210,7 @@ def optimize_ca_ratio(
             print(f"  c/a = {ca:.4f}: E = {results.energies_by_functional['system']['GGA']:.6f} Ry")
 
         except Exception as e:
-            if strict:
+            if parse_strict:
                 raise RuntimeError(f"Failed to parse {kfcd_file}: {e}")
             else:
                 print(f"  ⚠ Skipping c/a={ca:.4f}: Failed to parse {kfcd_file}: {e}")
@@ -212,7 +224,13 @@ def optimize_ca_ratio(
             f"Successful c/a ratios: {ca_values}\n"
             f"Missing c/a ratios: {[c for c in ca_ratios if c not in ca_values]}"
         )
-        if strict:
+        if skip_calculations:
+            # In skip mode, warn but don't fail - user might be parsing partial results
+            print(f"\n⚠ WARNING: {error_msg}")
+            print("  Continuing with available data points...")
+            if len(ca_values) == 0:
+                raise RuntimeError("No data points found. Cannot proceed without any results.")
+        elif strict:
             raise RuntimeError(error_msg)
         else:
             raise RuntimeError(
@@ -951,52 +969,64 @@ def optimize_sws(
     phase_path = base_path / "phase2_sws_optimization"
     phase_path.mkdir(parents=True, exist_ok=True)
 
-    print(f"Creating EMTO inputs for {len(sws_values)} SWS values...")
-    print(f"  Optimal c/a: {optimal_ca:.6f}")
-    print(f"  SWS values: {sws_values}")
-    print(f"  Output path: {phase_path}\n")
+    # Check if we should skip calculations
+    skip_calculations = config.get('skip_calculations', False)
+    
+    if skip_calculations:
+        print("\n" + "="*70)
+        print("SKIP CALCULATIONS MODE: Skipping calculation execution")
+        print("Parsing existing results from output files...")
+        print("="*70 + "\n")
+    else:
+        print(f"Creating EMTO inputs for {len(sws_values)} SWS values...")
+        print(f"  Optimal c/a: {optimal_ca:.6f}")
+        print(f"  SWS values: {sws_values}")
+        print(f"  Output path: {phase_path}\n")
 
-    # Create EMTO inputs with optimal c/a
-    try:
-        phase_config = {
-            **config,  # All validated defaults from constructor
-            'output_path': str(phase_path),  # Override for this phase
-            'ca_ratios': [optimal_ca],
-            'sws_values': sws_values,
-            # Only override what's different for this phase
-        }
+        # Create EMTO inputs with optimal c/a
+        try:
+            phase_config = {
+                **config,  # All validated defaults from constructor
+                'output_path': str(phase_path),  # Override for this phase
+                'ca_ratios': [optimal_ca],
+                'sws_values': sws_values,
+                # Only override what's different for this phase
+            }
 
-        create_emto_inputs(phase_config)
-    except Exception as e:
-        raise RuntimeError(f"Failed to create EMTO inputs: {e}")
+            create_emto_inputs(phase_config)
+        except Exception as e:
+            raise RuntimeError(f"Failed to create EMTO inputs: {e}")
 
-    # Run calculations
-    script_name = f"run_{config['job_name']}.sh"
-    run_calculations_func(
-        calculation_path=phase_path,
-        script_name=script_name
-    )
+        # Run calculations
+        script_name = f"run_{config['job_name']}.sh"
+        run_calculations_func(
+            calculation_path=phase_path,
+            script_name=script_name
+        )
 
-    # Validate calculations completed successfully
-    validate_calculations_func(
-        phase_path=phase_path,
-        ca_ratios=[optimal_ca],
-        sws_values=sws_values,
-        job_name=config['job_name'],
-        strict=strict
-    )
+        # Validate calculations completed successfully
+        validate_calculations_func(
+            phase_path=phase_path,
+            ca_ratios=[optimal_ca],
+            sws_values=sws_values,
+            job_name=config['job_name'],
+            strict=strict
+        )
 
     # Parse energies from KFCD outputs
     print("\nParsing energies from KFCD outputs...")
     sws_parsed = []
     energy_values = []
+    
+    # In skip_calculations mode, be more lenient with missing files
+    parse_strict = strict and not skip_calculations
 
     for sws in sws_values:
         file_id = f"{config['job_name']}_{optimal_ca:.2f}_{sws:.2f}"
         kfcd_file = phase_path / "fcd" / f"{file_id}.prn"
 
         if not kfcd_file.exists():
-            if strict:
+            if parse_strict:
                 raise RuntimeError(
                     f"KFCD output not found: {kfcd_file}\n"
                     f"Calculation may have failed. Check log files in {phase_path}"
@@ -1013,7 +1043,7 @@ def optimize_sws(
                 kgrn_content = f.read()
                 is_failed, failure_reason = _check_calculation_failed(kgrn_content)
                 if is_failed:
-                    if strict:
+                    if parse_strict:
                         raise RuntimeError(f"KGRN calculation failed ({failure_reason}): {kgrn_file}")
                     else:
                         print(f"  ⚠ Skipping SWS={sws:.4f}: KGRN calculation failed ({failure_reason})")
@@ -1024,7 +1054,7 @@ def optimize_sws(
             content = f.read()
             is_failed, failure_reason = _check_calculation_failed(content)
             if is_failed:
-                if strict:
+                if parse_strict:
                     raise RuntimeError(f"KFCD calculation failed ({failure_reason}): {kfcd_file}")
                 else:
                     print(f"  ⚠ Skipping SWS={sws:.4f}: KFCD calculation failed ({failure_reason})")
@@ -1033,7 +1063,7 @@ def optimize_sws(
         try:
             results = parse_kfcd(str(kfcd_file), functional=config.get('functional', 'GGA'))
             if results.total_energy is None:
-                if strict:
+                if parse_strict:
                     raise RuntimeError(f"No total energy found in {kfcd_file}")
                 else:
                     print(f"  ⚠ Skipping SWS={sws:.4f}: No total energy in {kfcd_file}")
@@ -1045,7 +1075,7 @@ def optimize_sws(
             print(f"  SWS = {sws:.4f}: E = {results.energies_by_functional['system']['GGA']:.6f} Ry")
 
         except Exception as e:
-            if strict:
+            if parse_strict:
                 raise RuntimeError(f"Failed to parse {kfcd_file}: {e}")
             else:
                 print(f"  ⚠ Skipping SWS={sws:.4f}: Failed to parse {kfcd_file}: {e}")
@@ -1059,7 +1089,13 @@ def optimize_sws(
             f"Successful SWS values: {sws_parsed}\n"
             f"Missing SWS values: {[s for s in sws_values if s not in sws_parsed]}"
         )
-        if strict:
+        if skip_calculations:
+            # In skip mode, warn but don't fail - user might be parsing partial results
+            print(f"\n⚠ WARNING: {error_msg}")
+            print("  Continuing with available data points...")
+            if len(sws_parsed) == 0:
+                raise RuntimeError("No data points found. Cannot proceed without any results.")
+        elif strict:
             raise RuntimeError(error_msg)
         else:
             raise RuntimeError(
@@ -1753,41 +1789,50 @@ def run_optimized_calculation(
     phase_path = base_path / "phase3_optimized_calculation"
     phase_path.mkdir(parents=True, exist_ok=True)
 
-    print(f"Creating EMTO inputs with optimized parameters...")
-    print(f"  Optimal c/a: {optimal_ca:.6f}")
-    print(f"  Optimal SWS: {optimal_sws:.6f} Bohr")
-    print(f"  Output path: {phase_path}\n")
+    # Check if we should skip calculations
+    skip_calculations = config.get('skip_calculations', False)
+    
+    if skip_calculations:
+        print("\n" + "="*70)
+        print("SKIP CALCULATIONS MODE: Skipping calculation execution")
+        print("Parsing existing results from output files...")
+        print("="*70 + "\n")
+    else:
+        print(f"Creating EMTO inputs with optimized parameters...")
+        print(f"  Optimal c/a: {optimal_ca:.6f}")
+        print(f"  Optimal SWS: {optimal_sws:.6f} Bohr")
+        print(f"  Output path: {phase_path}\n")
 
-    # Create EMTO inputs with optimal parameters
-    try:
-        phase_config = {
-            **config,  # All validated defaults from constructor
-            'output_path': str(phase_path),  # Override for this phase
-            'ca_ratios': [optimal_ca],
-            'sws_values': [optimal_sws],
-            'optimize_ca': False,  # Phase 3 is not optimization, just single-point calculation
-            'optimize_sws': False,  # Phase 3 is not optimization, just single-point calculation
-            # Only override what's different for this phase
-        }
+        # Create EMTO inputs with optimal parameters
+        try:
+            phase_config = {
+                **config,  # All validated defaults from constructor
+                'output_path': str(phase_path),  # Override for this phase
+                'ca_ratios': [optimal_ca],
+                'sws_values': [optimal_sws],
+                'optimize_ca': False,  # Phase 3 is not optimization, just single-point calculation
+                'optimize_sws': False,  # Phase 3 is not optimization, just single-point calculation
+                # Only override what's different for this phase
+            }
 
-        create_emto_inputs(phase_config)
-    except Exception as e:
-        raise RuntimeError(f"Failed to create EMTO inputs: {e}")
+            create_emto_inputs(phase_config)
+        except Exception as e:
+            raise RuntimeError(f"Failed to create EMTO inputs: {e}")
 
-    # Run calculation
-    script_name = f"run_{config['job_name']}.sh"
-    run_calculations_func(
-        calculation_path=phase_path,
-        script_name=script_name
-    )
+        # Run calculation
+        script_name = f"run_{config['job_name']}.sh"
+        run_calculations_func(
+            calculation_path=phase_path,
+            script_name=script_name
+        )
 
-    # Validate calculations completed successfully
-    validate_calculations_func(
-        phase_path=phase_path,
-        ca_ratios=[optimal_ca],
-        sws_values=[optimal_sws],
-        job_name=config['job_name']
-    )
+        # Validate calculations completed successfully
+        validate_calculations_func(
+            phase_path=phase_path,
+            ca_ratios=[optimal_ca],
+            sws_values=[optimal_sws],
+            job_name=config['job_name']
+        )
 
     # Parse results from KFCD and KGRN outputs
     print("\nParsing optimized calculation results...")
@@ -1797,10 +1842,17 @@ def run_optimized_calculation(
     kgrn_file = phase_path / "pot" / f"{file_id}.prn"
 
     if not kfcd_file.exists():
-        raise RuntimeError(
-            f"KFCD output not found: {kfcd_file}\n"
-            f"Calculation may have failed. Check log files in {phase_path}"
-        )
+        if skip_calculations:
+            raise RuntimeError(
+                f"KFCD output not found: {kfcd_file}\n"
+                f"In skip_calculations mode, expected output file does not exist.\n"
+                f"Please ensure calculations have been run previously or disable skip_calculations."
+            )
+        else:
+            raise RuntimeError(
+                f"KFCD output not found: {kfcd_file}\n"
+                f"Calculation may have failed. Check log files in {phase_path}"
+            )
 
     # Parse KFCD
     try:
@@ -1810,7 +1862,13 @@ def run_optimized_calculation(
         if kfcd_results.energy_per_site is not None:
             print(f"  Energy per site: {kfcd_results.energy_per_site:.6f} Ry/site")
     except Exception as e:
-        raise RuntimeError(f"Failed to parse {kfcd_file}: {e}")
+        if skip_calculations:
+            raise RuntimeError(
+                f"Failed to parse {kfcd_file}: {e}\n"
+                f"In skip_calculations mode, parsing failed. Check that the file is valid."
+            )
+        else:
+            raise RuntimeError(f"Failed to parse {kfcd_file}: {e}")
 
     # Parse KGRN if available
     kgrn_results = None

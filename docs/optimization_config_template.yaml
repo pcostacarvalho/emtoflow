@@ -186,6 +186,16 @@ nz0: 16                              # NZ0 parameter for KGRN (default: 16)
 optimize_ca: false                   # Enable c/a ratio optimization (Phase 1)
 optimize_sws: false                  # Enable SWS (volume) optimization (Phase 2)
 
+skip_calculations: false             # Skip running calculations, only parse existing results (default: false)
+                                     # When true:
+                                     #   - Skips EMTO calculation execution (KSTR, SHAPE, KGRN, KFCD)
+                                     #   - Skips input file generation
+                                     #   - Still parses existing .prn output files
+                                     #   - Still runs EOS fitting and analysis
+                                     #   - Still generates reports and JSON results
+                                     # Use case: Re-analyze results after calculations completed elsewhere
+                                     # Note: Output files must exist in expected locations for parsing to work
+
 # Note on missing values during optimization:
 # - If calculations fail for specific c/a or SWS values, the workflow behavior depends
 #   on whether values were user-provided or auto-generated:
