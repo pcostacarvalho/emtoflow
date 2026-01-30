@@ -44,24 +44,49 @@ def find_fcd_prn_file(folder_path):
 def extract_phase3_energy(folder_path, functional='GGA'):
     """
     Extract total energy and energy per site from fcd/prn file.
+    Falls back to workflow_results.json if prn file not found.
     Returns: (total_energy, energy_per_site) or (None, None) if not found
     """
+    folder = Path(folder_path)
+    
+    # First try to get from fcd/prn file
     prn_file = find_fcd_prn_file(folder_path)
     
-    if prn_file is None:
-        return None, None
+    if prn_file is not None:
+        try:
+            results = parse_kfcd(str(prn_file), functional=functional)
+            
+            total_energy = results.total_energy
+            energy_per_site = results.energy_per_site
+            
+            return total_energy, energy_per_site
+            
+        except Exception as e:
+            print(f"  Error parsing {prn_file}: {e}")
     
-    try:
-        results = parse_kfcd(str(prn_file), functional=functional)
-        
-        total_energy = results.total_energy
-        energy_per_site = results.energy_per_site
-        
-        return total_energy, energy_per_site
-        
-    except Exception as e:
-        print(f"  Error parsing {prn_file}: {e}")
-        return None, None
+    # Fallback: try workflow_results.json
+    json_file = folder / "workflow_results.json"
+    if json_file.exists():
+        try:
+            with open(json_file, 'r') as f:
+                data = json.load(f)
+            
+            total_energy = data.get('final_energy')
+            energy_per_site = data.get('final_energy_per_site')
+            
+            if energy_per_site is not None:
+                return total_energy, energy_per_site
+            elif total_energy is not None:
+                # If only total energy is available, return it but warn
+                print(f"  Warning: Only total energy found in {json_file}, energy per site not available")
+                return total_energy, None
+                
+        except json.JSONDecodeError:
+            print(f"  Error: Could not parse JSON in {json_file}")
+        except Exception as e:
+            print(f"  Error reading {json_file}: {e}")
+    
+    return None, None
 
 
 def parse_composition(folder_name):

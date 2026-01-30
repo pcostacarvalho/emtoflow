@@ -838,6 +838,7 @@ class OptimizationWorkflow:
             'optimal_sws': optimal_sws,
             'phases_completed': list(self.results.keys()),
             'final_energy': final_results.get('kfcd_total_energy'),
+            'final_energy_per_site': final_results.get('kfcd_energy_per_site'),
             'structure_info': {
                 'lattice_type': structure['lat'],
                 'lattice_name': structure.get('lattice_name', 'Unknown'),
@@ -857,6 +858,8 @@ class OptimizationWorkflow:
         print(f"\nOptimal c/a: {optimal_ca:.6f}")
         print(f"Optimal SWS: {optimal_sws:.6f} Bohr")
         print(f"Final energy: {final_results.get('kfcd_total_energy'):.6f} Ry")
+        if final_results.get('kfcd_energy_per_site') is not None:
+            print(f"Final energy per site: {final_results.get('kfcd_energy_per_site'):.6f} Ry/site")
         print(f"\nAll results saved in: {self.base_path}")
         print("#" * 80 + "\n")
 

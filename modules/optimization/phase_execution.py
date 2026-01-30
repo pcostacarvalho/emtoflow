@@ -1807,6 +1807,8 @@ def run_optimized_calculation(
         kfcd_results = parse_kfcd(str(kfcd_file), functional=config.get('functional', 'GGA'))
         print(f"\n✓ KFCD results parsed")
         print(f"  Total energy: {kfcd_results.energies_by_functional['system']['GGA']:.6f} Ry")
+        if kfcd_results.energy_per_site is not None:
+            print(f"  Energy per site: {kfcd_results.energy_per_site:.6f} Ry/site")
     except Exception as e:
         raise RuntimeError(f"Failed to parse {kfcd_file}: {e}")
 
@@ -1831,6 +1833,7 @@ def run_optimized_calculation(
         'optimal_ca': optimal_ca,
         'optimal_sws': optimal_sws,
         'kfcd_total_energy': kfcd_results.energies_by_functional['system']['GGA'],
+        'kfcd_energy_per_site': kfcd_results.energy_per_site,
         'kgrn_total_energy': kgrn_results.energies_by_functional['system']['GGA'] if kgrn_results else None,
         'magnetic_moments': {
             f"IQ{iq}_ITA{ita}_{atom}": moment
