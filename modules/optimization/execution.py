@@ -217,13 +217,13 @@ def validate_calculations(
                 else:
                     warnings.append(msg)
             elif "KSTR:     Finished at:" not in content:
-                    msg = f"KSTR did not complete successfully: {kstr_out}"
-                    if strict:
-                        errors.append(msg)
-                    else:
-                        warnings.append(msg)
+                msg = f"KSTR did not complete successfully: {kstr_out}"
+                if strict:
+                    errors.append(msg)
                 else:
-                    print(f"✓ KSTR completed for c/a={ca_ratio:.2f}")
+                    warnings.append(msg)
+            else:
+                print(f"✓ KSTR completed for c/a={ca_ratio:.2f}")
 
     # For each (c/a, sws) pair, check KGRN and KFCD outputs
     for ca_ratio in ca_ratios:
