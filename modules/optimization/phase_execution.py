@@ -1142,12 +1142,12 @@ def optimize_sws(
             with open(kfcd_file, 'r', encoding='latin-1', errors='replace') as f:
                 content = f.read()
         is_failed, failure_reason = _check_calculation_failed(content)
-            if is_failed:
-                if parse_strict:
-                    raise RuntimeError(f"KFCD calculation failed ({failure_reason}): {kfcd_file}")
-                else:
-                    print(f"  ⚠ Skipping SWS={sws:.4f}: KFCD calculation failed ({failure_reason})")
-                    continue
+        if is_failed:
+            if parse_strict:
+                raise RuntimeError(f"KFCD calculation failed ({failure_reason}): {kfcd_file}")
+            else:
+                print(f"  ⚠ Skipping SWS={sws:.4f}: KFCD calculation failed ({failure_reason})")
+                continue
 
         try:
             results = parse_kfcd(str(kfcd_file), functional=config.get('functional', 'GGA'))
