@@ -9,6 +9,7 @@ Handles the three main optimization phases:
 """
 
 import json
+import time
 import numpy as np
 from pathlib import Path
 from typing import Union, List, Dict, Any, Tuple, Callable
@@ -23,6 +24,10 @@ from modules.optimization.analysis import (
     load_parameter_energy_data
 )
 from modules.optimization.execution import _check_calculation_failed
+
+# #region agent log
+LOG_PATH = "./debug.log"
+# #endregion
 
 
 def optimize_ca_ratio(
@@ -174,26 +179,60 @@ def optimize_ca_ratio(
         # First check KGRN file (KFCD depends on KGRN)
         kgrn_file = phase_path / f"{file_id}.prn"
         if kgrn_file.exists():
-            with open(kgrn_file, 'r') as f:
-                kgrn_content = f.read()
-                is_failed, failure_reason = _check_calculation_failed(kgrn_content)
-                if is_failed:
-                    if parse_strict:
-                        raise RuntimeError(f"KGRN calculation failed ({failure_reason}): {kgrn_file}")
-                    else:
-                        print(f"  ⚠ Skipping c/a={ca:.4f}: KGRN calculation failed ({failure_reason})")
-                        continue
-        
-        # Also check KFCD file itself
-        with open(kfcd_file, 'r') as f:
-            content = f.read()
-            is_failed, failure_reason = _check_calculation_failed(content)
+            # #region agent log
+            try:
+                with open(LOG_PATH, 'a') as logf:
+                    logf.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "phase_execution.py:178", "message": "Reading KGRN file for parsing (c/a)", "data": {"file": str(kgrn_file), "exists": kgrn_file.exists(), "size": kgrn_file.stat().st_size if kgrn_file.exists() else 0, "ca": ca, "file_id": file_id}, "timestamp": int(time.time() * 1000)}) + "\n")
+            except: pass
+            # #endregion
+            try:
+                with open(kgrn_file, 'r', encoding='utf-8', errors='replace') as f:
+                    kgrn_content = f.read()
+            except UnicodeDecodeError as e:
+                # #region agent log
+                try:
+                    with open(LOG_PATH, 'a') as logf:
+                        logf.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "phase_execution.py:184", "message": "UnicodeDecodeError in KGRN file (parsing c/a)", "data": {"file": str(kgrn_file), "error": str(e), "position": getattr(e, 'start', None), "ca": ca, "file_id": file_id}, "timestamp": int(time.time() * 1000)}) + "\n")
+                except: pass
+                # #endregion
+                # Try with latin-1 encoding (handles binary data gracefully)
+                with open(kgrn_file, 'r', encoding='latin-1', errors='replace') as f:
+                    kgrn_content = f.read()
+            is_failed, failure_reason = _check_calculation_failed(kgrn_content)
             if is_failed:
                 if parse_strict:
-                    raise RuntimeError(f"KFCD calculation failed ({failure_reason}): {kfcd_file}")
+                    raise RuntimeError(f"KGRN calculation failed ({failure_reason}): {kgrn_file}")
                 else:
-                    print(f"  ⚠ Skipping c/a={ca:.4f}: KFCD calculation failed ({failure_reason})")
+                    print(f"  ⚠ Skipping c/a={ca:.4f}: KGRN calculation failed ({failure_reason})")
                     continue
+        
+        # Also check KFCD file itself
+        # #region agent log
+        try:
+            with open(LOG_PATH, 'a') as logf:
+                logf.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "phase_execution.py:193", "message": "Reading KFCD file for parsing (c/a)", "data": {"file": str(kfcd_file), "exists": kfcd_file.exists(), "size": kfcd_file.stat().st_size if kfcd_file.exists() else 0, "ca": ca, "file_id": file_id}, "timestamp": int(time.time() * 1000)}) + "\n")
+        except: pass
+        # #endregion
+        try:
+            with open(kfcd_file, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+        except UnicodeDecodeError as e:
+            # #region agent log
+            try:
+                with open(LOG_PATH, 'a') as logf:
+                    logf.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "phase_execution.py:201", "message": "UnicodeDecodeError in KFCD file (parsing c/a)", "data": {"file": str(kfcd_file), "error": str(e), "position": getattr(e, 'start', None), "ca": ca, "file_id": file_id}, "timestamp": int(time.time() * 1000)}) + "\n")
+            except: pass
+            # #endregion
+            # Try with latin-1 encoding (handles binary data gracefully)
+            with open(kfcd_file, 'r', encoding='latin-1', errors='replace') as f:
+                content = f.read()
+        is_failed, failure_reason = _check_calculation_failed(content)
+        if is_failed:
+            if parse_strict:
+                raise RuntimeError(f"KFCD calculation failed ({failure_reason}): {kfcd_file}")
+            else:
+                print(f"  ⚠ Skipping c/a={ca:.4f}: KFCD calculation failed ({failure_reason})")
+                continue
 
         try:
             results = parse_kfcd(str(kfcd_file), functional=config.get('functional', 'GGA'))
@@ -1051,20 +1090,58 @@ def optimize_sws(
         # First check KGRN file (KFCD depends on KGRN)
         kgrn_file = phase_path / f"{file_id}.prn"
         if kgrn_file.exists():
-            with open(kgrn_file, 'r') as f:
-                kgrn_content = f.read()
-                is_failed, failure_reason = _check_calculation_failed(kgrn_content)
-                if is_failed:
-                    if parse_strict:
-                        raise RuntimeError(f"KGRN calculation failed ({failure_reason}): {kgrn_file}")
-                    else:
-                        print(f"  ⚠ Skipping SWS={sws:.4f}: KGRN calculation failed ({failure_reason})")
-                        continue
+            # #region agent log
+            try:
+                with open(LOG_PATH, 'a') as logf:
+                    logf.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "phase_execution.py:1052", "message": "Reading KGRN file for parsing", "data": {"file": str(kgrn_file), "exists": kgrn_file.exists(), "size": kgrn_file.stat().st_size if kgrn_file.exists() else 0, "sws": sws, "file_id": file_id}, "timestamp": int(time.time() * 1000)}) + "\n")
+            except: pass
+            # #endregion
+            try:
+                with open(kgrn_file, 'r', encoding='utf-8', errors='replace') as f:
+                    kgrn_content = f.read()
+            except UnicodeDecodeError as e:
+                # #region agent log
+                error_msg = f"UnicodeDecodeError in KGRN file: {kgrn_file} at position {getattr(e, 'start', 'unknown')}"
+                print(f"  ⚠ {error_msg}")
+                try:
+                    with open(LOG_PATH, 'a') as logf:
+                        logf.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "phase_execution.py:1058", "message": "UnicodeDecodeError in KGRN file (parsing)", "data": {"file": str(kgrn_file), "error": str(e), "position": getattr(e, 'start', None), "sws": sws, "file_id": file_id, "file_size": kgrn_file.stat().st_size if kgrn_file.exists() else 0}, "timestamp": int(time.time() * 1000)}) + "\n")
+                except: pass
+                # #endregion
+                # Try with latin-1 encoding (handles binary data gracefully)
+                with open(kgrn_file, 'r', encoding='latin-1', errors='replace') as f:
+                    kgrn_content = f.read()
+            is_failed, failure_reason = _check_calculation_failed(kgrn_content)
+            if is_failed:
+                if parse_strict:
+                    raise RuntimeError(f"KGRN calculation failed ({failure_reason}): {kgrn_file}")
+                else:
+                    print(f"  ⚠ Skipping SWS={sws:.4f}: KGRN calculation failed ({failure_reason})")
+                    continue
         
         # Also check KFCD file itself
-        with open(kfcd_file, 'r') as f:
-            content = f.read()
-            is_failed, failure_reason = _check_calculation_failed(content)
+        # #region agent log
+        try:
+            with open(LOG_PATH, 'a') as logf:
+                logf.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "phase_execution.py:1065", "message": "Reading KFCD file for parsing", "data": {"file": str(kfcd_file), "exists": kfcd_file.exists(), "size": kfcd_file.stat().st_size if kfcd_file.exists() else 0, "sws": sws, "file_id": file_id}, "timestamp": int(time.time() * 1000)}) + "\n")
+        except: pass
+        # #endregion
+        try:
+            with open(kfcd_file, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+        except UnicodeDecodeError as e:
+            # #region agent log
+            error_msg = f"UnicodeDecodeError in KFCD file: {kfcd_file} at position {getattr(e, 'start', 'unknown')}"
+            print(f"  ⚠ {error_msg}")
+            try:
+                with open(LOG_PATH, 'a') as logf:
+                    logf.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "phase_execution.py:1073", "message": "UnicodeDecodeError in KFCD file (parsing)", "data": {"file": str(kfcd_file), "error": str(e), "position": getattr(e, 'start', None), "sws": sws, "file_id": file_id, "file_size": kfcd_file.stat().st_size if kfcd_file.exists() else 0}, "timestamp": int(time.time() * 1000)}) + "\n")
+            except: pass
+            # #endregion
+            # Try with latin-1 encoding (handles binary data gracefully)
+            with open(kfcd_file, 'r', encoding='latin-1', errors='replace') as f:
+                content = f.read()
+        is_failed, failure_reason = _check_calculation_failed(content)
             if is_failed:
                 if parse_strict:
                     raise RuntimeError(f"KFCD calculation failed ({failure_reason}): {kfcd_file}")
