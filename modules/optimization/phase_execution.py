@@ -138,11 +138,33 @@ def optimize_ca_ratio(
             raise RuntimeError(f"Failed to create EMTO inputs: {e}")
 
         # Run calculations
-        script_name = f"run_{config['job_name']}.sh"
-        run_calculations_func(
-            calculation_path=phase_path,
-            script_name=script_name
-        )
+        job_mode = config.get('job_mode', 'serial')
+        if job_mode == 'parallel':
+            # Parallel mode creates separate scripts for prep and calculation
+            # First run all prep scripts (KSTR + SHAPE) for each c/a ratio
+            for ca in ca_ratios:
+                r_fmt = f"{ca:.2f}"
+                prep_script = f"run_{config['job_name']}_prep_r{r_fmt}.sh"
+                run_calculations_func(
+                    calculation_path=phase_path,
+                    script_name=prep_script
+                )
+            # Then run calculation scripts (KGRN + KFCD) for each c/a, sws pair
+            for ca, sws in zip(ca_ratios, sws_list):
+                r_fmt = f"{ca:.2f}"
+                v_fmt = f"{sws:.2f}"
+                calc_script = f"run_{config['job_name']}_r{r_fmt}_v{v_fmt}.sh"
+                run_calculations_func(
+                    calculation_path=phase_path,
+                    script_name=calc_script
+                )
+        else:
+            # Serial mode has single script
+            script_name = f"run_{config['job_name']}.sh"
+            run_calculations_func(
+                calculation_path=phase_path,
+                script_name=script_name
+            )
 
         # Validate calculations completed successfully
         validate_calculations_func(
@@ -852,12 +874,31 @@ def run_calculations_for_parameter_values(
         
         if not skip_calculations:
             # Run calculations
-            script_name = f"run_{config['job_name']}.sh"
-            run_calculations_func(
-                calculation_path=phase_path,
-                script_name=script_name
-            )
-            
+            job_mode = config.get('job_mode', 'serial')
+            if job_mode == 'parallel':
+                # Parallel mode: run prep script first, then calculation scripts
+                r_fmt = f"{optimal_ca:.2f}"
+                prep_script = f"run_{config['job_name']}_prep_r{r_fmt}.sh"
+                run_calculations_func(
+                    calculation_path=phase_path,
+                    script_name=prep_script
+                )
+                # Then run calculation scripts for each SWS value
+                for sws in parameter_values:
+                    v_fmt = f"{sws:.2f}"
+                    calc_script = f"run_{config['job_name']}_r{r_fmt}_v{v_fmt}.sh"
+                    run_calculations_func(
+                        calculation_path=phase_path,
+                        script_name=calc_script
+                    )
+            else:
+                # Serial mode has single script
+                script_name = f"run_{config['job_name']}.sh"
+                run_calculations_func(
+                    calculation_path=phase_path,
+                    script_name=script_name
+                )
+
             # Validate calculations (expansion values are always auto-generated, so use strict=False)
             validate_calculations_func(
                 phase_path=phase_path,
@@ -911,12 +952,33 @@ def run_calculations_for_parameter_values(
         
         if not skip_calculations:
             # Run calculations
-            script_name = f"run_{config['job_name']}.sh"
-            run_calculations_func(
-                calculation_path=phase_path,
-                script_name=script_name
-            )
-            
+            job_mode = config.get('job_mode', 'serial')
+            if job_mode == 'parallel':
+                # Parallel mode: run prep scripts first for each c/a ratio
+                for ca in parameter_values:
+                    r_fmt = f"{ca:.2f}"
+                    prep_script = f"run_{config['job_name']}_prep_r{r_fmt}.sh"
+                    run_calculations_func(
+                        calculation_path=phase_path,
+                        script_name=prep_script
+                    )
+                # Then run calculation scripts for each c/a with the single SWS
+                v_fmt = f"{initial_sws:.2f}"
+                for ca in parameter_values:
+                    r_fmt = f"{ca:.2f}"
+                    calc_script = f"run_{config['job_name']}_r{r_fmt}_v{v_fmt}.sh"
+                    run_calculations_func(
+                        calculation_path=phase_path,
+                        script_name=calc_script
+                    )
+            else:
+                # Serial mode has single script
+                script_name = f"run_{config['job_name']}.sh"
+                run_calculations_func(
+                    calculation_path=phase_path,
+                    script_name=script_name
+                )
+
             # Validate calculations (expansion values are always auto-generated, so use strict=False)
             validate_calculations_func(
                 phase_path=phase_path,
@@ -1049,11 +1111,30 @@ def optimize_sws(
             raise RuntimeError(f"Failed to create EMTO inputs: {e}")
 
         # Run calculations
-        script_name = f"run_{config['job_name']}.sh"
-        run_calculations_func(
-            calculation_path=phase_path,
-            script_name=script_name
-        )
+        job_mode = config.get('job_mode', 'serial')
+        if job_mode == 'parallel':
+            # Parallel mode: run prep script first for the single c/a ratio
+            r_fmt = f"{optimal_ca:.2f}"
+            prep_script = f"run_{config['job_name']}_prep_r{r_fmt}.sh"
+            run_calculations_func(
+                calculation_path=phase_path,
+                script_name=prep_script
+            )
+            # Then run calculation scripts for each SWS value
+            for sws in sws_values:
+                v_fmt = f"{sws:.2f}"
+                calc_script = f"run_{config['job_name']}_r{r_fmt}_v{v_fmt}.sh"
+                run_calculations_func(
+                    calculation_path=phase_path,
+                    script_name=calc_script
+                )
+        else:
+            # Serial mode has single script
+            script_name = f"run_{config['job_name']}.sh"
+            run_calculations_func(
+                calculation_path=phase_path,
+                script_name=script_name
+            )
 
         # Validate calculations completed successfully
         validate_calculations_func(
@@ -1068,7 +1149,7 @@ def optimize_sws(
     print("\nParsing energies from KFCD outputs...")
     sws_parsed = []
     energy_values = []
-    
+
     # In skip_calculations mode, be more lenient with missing files
     parse_strict = strict and not skip_calculations
 
@@ -1910,11 +1991,30 @@ def run_optimized_calculation(
             raise RuntimeError(f"Failed to create EMTO inputs: {e}")
 
         # Run calculation
-        script_name = f"run_{config['job_name']}.sh"
-        run_calculations_func(
-            calculation_path=phase_path,
-            script_name=script_name
-        )
+        job_mode = config.get('job_mode', 'serial')
+        if job_mode == 'parallel':
+            # Parallel mode creates separate scripts for prep and calculation
+            r_fmt = f"{optimal_ca:.2f}"
+            v_fmt = f"{optimal_sws:.2f}"
+            # First run prep script (KSTR + SHAPE)
+            prep_script = f"run_{config['job_name']}_prep_r{r_fmt}.sh"
+            run_calculations_func(
+                calculation_path=phase_path,
+                script_name=prep_script
+            )
+            # Then run calculation script (KGRN + KFCD)
+            calc_script = f"run_{config['job_name']}_r{r_fmt}_v{v_fmt}.sh"
+            run_calculations_func(
+                calculation_path=phase_path,
+                script_name=calc_script
+            )
+        else:
+            # Serial mode has single script
+            script_name = f"run_{config['job_name']}.sh"
+            run_calculations_func(
+                calculation_path=phase_path,
+                script_name=script_name
+            )
 
         # Validate calculations completed successfully
         validate_calculations_func(
