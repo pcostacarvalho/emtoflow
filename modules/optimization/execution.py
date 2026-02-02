@@ -210,13 +210,13 @@ def validate_calculations(
                     content = f.read()
             # Check for failure patterns
             is_failed, failure_reason = _check_calculation_failed(content)
-                if is_failed:
-                    msg = f"KSTR failed ({failure_reason}): {kstr_out}"
-                    if strict:
-                        errors.append(msg)
-                    else:
-                        warnings.append(msg)
-                elif "KSTR:     Finished at:" not in content:
+            if is_failed:
+                msg = f"KSTR failed ({failure_reason}): {kstr_out}"
+                if strict:
+                    errors.append(msg)
+                else:
+                    warnings.append(msg)
+            elif "KSTR:     Finished at:" not in content:
                     msg = f"KSTR did not complete successfully: {kstr_out}"
                     if strict:
                         errors.append(msg)
@@ -261,20 +261,20 @@ def validate_calculations(
                         content = f.read()
                 # Check for failure patterns first
                 is_failed, failure_reason = _check_calculation_failed(content)
-                    if is_failed:
-                        msg = f"KGRN failed ({failure_reason}): {kgrn_out}"
-                        if strict:
-                            errors.append(msg)
-                        else:
-                            warnings.append(msg)
-                    elif "KGRN: OK  Finished at:" not in content:
-                        msg = f"KGRN did not complete successfully: {kgrn_out}"
-                        if strict:
-                            errors.append(msg)
-                        else:
-                            warnings.append(msg)
+                if is_failed:
+                    msg = f"KGRN failed ({failure_reason}): {kgrn_out}"
+                    if strict:
+                        errors.append(msg)
                     else:
-                        print(f"✓ KGRN completed for c/a={ca_ratio:.2f}, SWS={sws:.2f}")
+                        warnings.append(msg)
+                elif "KGRN: OK  Finished at:" not in content:
+                    msg = f"KGRN did not complete successfully: {kgrn_out}"
+                    if strict:
+                        errors.append(msg)
+                    else:
+                        warnings.append(msg)
+                else:
+                    print(f"✓ KGRN completed for c/a={ca_ratio:.2f}, SWS={sws:.2f}")
 
             # Check KFCD output
             kfcd_out = phase_path / f"fcd/{file_id}.prn"
@@ -307,20 +307,20 @@ def validate_calculations(
                         content = f.read()
                 # Check for failure patterns
                 is_failed, failure_reason = _check_calculation_failed(content)
-                    if is_failed:
-                        msg = f"KFCD failed ({failure_reason}): {kfcd_out}"
-                        if strict:
-                            errors.append(msg)
-                        else:
-                            warnings.append(msg)
-                    elif "KFCD: OK  Finished at:" not in content:
-                        msg = f"KFCD did not complete successfully: {kfcd_out}"
-                        if strict:
-                            errors.append(msg)
-                        else:
-                            warnings.append(msg)
+                if is_failed:
+                    msg = f"KFCD failed ({failure_reason}): {kfcd_out}"
+                    if strict:
+                        errors.append(msg)
                     else:
-                        print(f"✓ KFCD completed for c/a={ca_ratio:.2f}, SWS={sws:.2f}")
+                        warnings.append(msg)
+                elif "KFCD: OK  Finished at:" not in content:
+                    msg = f"KFCD did not complete successfully: {kfcd_out}"
+                    if strict:
+                        errors.append(msg)
+                    else:
+                        warnings.append(msg)
+                else:
+                    print(f"✓ KFCD completed for c/a={ca_ratio:.2f}, SWS={sws:.2f}")
 
     print(f"{'='*70}\n")
 
