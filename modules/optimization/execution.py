@@ -6,10 +6,16 @@ Handles running calculations and validating outputs.
 """
 
 import time
+import json
+import os
 from pathlib import Path
 from typing import Union, List, Dict, Any, Optional
 
 from utils.running_bash import run_sbatch, chmod_and_run
+
+# #region agent log
+LOG_PATH = "./debug.log"
+# #endregion
 
 
 def run_calculations(
@@ -183,10 +189,27 @@ def validate_calculations(
                 warnings.append(msg)
         else:
             # Check for success indicator
-            with open(kstr_out, 'r') as f:
-                content = f.read()
-                # Check for failure patterns
-                is_failed, failure_reason = _check_calculation_failed(content)
+            # #region agent log
+            try:
+                with open(LOG_PATH, 'a') as logf:
+                    logf.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "execution.py:186", "message": "Reading KSTR file", "data": {"file": str(kstr_out), "exists": kstr_out.exists(), "size": kstr_out.stat().st_size if kstr_out.exists() else 0}, "timestamp": int(time.time() * 1000)}) + "\n")
+            except: pass
+            # #endregion
+            try:
+                with open(kstr_out, 'r', encoding='utf-8', errors='replace') as f:
+                    content = f.read()
+            except UnicodeDecodeError as e:
+                # #region agent log
+                try:
+                    with open(LOG_PATH, 'a') as logf:
+                        logf.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "execution.py:193", "message": "UnicodeDecodeError in KSTR file", "data": {"file": str(kstr_out), "error": str(e), "position": getattr(e, 'start', None)}, "timestamp": int(time.time() * 1000)}) + "\n")
+                except: pass
+                # #endregion
+                # Try with latin-1 encoding (handles binary data gracefully)
+                with open(kstr_out, 'r', encoding='latin-1', errors='replace') as f:
+                    content = f.read()
+            # Check for failure patterns
+            is_failed, failure_reason = _check_calculation_failed(content)
                 if is_failed:
                     msg = f"KSTR failed ({failure_reason}): {kstr_out}"
                     if strict:
@@ -217,10 +240,27 @@ def validate_calculations(
                     warnings.append(msg)
             else:
                 # Check for success indicator and failure patterns
-                with open(kgrn_out, 'r') as f:
-                    content = f.read()
-                    # Check for failure patterns first
-                    is_failed, failure_reason = _check_calculation_failed(content)
+                # #region agent log
+                try:
+                    with open(LOG_PATH, 'a') as logf:
+                        logf.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "execution.py:220", "message": "Reading KGRN file", "data": {"file": str(kgrn_out), "exists": kgrn_out.exists(), "size": kgrn_out.stat().st_size if kgrn_out.exists() else 0, "ca_ratio": ca_ratio, "sws": sws}, "timestamp": int(time.time() * 1000)}) + "\n")
+                except: pass
+                # #endregion
+                try:
+                    with open(kgrn_out, 'r', encoding='utf-8', errors='replace') as f:
+                        content = f.read()
+                except UnicodeDecodeError as e:
+                    # #region agent log
+                    try:
+                        with open(LOG_PATH, 'a') as logf:
+                            logf.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "execution.py:228", "message": "UnicodeDecodeError in KGRN file", "data": {"file": str(kgrn_out), "error": str(e), "position": getattr(e, 'start', None), "ca_ratio": ca_ratio, "sws": sws}, "timestamp": int(time.time() * 1000)}) + "\n")
+                    except: pass
+                    # #endregion
+                    # Try with latin-1 encoding (handles binary data gracefully)
+                    with open(kgrn_out, 'r', encoding='latin-1', errors='replace') as f:
+                        content = f.read()
+                # Check for failure patterns first
+                is_failed, failure_reason = _check_calculation_failed(content)
                     if is_failed:
                         msg = f"KGRN failed ({failure_reason}): {kgrn_out}"
                         if strict:
@@ -246,10 +286,27 @@ def validate_calculations(
                     warnings.append(msg)
             else:
                 # Check for success indicator
-                with open(kfcd_out, 'r') as f:
-                    content = f.read()
-                    # Check for failure patterns
-                    is_failed, failure_reason = _check_calculation_failed(content)
+                # #region agent log
+                try:
+                    with open(LOG_PATH, 'a') as logf:
+                        logf.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "execution.py:249", "message": "Reading KFCD file", "data": {"file": str(kfcd_out), "exists": kfcd_out.exists(), "size": kfcd_out.stat().st_size if kfcd_out.exists() else 0, "ca_ratio": ca_ratio, "sws": sws}, "timestamp": int(time.time() * 1000)}) + "\n")
+                except: pass
+                # #endregion
+                try:
+                    with open(kfcd_out, 'r', encoding='utf-8', errors='replace') as f:
+                        content = f.read()
+                except UnicodeDecodeError as e:
+                    # #region agent log
+                    try:
+                        with open(LOG_PATH, 'a') as logf:
+                            logf.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "execution.py:257", "message": "UnicodeDecodeError in KFCD file", "data": {"file": str(kfcd_out), "error": str(e), "position": getattr(e, 'start', None), "ca_ratio": ca_ratio, "sws": sws}, "timestamp": int(time.time() * 1000)}) + "\n")
+                    except: pass
+                    # #endregion
+                    # Try with latin-1 encoding (handles binary data gracefully)
+                    with open(kfcd_out, 'r', encoding='latin-1', errors='replace') as f:
+                        content = f.read()
+                # Check for failure patterns
+                is_failed, failure_reason = _check_calculation_failed(content)
                     if is_failed:
                         msg = f"KFCD failed ({failure_reason}): {kfcd_out}"
                         if strict:
