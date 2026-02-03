@@ -105,15 +105,20 @@ def get_eos_params_from_file(out_path):
     return r_bohr, B_GPa
 
 
-def run(base_dir, id="CuMg", T=300, output_file=None, plot=True):
+def run(base_dir, id="CuMg", temperatures=None, output_file=None, plot=True):
     """
-    For each composition, read phase2 {id}_sws_final.out, compute phonon energy,
-    write Mg% vs phonon energy, and optionally plot.
+    For each composition, read phase2 {id}_sws_final.out, compute phonon energy
+    at each temperature, write Mg% vs phonon energy, and optionally plot.
 
     base_dir : path to directory containing composition folders (e.g. Cu90_Mg10/)
     id : job/system id used for the EOS output filename (e.g. CuMg -> CuMg_sws_final.out)
+    temperatures : list of temperatures in K (e.g. [100, 200, 300, 400])
     Each folder must contain phase2_sws_optimization/{id}_sws_final.out
     """
+    if temperatures is None:
+        temperatures = [300.0]
+    temperatures = sorted(set(float(T) for T in temperatures))
+
     base_dir = Path(base_dir)
     rows = []
     sws_final_name = f"{id}_sws_final.out"
@@ -138,17 +143,20 @@ def run(base_dir, id="CuMg", T=300, output_file=None, plot=True):
         r_m = r_bohr * convert_au_to_m
         B_Pa = B_GPa * 1e9
 
-        E_ph_J = phonon_energy(r_m, B_Pa, M_kg, T)
-        E_ph_meV = E_ph_J * J_to_meV
+        E_ph_meV_by_T = {}
+        for T in temperatures:
+            E_ph_J = phonon_energy(r_m, B_Pa, M_kg, T)
+            E_ph_meV_by_T[T] = E_ph_J * J_to_meV
 
         rows.append({
             "composition": comp,
             "mg_percent": mg_pct,
             "r_bohr": r_bohr,
             "B_GPa": B_GPa,
-            "phonon_energy_meV": E_ph_meV,
+            "phonon_energy_meV_by_T": E_ph_meV_by_T,
         })
-        print(f"  {comp}: Mg={mg_pct:.0f}%, r={r_bohr:.6f} Bohr, B={B_GPa:.3f} GPa, E_ph={E_ph_meV:.4f} meV")
+        E_str = "  ".join(f"T={T:.0f}K:{E_ph_meV_by_T[T]:.2f}" for T in temperatures)
+        print(f"  {comp}: Mg={mg_pct:.0f}%, r={r_bohr:.6f} Bohr, B={B_GPa:.3f} GPa  E_ph(meV): {E_str}")
 
     if not rows:
         print("No compositions processed. Check base_dir and phase2 *_sws_final.out files.")
@@ -160,24 +168,27 @@ def run(base_dir, id="CuMg", T=300, output_file=None, plot=True):
     else:
         output_file = Path(output_file)
 
-    # Write table: Mg% and phonon energy (and optional extra columns)
+    # Write table: Mg%, composition, r_bohr, B_GPa, then one column per T
     with open(output_file, "w") as f:
-        f.write("# Mg_percent  phonon_energy_meV  composition  r_bohr  B_GPa\n")
+        T_cols = "  ".join(f"E_ph_meV_T{T:.0f}K" for T in temperatures)
+        f.write(f"# Mg_percent  composition  r_bohr  B_GPa  {T_cols}\n")
         for r in rows:
-            f.write(f"{r['mg_percent']:6.1f}  {r['phonon_energy_meV']:12.6f}  "
-                    f"{r['composition']:12s}  {r['r_bohr']:.6f}  {r['B_GPa']:.4f}\n")
+            E_cols = "  ".join(f"{r['phonon_energy_meV_by_T'][T]:12.6f}" for T in temperatures)
+            f.write(f"{r['mg_percent']:6.1f}  {r['composition']:12s}  {r['r_bohr']:.6f}  {r['B_GPa']:.4f}  {E_cols}\n")
 
     print(f"\nWrote: {output_file}")
 
     if plot:
         import matplotlib.pyplot as plt
         mg = [r["mg_percent"] for r in rows]
-        E_ph = [r["phonon_energy_meV"] for r in rows]
         fig, ax = plt.subplots(1, 1, figsize=(8, 5))
-        ax.plot(mg, E_ph, "o-", markersize=8)
+        for T in temperatures:
+            E_ph = [r["phonon_energy_meV_by_T"][T] for r in rows]
+            ax.plot(mg, E_ph, "o-", markersize=6, label=f"T = {T:.0f} K")
         ax.set_xlabel("Mg percentage (%)")
         ax.set_ylabel("Phonon energy (meV)")
         ax.set_title("Phonon energy vs Mg percentage (Cu-Mg)")
+        ax.legend(loc="best", fontsize=9)
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
         plot_path = output_file.with_suffix(".png")
@@ -213,8 +224,10 @@ def main():
     parser.add_argument(
         "-T", "--temperature",
         type=float,
-        default=300.0,
-        help="Temperature in K (default: 300)",
+        nargs="+",
+        default=[300.0],
+        metavar="K",
+        help="Temperature(s) in K; can be repeated (default: 300). E.g. -T 100 200 300 400",
     )
     parser.add_argument(
         "--no-plot",
@@ -226,7 +239,7 @@ def main():
     run(
         base_dir=args.base_dir,
         id=args.id,
-        T=args.temperature,
+        temperatures=args.temperature,
         output_file=args.output,
         plot=not args.no_plot,
     )
