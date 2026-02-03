@@ -105,20 +105,22 @@ def get_eos_params_from_file(out_path):
     return r_bohr, B_GPa
 
 
-def run(base_dir, T=300, output_file=None, plot=True):
+def run(base_dir, id="CuMg", T=300, output_file=None, plot=True):
     """
-    For each composition, read phase2 *_sws_final.out, compute phonon energy,
+    For each composition, read phase2 {id}_sws_final.out, compute phonon energy,
     write Mg% vs phonon energy, and optionally plot.
 
     base_dir : path to directory containing composition folders (e.g. Cu90_Mg10/)
-    Each folder must contain phase2_sws_optimization/CuMg_sws_final.out
+    id : job/system id used for the EOS output filename (e.g. CuMg -> CuMg_sws_final.out)
+    Each folder must contain phase2_sws_optimization/{id}_sws_final.out
     """
     base_dir = Path(base_dir)
     rows = []
+    sws_final_name = f"{id}_sws_final.out"
 
     for comp in COMPOSITIONS:
         phase2_dir = base_dir / comp / "phase2_sws_optimization"
-        out_file = phase2_dir / "CuMg_sws_final.out"
+        out_file = phase2_dir / sws_final_name
 
         if not out_file.exists():
             print(f"  Skip {comp}: not found {out_file}")
@@ -193,7 +195,14 @@ def main():
         type=str,
         nargs="?",
         default=".",
-        help="Base directory containing composition folders (e.g. Cu90_Mg10/phase2_sws_optimization/CuMg_sws_final.out)",
+        help="Base directory containing composition folders",
+    )
+    parser.add_argument(
+        "-i", "--id",
+        type=str,
+        default="CuMg",
+        metavar="ID",
+        help="Job/system ID for EOS file: phase2_sws_optimization/ID_sws_final.out (default: CuMg)",
     )
     parser.add_argument(
         "-o", "--output",
@@ -216,6 +225,7 @@ def main():
 
     run(
         base_dir=args.base_dir,
+        id=args.id,
         T=args.temperature,
         output_file=args.output,
         plot=not args.no_plot,
