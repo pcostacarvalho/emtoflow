@@ -33,7 +33,7 @@ J_to_meV = 1 / 1.602176634e-22
 
 # Cu-Mg compositions: Cu100_Mg0, Cu90_Mg10, ..., Cu0_Mg100 (Mg 0, 10, ..., 100)
 COMPOSITIONS = [
-    "Cu100_Mg0", "Cu90_Mg10", "Cu80_Mg20", "Cu70_Mg30", "Cu60_Mg40",
+    "Cu100_Mg0", "Cu90_Mg10", "Cu80_Mg20", "Cu70_Mg30",  "Cu74_Mg26", "Cu72_Mg28", "Cu68_Mg32", "Cu66_Mg34",  "Cu64_Mg36", "Cu62_Mg38", "Cu60_Mg40", 
     "Cu50_Mg50", "Cu40_Mg60", "Cu30_Mg70", "Cu20_Mg80", "Cu10_Mg90", "Cu0_Mg100",
 ]
 
@@ -121,7 +121,7 @@ def run(base_dir, id="CuMg", temperatures=None, output_file=None, plot=True):
 
     base_dir = Path(base_dir)
     rows = []
-    sws_final_name = f"{id}_sws_final.out"
+    sws_final_name = f"sws_optimization_results.json"
 
     for comp in COMPOSITIONS:
         phase2_dir = base_dir / comp / "phase2_sws_optimization"
