@@ -151,42 +151,29 @@ def get_eos_params_from_file(out_path):
     out_path = Path(out_path)
     
     # Handle JSON files
-    if out_path.suffix == '.json':
-        with open(out_path, 'r') as f:
-            data = json.load(f)
-        
-        # Check for eos_fits in JSON
-        if 'eos_fits' not in data:
-            raise RuntimeError(f"No 'eos_fits' found in {out_path}")
-        
-        eos_fits = data['eos_fits']
-        if not eos_fits:
-            raise RuntimeError(f"No EOS fits found in {out_path}")
-        
-        # Prefer morse, otherwise use first available
-        if 'morse' in eos_fits:
-            morse_data = eos_fits['morse']
-            r_bohr = morse_data['rwseq']
-            # bulk_modulus in JSON is already in GPa
-            B_GPa = morse_data['bulk_modulus']
-        else:
-            # Use first available EOS fit
-            first_eos = next(iter(eos_fits.values()))
-            r_bohr = first_eos['rwseq']
-            B_GPa = first_eos['bulk_modulus']
-        
-        return r_bohr, B_GPa
+
+    with open(out_path, 'r') as f:
+        data = json.load(f)
     
-    # Handle .out files (original behavior)
+    # Check for eos_fits in JSON
+    if 'eos_fits' not in data:
+        raise RuntimeError(f"No 'eos_fits' found in {out_path}")
+    
+    eos_fits = data['eos_fits']
+    if not eos_fits:
+        raise RuntimeError(f"No EOS fits found in {out_path}")
+    
+    # Prefer morse, otherwise use first available
+    if 'morse' in eos_fits:
+        morse_data = eos_fits['morse']
+        r_bohr = morse_data['rwseq']
+        # bulk_modulus in JSON is already in GPa
+        B_GPa = morse_data['bulk_modulus']
     else:
-        results = parse_eos_output(str(out_path))
-        if not results:
-            raise RuntimeError(f"No EOS fits found in {out_path}")
-        eos = results.get("morse") or next(iter(results.values()))
-        r_bohr = eos.rwseq
-        # bmod is in kBar; 1 GPa = 10 kBar
-        B_GPa = eos.bmod * 0.1
-        return r_bohr, B_GPa
+        raise RuntimeError(f"No EOS fits found in {out_path}")
+    
+    return r_bohr, B_GPa
+    
 
 
 def run(base_dir, id="CuMg", temperatures=None, output_file=None, plot=True):
