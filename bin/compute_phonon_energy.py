@@ -68,8 +68,13 @@ def phonon_energy(r, B, M, T, v=1/3):
     T : temperature (K)
     """
     theta = debye_temperature(r, B, M, v)
-    x = theta / T
-    return 3*kB*T*debye_function(x) + (9/8)*kB*theta
+
+    print(f"theta: {theta}, T: {T}")
+    if T == 0:
+        return (9/8)*kB*theta
+    else:
+        x = theta / T
+        return 3*kB*T*debye_function(x) + (9/8)*kB*theta
 
 
 def detect_compositions(base_dir):
