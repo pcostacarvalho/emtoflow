@@ -50,22 +50,31 @@ def read_json_file(filepath: Path) -> Optional[Dict]:
         print(f"Warning: Could not read {filepath}: {e}")
         return None
     
-    # Extract required fields
+    # Extract required fields - try final values first, then fall back to regular values
+    sws_values_final = data.get('sws_values_final')
+    energy_values_final = data.get('energy_values_final')
+    
+    # Fallback to sws_values and energy_values if final values not found
+    if sws_values_final is None or energy_values_final is None:
+        print(f"Warning: {filepath} does not contain 'sws_values_final' or 'energy_values_final'")
+        sws_values_final = data.get('sws_values')
+        energy_values_final = data.get('energy_values')
+        if sws_values_final is None or energy_values_final is None:
+            print(f"  Also missing 'sws_values' or 'energy_values'. Skipping file.")
+            return None
+        print(f"  Using 'sws_values' and 'energy_values' instead")
+    
     result = {
         'filepath': filepath,
         'label': filepath.stem,
-        'sws_values_final': data.get('sws_values_final'),
-        'energy_values_final': data.get('energy_values_final'),
+        'sws_values_final': sws_values_final,
+        'energy_values_final': energy_values_final,
         'optimal_sws': data.get('optimal_sws'),
         'eos_fits': data.get('eos_fits', {}),
         'eos_type': data.get('eos_type')
     }
     
-    # Check if we have the required data
-    if result['sws_values_final'] is None or result['energy_values_final'] is None:
-        print(f"Warning: {filepath} does not contain 'sws_values_final' or 'energy_values_final'")
-        return None
-    
+    # Check array lengths match
     if len(result['sws_values_final']) != len(result['energy_values_final']):
         print(f"Warning: {filepath} has mismatched array lengths")
         return None
