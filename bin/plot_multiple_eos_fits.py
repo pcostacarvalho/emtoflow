@@ -228,7 +228,8 @@ def evaluate_morse_fit(sws_values: List[float], morse_params: Dict,
 def plot_all_fits(json_data_list: List[Dict], output_file: str, 
                   labels: Optional[List[str]] = None,
                   show_data_points: bool = True,
-                  show_curves: bool = True) -> None:
+                  show_curves: bool = True,
+                  n_atoms: Optional[List[int]] = None) -> None:
     """
     Plot all EOS fits together on a single figure.
     
@@ -244,6 +245,9 @@ def plot_all_fits(json_data_list: List[Dict], output_file: str,
         Whether to plot data points
     show_curves : bool
         Whether to plot smooth curves
+    n_atoms : list of int, optional
+        Number of atoms for each fit. If provided, energy will be divided by n_atoms
+        to plot energy per atom. Can be a single value (applied to all) or one per fit.
     """
     if not json_data_list:
         print("Error: No data to plot!")
@@ -254,12 +258,26 @@ def plot_all_fits(json_data_list: List[Dict], output_file: str,
     
     fig, ax = plt.subplots(1, 1, figsize=(12, 8))
     
+    # Determine if we're plotting per atom
+    plot_per_atom = n_atoms is not None
+    if plot_per_atom:
+        # Normalize n_atoms list: if single value, apply to all
+        if len(n_atoms) == 1:
+            n_atoms = n_atoms * len(json_data_list)
+        elif len(n_atoms) != len(json_data_list):
+            raise ValueError(f"Number of n_atoms values ({len(n_atoms)}) doesn't match "
+                           f"number of fits ({len(json_data_list)})")
+    
     for i, data in enumerate(json_data_list):
         sws_values = data['sws_values_final']
-        energy_values = data['energy_values_final']
+        energy_values = np.array(data['energy_values_final'])
         optimal_sws = data.get('optimal_sws')
         label = labels[i] if labels and i < len(labels) else data['label']
         color = colors[i]
+        
+        # Normalize energy by number of atoms if requested
+        if plot_per_atom:
+            energy_values = energy_values / n_atoms[i]
         
         # Plot data points
         if show_data_points:
@@ -284,9 +302,14 @@ def plot_all_fits(json_data_list: List[Dict], output_file: str,
             sws_smooth, energy_smooth = evaluate_morse_fit(
                 sws_values, morse_params, 
                 equilibrium_energy=equilibrium_energy,
-                energy_values=energy_values,
+                energy_values=data['energy_values_final'],  # Use original values for offset calculation
                 optimal_sws=optimal_sws
             )
+            
+            # Normalize smooth curve by number of atoms if requested
+            if plot_per_atom:
+                energy_smooth = energy_smooth / n_atoms[i]
+            
             ax.plot(sws_smooth, energy_smooth, '-', linewidth=2, 
                    color=color, alpha=0.8, label=f'{label}', zorder=3)
         
@@ -296,7 +319,10 @@ def plot_all_fits(json_data_list: List[Dict], output_file: str,
                       alpha=0.5, zorder=2)
     
     ax.set_xlabel('SWS (Bohr)', fontsize=12)
-    ax.set_ylabel('Total Energy (Ry)', fontsize=12)
+    if plot_per_atom:
+        ax.set_ylabel('Energy per Atom (Ry/atom)', fontsize=12)
+    else:
+        ax.set_ylabel('Total Energy (Ry)', fontsize=12)
     ax.set_title('EOS Final Fits Comparison', fontsize=14, fontweight='bold')
     ax.grid(True, alpha=0.3)
     ax.legend(fontsize=9, loc='best', ncol=2)
@@ -318,6 +344,12 @@ Examples:
   
   # Labels can also be provided in a file (one per line)
   python bin/plot_multiple_eos_fits.py --file-list labels.txt
+  
+  # Plot energy per atom (same number of atoms for all fits)
+  python bin/plot_multiple_eos_fits.py --labels Cu50Mg50 Cu70Mg30 --n-atoms 32
+  
+  # Plot energy per atom (different number of atoms for each fit)
+  python bin/plot_multiple_eos_fits.py --labels Cu50Mg50 Cu70Mg30 --n-atoms 32 48
         """
     )
     
@@ -331,6 +363,8 @@ Examples:
                       help='Output filename (default: all_eos_fits.png)')
     parser.add_argument('--directory', '-d', type=str, default='./',
                       help='Directory containing JSON files (default: current directory)')
+    parser.add_argument('--n-atoms', type=int, nargs='+',
+                      help='Number of atoms for normalization. Can be a single value (applied to all fits) or one per fit. If provided, energy will be divided by n_atoms to plot energy per atom.')
     parser.add_argument('--no-data-points', action='store_true',
                       help='Plot only curves, not data points')
     parser.add_argument('--no-curves', action='store_true',
@@ -404,7 +438,8 @@ Examples:
         args.output,
         labels=plot_labels,
         show_data_points=not args.no_data_points,
-        show_curves=not args.no_curves
+        show_curves=not args.no_curves,
+        n_atoms=args.n_atoms
     )
     
     return 0
