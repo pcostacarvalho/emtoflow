@@ -190,10 +190,18 @@ def evaluate_morse_fit(sws_values: List[float], morse_params: Dict,
     lambda_param = morse_params['lambda']
     
     # Create smooth SWS range
-    sws_min = min(sws_values)
-    sws_max = max(sws_values)
-    sws_range = sws_max - sws_min
-    sws_smooth = np.linspace(sws_min - 0.05 * sws_range, sws_max + 0.05 * sws_range, 200)
+    # Extend ±0.5 around optimal SWS if available, otherwise use data range
+    if optimal_sws is not None and not np.isnan(optimal_sws):
+        sws_min = optimal_sws - 0.5
+        sws_max = optimal_sws + 0.5
+    else:
+        sws_min = min(sws_values)
+        sws_max = max(sws_values)
+        sws_range = sws_max - sws_min
+        sws_min = sws_min - 0.05 * sws_range
+        sws_max = sws_max + 0.05 * sws_range
+    
+    sws_smooth = np.linspace(sws_min, sws_max, 200)
     
     # Evaluate Morse function (returns relative energy)
     energy_relative = np.array([morse_energy(r, a, b, c, lambda_param) for r in sws_smooth])
