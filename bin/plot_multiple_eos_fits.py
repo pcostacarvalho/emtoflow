@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.interpolate import CubicSpline
 
 # Add parent directory to path to import modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -111,9 +112,9 @@ def find_eos_output_file(json_path: Path, label: str) -> Optional[Path]:
     return None
 
 
-def get_morse_parameters_from_eos_output(eos_output_file: Path) -> Dict:
+def get_morse_parameters_from_eos_output(eos_output_file: Path) -> Tuple[Optional[Dict], Optional[List]]:
     """
-    Parse EOS output file to extract Morse parameters.
+    Parse EOS output file to extract Morse parameters and data points.
     
     Parameters
     ----------
@@ -122,17 +123,9 @@ def get_morse_parameters_from_eos_output(eos_output_file: Path) -> Dict:
         
     Returns
     -------
-    dict
-        Dictionary with Morse parameters:
-        - 'a': float
-        - 'b': float
-        - 'c': float
-        - 'lambda': float
-        
-    Raises
-    ------
-    RuntimeError
-        If file cannot be parsed or parameters not found
+    tuple of (dict or None, list or None)
+        morse_params : Dictionary with Morse parameters if all available, None otherwise
+        data_points : List of EOSDataPoint objects if available, None otherwise
     """
     results = parse_eos_output(str(eos_output_file))
     
@@ -144,19 +137,29 @@ def get_morse_parameters_from_eos_output(eos_output_file: Path) -> Dict:
         morse_fit = results['MO88']
     
     if morse_fit is None:
-        raise RuntimeError(f"No Morse fit found in EOS output file: {eos_output_file}")
+        return None, None
+    
+    # Extract data points if available
+    data_points = morse_fit.data_points if morse_fit.data_points else None
     
     # Extract parameters from additional_params
     if not morse_fit.additional_params:
-        raise RuntimeError(f"No additional_params in Morse fit: {eos_output_file}")
+        return None, data_points
     
+    # Check if all required parameters are present
+    required_params = ['a', 'b', 'c', 'lambda']
+    missing_params = [p for p in required_params if p not in morse_fit.additional_params]
+    
+    if missing_params:
+        # Some parameters missing (e.g., overflowed with ****)
+        return None, data_points
+    
+    # All parameters present
     params = {}
-    for key in ['a', 'b', 'c', 'lambda']:
-        if key not in morse_fit.additional_params:
-            raise RuntimeError(f"Missing required Morse parameter '{key}' in {eos_output_file}")
+    for key in required_params:
         params[key] = morse_fit.additional_params[key]
     
-    return params
+    return params, data_points
 
 
 def evaluate_morse_fit(sws_values: List[float], morse_params: Dict, 
@@ -300,19 +303,62 @@ def plot_all_fits(json_data_list: List[Dict], output_file: str,
                 expected_file = data['filepath'].parent / f"{data['label']}_eos_fit.out"
                 raise RuntimeError(f"EOS output file not found for {data['filepath']}. Expected: {expected_file}")
             
-            morse_params = get_morse_parameters_from_eos_output(eos_output_file)
+            morse_params, data_points = get_morse_parameters_from_eos_output(eos_output_file)
             
-            # Use Morse EOS function
-            eos_fits = data.get('eos_fits', {})
-            morse_fit = eos_fits.get('morse', {})
-            equilibrium_energy = morse_fit.get('eeq')
-            
-            sws_smooth, energy_smooth = evaluate_morse_fit(
-                sws_values, morse_params, 
-                equilibrium_energy=equilibrium_energy,
-                energy_values=data['energy_values_final'],  # Use original values for offset calculation
-                optimal_sws=optimal_sws
-            )
+            if morse_params:
+                # Use Morse EOS function
+                eos_fits = data.get('eos_fits', {})
+                morse_fit = eos_fits.get('morse', {})
+                equilibrium_energy = morse_fit.get('eeq')
+                
+                sws_smooth, energy_smooth = evaluate_morse_fit(
+                    sws_values, morse_params, 
+                    equilibrium_energy=equilibrium_energy,
+                    energy_values=data['energy_values_final'],  # Use original values for offset calculation
+                    optimal_sws=optimal_sws
+                )
+            else:
+                # Fallback to cubic spline interpolation using efit values from data points
+                if data_points:
+                    r_data = [p.r for p in data_points]
+                    efit_data = [p.efit for p in data_points]
+                    
+                    # Create smooth range
+                    if optimal_sws is not None and not np.isnan(optimal_sws):
+                        sws_min = optimal_sws - 0.3
+                        sws_max = optimal_sws + 0.3
+                    else:
+                        sws_min = min(sws_values)
+                        sws_max = max(sws_values)
+                        sws_range = sws_max - sws_min
+                        sws_min = sws_min - 0.05 * sws_range
+                        sws_max = sws_max + 0.05 * sws_range
+                    
+                    sws_smooth = np.linspace(sws_min, sws_max, 200)
+                    
+                    # Interpolate using cubic spline
+                    cs = CubicSpline(r_data, efit_data)
+                    energy_smooth = cs(sws_smooth)
+                else:
+                    # Fallback to interpolation using JSON data
+                    print(f"Warning: Morse parameters missing and no data points available for {label}, using data interpolation")
+                    sorted_pairs = sorted(zip(sws_values, energy_values))
+                    sws_sorted = np.array([s for s, e in sorted_pairs])
+                    energy_sorted = np.array([e for s, e in sorted_pairs])
+                    
+                    if optimal_sws is not None and not np.isnan(optimal_sws):
+                        sws_min = optimal_sws - 0.3
+                        sws_max = optimal_sws + 0.3
+                    else:
+                        sws_min = min(sws_values)
+                        sws_max = max(sws_values)
+                        sws_range = sws_max - sws_min
+                        sws_min = sws_min - 0.05 * sws_range
+                        sws_max = sws_max + 0.05 * sws_range
+                    
+                    sws_smooth = np.linspace(sws_min, sws_max, 200)
+                    cs = CubicSpline(sws_sorted, energy_sorted)
+                    energy_smooth = cs(sws_smooth)
             
             # Normalize smooth curve by number of atoms if requested
             if plot_per_atom:
