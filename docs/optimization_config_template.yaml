@@ -253,6 +253,10 @@ create_job_script: true              # Generate job submission scripts (default:
 job_mode: "serial"                   # Job execution mode:
                                      # "serial" = Sequential execution (default)
                                      # "parallel" = Parallel execution with dependencies
+job_system: "tetralith"              # Job script system/cluster type:
+                                     # "tetralith" = Tetralith cluster format (default)
+                                     # "pelle" = Pelle cluster format
+                                     # Determines SLURM directives and module loading
 
 # Master job script for batch submission (only used with generate_percentages)
 create_master_job_script: false      # Generate master script to submit multiple YAML files (default: false)

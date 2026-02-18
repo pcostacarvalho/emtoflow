@@ -274,6 +274,13 @@ def validate_config(config: Dict[str, Any]) -> None:
             f"run_mode must be 'sbatch' or 'local', got: {config['run_mode']}"
         )
 
+    # Validate job_system
+    valid_job_systems = ['tetralith', 'pelle']
+    if config['job_system'] not in valid_job_systems:
+        raise ConfigValidationError(
+            f"job_system must be one of {valid_job_systems}, got: {config['job_system']}"
+        )
+
     # Validate SLURM settings if run_mode is sbatch
     if config.get('run_mode') == 'sbatch':
         slurm_required = ['slurm_account', 'slurm_time']
@@ -1012,6 +1019,7 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
         # Job script settings
         'create_job_script': True,
         'job_mode': 'serial',
+        'job_system': 'tetralith',  # Options: 'tetralith' or 'pelle'
 
         # Executable paths (with default paths)
         'kstr_executable': "/home/x_pamca/postdoc_proj/emto/bin/kstr.exe",

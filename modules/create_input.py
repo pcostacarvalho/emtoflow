@@ -7,9 +7,7 @@ from modules.inputs import (
     create_kstr_input,
     create_shape_input,
     create_kgrn_input,
-    create_kfcd_input,
-    write_serial_sbatch,
-    write_parallel_sbatch
+    create_kfcd_input
 )
 from modules.structure_builder import (
     create_emto_structure,
@@ -332,7 +330,14 @@ def create_emto_inputs(config):
     kgrn_executable = cfg['kgrn_executable']
     kfcd_executable = cfg['kfcd_executable']
     atom_file = cfg['atom_file']
+    job_system = cfg['job_system']
     substitutions = cfg['substitutions']
+    
+    # Import job script functions based on job_system
+    if job_system == 'pelle':
+        from modules.inputs.jobs_pelle import write_serial_sbatch, write_parallel_sbatch
+    else:  # default to tetralith
+        from modules.inputs.jobs_tetralith import write_serial_sbatch, write_parallel_sbatch
 
 
     # ==================== CREATE DIRECTORY STRUCTURE ====================
