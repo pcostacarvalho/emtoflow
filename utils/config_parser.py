@@ -299,6 +299,13 @@ def validate_config(config: Dict[str, Any]) -> None:
             f"Must be one of: {', '.join(valid_functionals)}"
         )
 
+    # Validate STRT parameter
+    valid_strt_values = ['A', 'B', 'C']
+    if config.get('strt') is not None and config['strt'] not in valid_strt_values:
+        raise ConfigValidationError(
+            f"Invalid strt value: {config['strt']}. "
+            f"Must be one of: {', '.join(valid_strt_values)}"
+        )
 
     # Validate k-mesh parameters (NKX, NKY, NKZ) if using automatic mesh
     for param_name in ['nkx', 'nky', 'nkz']:
@@ -1036,6 +1043,7 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
         'imagz': 0.005,                  # IMAGZ parameter for KGRN (default: 0.005)
         'eps': 0.200,                    # EPS parameter for KGRN (default: 0.200)
         'nz0': 16,                       # NZ0 parameter for KGRN (default: 16)
+        'strt': 'A',                     # STRT parameter for KGRN (default: 'A')
 
         # Analysis defaults
         'generate_plots': True,

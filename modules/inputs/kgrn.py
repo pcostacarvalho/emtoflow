@@ -1,5 +1,5 @@
 
-def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic, nkx, nky, nkz, depth=1.100, efmix=0.900, tolcpa=1e-06, tolef=1e-08, efgs=0.000, hx=0.101, nx=5, amix=0.010, vmix=0.70, imagz=0.005, eps=0.200, nz0=16):
+def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic, nkx, nky, nkz, depth=1.100, efmix=0.900, tolcpa=1e-06, tolef=1e-08, efgs=0.000, hx=0.101, nx=5, amix=0.010, vmix=0.70, imagz=0.005, eps=0.200, nz0=16, strt='A'):
     """
     Create a KGRN (self-consistent KKR) input file for EMTO from structure dict.
 
@@ -54,6 +54,9 @@ def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic, nkx, nk
         EPS parameter for KGRN (default: 0.200)
     nz0 : int, optional
         NZ0 parameter for KGRN (default: 16)
+    strt : str, optional
+        STRT parameter for KGRN, controls starting mode (default: 'A')
+        Valid options: 'A', 'B', 'C'
 
     Notes
     -----
@@ -102,7 +105,7 @@ def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic, nkx, nk
 
     template = f"""KGRN      HP..= 0   !                              xx xxx xx
 JOBNAM...={id_full}
-MSGL.=1 STRT.=A FUNC.=SCA EXPAN=1 FCD.=Y GPM.=N FSM.=N
+MSGL.=1 STRT.={strt} FUNC.=SCA EXPAN=1 FCD.=Y GPM.=N FSM.=N
 FOR001=./smx/{id_ratio}.tfh
 FOR002=./smx/{id_ratio}.mdl
 DIR003=./pot/
