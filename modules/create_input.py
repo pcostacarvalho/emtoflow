@@ -331,6 +331,7 @@ def create_emto_inputs(config):
     shape_executable = cfg['shape_executable']
     kgrn_executable = cfg['kgrn_executable']
     kfcd_executable = cfg['kfcd_executable']
+    atom_file = cfg['atom_file']
     substitutions = cfg['substitutions']
 
 
@@ -527,7 +528,8 @@ def create_emto_inputs(config):
                 imagz=imagz,
                 eps=eps,
                 nz0=nz0,
-                strt=strt
+                strt=strt,
+                atom_file=atom_file
             )
  
             # Create KFCD input

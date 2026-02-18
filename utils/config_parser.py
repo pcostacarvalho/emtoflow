@@ -454,6 +454,8 @@ def validate_config(config: Dict[str, Any]) -> None:
         validate_executable(config.get('shape_executable'), 'shape_executable', required=True)
         validate_executable(config.get('kgrn_executable'), 'kgrn_executable', required=True)
         validate_executable(config.get('kfcd_executable'), 'kfcd_executable', required=True)
+        # Validate atom_file path (required for KGRN input generation)
+        validate_executable(config.get('atom_file'), 'atom_file', required=True)
 
     # Note: loop_perc validation is now handled by validate_generate_percentages_config()
     # when using the generate_percentages module. The legacy validate_loop_perc_config()
@@ -1017,6 +1019,7 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
         'kgrn_executable': "/home/x_pamca/postdoc_proj/emto/bin/kgrn_mpi.x",
         'kfcd_executable': "/home/x_pamca/postdoc_proj/emto/bin/kfcd.exe",
         'eos_executable': "/home/x_pamca/postdoc_proj/emto/bin/eos.exe",
+        'atom_file': "/home/x_pamca/postdoc_proj/emto/jij_EMTO/kgrn_new2020/ATOM.cfg",  # Path to ATOM.cfg file
 
         # EOS defaults
         'eos_type': 'MO88',

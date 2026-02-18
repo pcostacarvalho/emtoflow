@@ -1,5 +1,5 @@
 
-def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic, nkx, nky, nkz, depth=1.100, efmix=0.900, tolcpa=1e-06, tolef=1e-08, efgs=0.000, hx=0.101, nx=5, amix=0.010, vmix=0.70, imagz=0.005, eps=0.200, nz0=16, strt='A'):
+def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic, nkx, nky, nkz, depth=1.100, efmix=0.900, tolcpa=1e-06, tolef=1e-08, efgs=0.000, hx=0.101, nx=5, amix=0.010, vmix=0.70, imagz=0.005, eps=0.200, nz0=16, strt='A', atom_file='/home/x_pamca/postdoc_proj/emto/jij_EMTO/kgrn_new2020/ATOM.cfg'):
     """
     Create a KGRN (self-consistent KKR) input file for EMTO from structure dict.
 
@@ -57,6 +57,9 @@ def create_kgrn_input(structure, path, id_full, id_ratio, SWS, magnetic, nkx, nk
     strt : str, optional
         STRT parameter for KGRN, controls starting mode (default: 'A')
         Valid options: 'A', 'B', 'C'
+    atom_file : str, optional
+        Path to ATOM.cfg file for KGRN (default: '/home/x_pamca/postdoc_proj/emto/jij_EMTO/kgrn_new2020/ATOM.cfg')
+        Must be an absolute path to the ATOM configuration file
 
     Notes
     -----
@@ -114,7 +117,7 @@ DIR010=./chd/
 DIR011=./tmp
 DIR021={id_full}.gpm.dat
 DIR022=./shp/{id_ratio}.shp
-FOR098=/home/x_pamca/postdoc_proj/emto/jij_EMTO/kgrn_new2020/ATOM.cfg
+FOR098={atom_file}
 Self-consistent KKR calculation
 **********************************************************************
 SCFP:  information for self-consistency procedure:                   *

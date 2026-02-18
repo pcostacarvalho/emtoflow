@@ -275,6 +275,9 @@ shape_executable: "/path/to/shape.exe"         # SHAPE executable (required for 
 kgrn_executable: "/path/to/kgrn_mpi.x"         # KGRN executable (required for job scripts)
 kfcd_executable: "/path/to/kfcd.exe"           # KFCD executable (required for job scripts)
 eos_executable: "/path/to/eos.exe"             # EOS executable (required for optimization workflows)
+atom_file: "/path/to/ATOM.cfg"                 # Path to ATOM.cfg file for KGRN (required)
+                                                # Must be an absolute path to the ATOM configuration file
+                                                # Default: "/home/x_pamca/postdoc_proj/emto/jij_EMTO/kgrn_new2020/ATOM.cfg"
 
 
 # ------------------------------------------------------------------------------
