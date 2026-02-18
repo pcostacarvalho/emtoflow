@@ -434,9 +434,9 @@ def create_master_job_scripts(generated_files, master_config, output_dir):
 #SBATCH -J {job_name}_optimization
 
 module load intel/2025a
-module load Mambaforge/23.3.1-1-hpc1 
+module load Miniconda3/25.7.0-2
 
-conda activate env
+conda activate emto-input-automation
 
 # Run optimization with this YAML file
 python {run_optimization_abs} "{yaml_path.resolve()}" > {job_name}.log
