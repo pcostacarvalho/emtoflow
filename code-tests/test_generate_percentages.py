@@ -398,7 +398,7 @@ class TestCompositionNaming:
         assert name == 'Fe50_Pt50'
 
         name = format_composition_name(['Cu', 'Mg'], [75.3, 24.7])
-        assert name == 'Cu75_Mg25'  # Rounded
+        assert name == 'Cu75.3_Mg24.7'  # No rounding
 
     def test_ternary_naming(self):
         """Test ternary alloy naming."""

@@ -307,8 +307,11 @@ def format_composition_name(elements: List[str], percentages: List[float]) -> st
     """
     parts = []
     for element, percentage in zip(elements, percentages):
-        perc_int = int(round(percentage))
-        parts.append(f"{element}{perc_int}")
+        # Use exact percentage value in the name (no rounding),
+        # but rely on Python's compact float formatting to avoid
+        # overly long representations.
+        perc_str = f"{percentage:g}"
+        parts.append(f"{element}{perc_str}")
     return "_".join(parts)
 
 
