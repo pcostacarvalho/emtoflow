@@ -63,25 +63,47 @@ def read_formation_energies(filepath):
 
 
 def read_phonon_energy(filepath):
-    """Read phonon_energy*.dat file."""
+    """Read phonon_energy*.dat file.
+    
+    Expected format:
+    # Mg_percent  composition  r_bohr  B_GPa  E_ph_meV_T300K [E_ph_meV_T0K ...]
+    
+    Supports files with only T300K or with multiple temperature columns.
+    """
     data = []
     with open(filepath, 'r') as f:
         for line in f:
             if line.strip().startswith('#'):
                 continue
             parts = line.split()
-            if len(parts) >= 6:
+            # Need at least: Mg_percent, composition, r_bohr, B_GPa, and one temperature column
+            if len(parts) >= 5:
                 try:
                     mg_percent = float(parts[0])
                     cu_percent = 100.0 - mg_percent
-                    e_ph_t0 = float(parts[4])  # E_ph_meV_T0K
-                    e_ph_t300 = float(parts[5])  # E_ph_meV_T300K
-                    data.append({
+                    r_bohr = float(parts[2])
+                    b_gpa = float(parts[3])
+                    
+                    row_data = {
                         'Cu_percent': cu_percent,
-                        'E_ph_meV_T0K': e_ph_t0,
-                        'E_ph_meV_T300K': e_ph_t300
-                    })
-                except (ValueError, IndexError):
+                        'Mg_percent': mg_percent,
+                        'r_bohr': r_bohr,
+                        'B_GPa': b_gpa
+                    }
+                    
+                    # Read T300K from index 4 (standard format)
+                    if len(parts) >= 5:
+                        row_data['E_ph_meV_T300K'] = float(parts[4])
+                    
+                    # Read T0K from index 5 if present
+                    if len(parts) >= 6:
+                        row_data['E_ph_meV_T0K'] = float(parts[5])
+                    else:
+                        # T0K not present, set to None
+                        row_data['E_ph_meV_T0K'] = None
+                    
+                    data.append(row_data)
+                except (ValueError, IndexError) as e:
                     continue
     return pd.DataFrame(data)
 
@@ -131,29 +153,29 @@ def process_folder(folder_path, folder_name):
     df['NumSites'] = df['TotalEnergy'] / df['EnergyPerSite']
     
     # Convert phonon energies from meV/site to Ry/site
-    df['E_ph_Ry_T0K'] = df['E_ph_meV_T0K'] * MEV_TO_RY
     df['E_ph_Ry_T300K'] = df['E_ph_meV_T300K'] * MEV_TO_RY
+    df['E_ph_Ry_T0K'] = df['E_ph_meV_T0K'] * MEV_TO_RY  # Will be NaN if T0K not available
     
     # Add phonon energy directly to energy per site (phonon energy is already per site)
     # Only where we have EnergyPerSite
-    df['EnergyPerSite_T0K'] = df['EnergyPerSite'] + df['E_ph_Ry_T0K']
     df['EnergyPerSite_T300K'] = df['EnergyPerSite'] + df['E_ph_Ry_T300K']
+    df['EnergyPerSite_T0K'] = df['EnergyPerSite'] + df['E_ph_Ry_T0K']  # Will be NaN if T0K not available
     
     # Calculate new total energies with phonon corrections (for CSV output)
-    df['TotalEnergy_T0K'] = df['EnergyPerSite_T0K'] * df['NumSites']
     df['TotalEnergy_T300K'] = df['EnergyPerSite_T300K'] * df['NumSites']
+    df['TotalEnergy_T0K'] = df['EnergyPerSite_T0K'] * df['NumSites']  # Will be NaN if T0K not available
     
     # Calculate formation energies
-    df['FormationEnergy_T0K'] = (
-        df['EnergyPerSite_T0K'] - 
-        (df['Cu_percent'] / 100.0) * ref_cu - 
-        (df['Mg_percent'] / 100.0) * ref_mg
-    )
     df['FormationEnergy_T300K'] = (
         df['EnergyPerSite_T300K'] - 
         (df['Cu_percent'] / 100.0) * ref_cu - 
         (df['Mg_percent'] / 100.0) * ref_mg
     )
+    df['FormationEnergy_T0K'] = (
+        df['EnergyPerSite_T0K'] - 
+        (df['Cu_percent'] / 100.0) * ref_cu - 
+        (df['Mg_percent'] / 100.0) * ref_mg
+    )  # Will be NaN if T0K not available
     
     # Convert to meV/site for plotting
     df['FormationEnergy_original_meV'] = df['FormationEnergy_original'] * RY_TO_EV * 1000

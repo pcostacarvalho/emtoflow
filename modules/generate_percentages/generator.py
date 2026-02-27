@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import List
 
 from modules.structure_builder import create_emto_structure
-from modules.alloy_loop import format_composition_name
+from modules.alloy_loop import format_composition_name, compute_global_percentages
 from utils.config_parser import (
     load_and_validate_config,
     validate_generate_percentages_config
@@ -138,20 +138,35 @@ def generate_percentage_configs(master_config_path: str,
     generated_files = []
 
     for i, composition in enumerate(compositions, 1):
-        # Format composition name for filename and directory
-        composition_name = format_composition_name(elements, composition)
+        # Create a temporary composition name (will be overwritten after we
+        # compute the true global composition). This ensures the config is
+        # otherwise fully valid for structure building.
+        tmp_name = format_composition_name(elements, composition)
 
         # Create modified config for this composition
         composition_config = create_yaml_for_composition(
             base_config=master_config,
             composition=composition,
-            composition_name=composition_name,
+            composition_name=tmp_name,
             structure_pmg=structure_pmg,
             site_indices=site_indices,
             elements=elements,
             is_cif_method=is_cif_method,
             base_folder=base_folder
         )
+
+        # Recompute name using global composition (all atoms / ITA)
+        global_perc = compute_global_percentages(composition_config)
+        ordered_elements = list(elements) + sorted(
+            e for e in global_perc.keys() if e not in elements
+        )
+        composition_name = format_composition_name(
+            ordered_elements,
+            [global_perc[e] for e in ordered_elements],
+        )
+
+        # Ensure output_path inside YAML matches the global-composition name
+        composition_config['output_path'] = composition_name
 
         # Generate filename with composition
         yaml_filename = f"{composition_name}.yaml"

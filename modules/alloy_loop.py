@@ -11,6 +11,8 @@ import itertools
 from pathlib import Path
 from typing import Dict, Any, List
 
+from modules.structure_builder import create_emto_structure
+
 
 def run_with_percentage_loop(config: Dict[str, Any], workflow_runner):
     """
@@ -132,8 +134,16 @@ def run_with_percentage_loop(config: Dict[str, Any], workflow_runner):
         for site_idx in site_indices:
             run_config['sites'][site_idx]['concentrations'] = concentrations
 
-        # Create subdirectory name (using first site's elements)
-        subdir_name = format_composition_name(base_elements, composition)
+        # Compute global composition from full EMTO structure
+        global_perc = compute_global_percentages(run_config)
+        # Keep looped elements first, then any remaining elements in sorted order
+        ordered_elements = list(base_elements) + sorted(
+            e for e in global_perc.keys() if e not in base_elements
+        )
+        percentages_for_name = [global_perc[e] for e in ordered_elements]
+
+        # Create subdirectory name using global composition
+        subdir_name = format_composition_name(ordered_elements, percentages_for_name)
         run_config['output_path'] = str(Path(loop_parent) / subdir_name)
 
         # Print composition info
@@ -300,3 +310,46 @@ def format_composition_name(elements: List[str], percentages: List[float]) -> st
         perc_int = int(round(percentage))
         parts.append(f"{element}{perc_int}")
     return "_".join(parts)
+
+
+def compute_global_percentages(config: Dict[str, Any]) -> Dict[str, float]:
+    """
+    Compute global element percentages from a config.
+
+    Uses the EMTO structure (including IT/ITA and site multiplicities) to derive
+    the true overall composition, so that folder names reflect the total alloy
+    percentages even when only some lattice sites are varied.
+    """
+    # Build structure according to input method
+    if config.get('cif_file'):
+        _, structure_dict = create_emto_structure(
+            cif_file=config['cif_file'],
+            substitutions=config.get('substitutions'),
+            user_magnetic_moments=config.get('user_magnetic_moments'),
+        )
+    else:
+        _, structure_dict = create_emto_structure(
+            lat=config['lat'],
+            a=config['a'],
+            b=config.get('b'),
+            c=config.get('c'),
+            alpha=config.get('alpha', 90),
+            beta=config.get('beta', 90),
+            gamma=config.get('gamma', 90),
+            sites=config['sites'],
+            user_magnetic_moments=config.get('user_magnetic_moments'),
+        )
+
+    n_atoms = structure_dict['NQ3']
+    totals: Dict[str, float] = {}
+
+    for atom in structure_dict['atom_info']:
+        symbol = atom['symbol']
+        conc = float(atom['conc'])
+        totals[symbol] = totals.get(symbol, 0.0) + conc
+
+    # Convert site concentrations to global percentages
+    if n_atoms <= 0:
+        return {sym: 0.0 for sym in totals.keys()}
+
+    return {sym: 100.0 * total / n_atoms for sym, total in totals.items()}
