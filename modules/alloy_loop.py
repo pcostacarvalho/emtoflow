@@ -329,6 +329,7 @@ def compute_global_percentages(config: Dict[str, Any]) -> Dict[str, float]:
             cif_file=config['cif_file'],
             substitutions=config.get('substitutions'),
             user_magnetic_moments=config.get('user_magnetic_moments'),
+            nl=config.get('NL'),
         )
     else:
         _, structure_dict = create_emto_structure(
@@ -341,6 +342,7 @@ def compute_global_percentages(config: Dict[str, Any]) -> Dict[str, float]:
             gamma=config.get('gamma', 90),
             sites=config['sites'],
             user_magnetic_moments=config.get('user_magnetic_moments'),
+            nl=config.get('NL'),
         )
 
     n_atoms = structure_dict['NQ3']

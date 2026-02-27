@@ -63,7 +63,8 @@ def run_prepare_only_mode(
             print(f"Creating structure from CIF: {config['cif_file']}")
             structure_pmg, structure = create_emto_structure(
                 cif_file=config['cif_file'],
-                user_magnetic_moments=config.get('user_magnetic_moments')
+                user_magnetic_moments=config.get('user_magnetic_moments'),
+                nl=config.get('NL')
             )
         else:
             print(f"Creating structure from parameters...")
@@ -76,7 +77,8 @@ def run_prepare_only_mode(
                 alpha=config.get('alpha', 90),
                 beta=config.get('beta', 90),
                 gamma=config.get('gamma', 90),
-                user_magnetic_moments=config.get('user_magnetic_moments')
+                user_magnetic_moments=config.get('user_magnetic_moments'),
+                nl=config.get('NL')
             )
 
         structure['structure_pmg'] = structure_pmg

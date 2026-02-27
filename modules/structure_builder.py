@@ -403,7 +403,7 @@ def create_structure_from_params(lat, a, sites, b=None, c=None,
 
 # ==================== EMTO STRUCTURE DICTIONARY CREATION ====================
 
-def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
+def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None, user_nl=None):
     """
     Convert pymatgen Structure to EMTO structure dictionary.
 
@@ -415,6 +415,9 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
         Input structure (from CIF or created programmatically)
     user_magnetic_moments : dict, optional
         User-provided magnetic moments per element
+    user_nl : int, optional
+        User-provided maximum angular momentum (1-4). If set, overrides
+        the value determined from the elements' valence.
 
     Returns
     -------
@@ -531,6 +534,8 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None):
             NLs.append(1)
 
     NL = max(NLs) if NLs else 3
+    if user_nl is not None:
+        NL = user_nl
 
     # Build atom_info list with proper CPA support
     atom_info = []
@@ -625,7 +630,8 @@ def create_emto_structure(
     alpha: float = 90,
     beta: float = 90,
     gamma: float = 90,
-    user_magnetic_moments: Optional[Dict[str, float]] = None
+    user_magnetic_moments: Optional[Dict[str, float]] = None,
+    nl: Optional[int] = None
 ) -> Tuple[Structure, Dict[str, Any]]:
     """
     Create EMTO structure dictionary from CIF file, pymatgen Structure, or input parameters.
@@ -655,7 +661,10 @@ def create_emto_structure(
         Lattice angles in degrees
     user_magnetic_moments : dict, optional
         User-provided magnetic moments per element
- 
+    nl : int, optional
+        Maximum angular momentum (1-4). If set, overrides the value
+        determined from the elements' valence (s=1, p=2, d=3, f=4).
+
     Returns
     -------
     structure_pmg : pymatgen.core.Structure
@@ -720,7 +729,9 @@ def create_emto_structure(
         structure_pmg.properties['substitutions'] = substitutions
 
     # Common: convert pymatgen Structure → EMTO dict
-    structure_dict = _structure_to_emto_dict(structure_pmg, user_magnetic_moments)
+    structure_dict = _structure_to_emto_dict(
+        structure_pmg, user_magnetic_moments, user_nl=nl
+    )
 
     # Return the canonical structure actually used for EMTO downstream (primitive for CIF)
     return structure_dict['structure'], structure_dict

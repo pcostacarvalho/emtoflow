@@ -369,7 +369,8 @@ def create_emto_inputs(config):
         structure_pmg, structure_dict = create_emto_structure(
             cif_file=str(cif_file),
             substitutions=substitutions,
-            user_magnetic_moments=user_magnetic_moments
+            user_magnetic_moments=user_magnetic_moments,
+            nl=cfg.get('NL')
         )
 
     elif lat is not None:
@@ -388,7 +389,8 @@ def create_emto_inputs(config):
             alpha=alpha,
             beta=beta,
             gamma=gamma,
-            user_magnetic_moments=user_magnetic_moments
+            user_magnetic_moments=user_magnetic_moments,
+            nl=cfg.get('NL')
         )
 
     print(f"  Structure created: LAT={structure_dict['lat']} ({structure_dict['lattice_name']})")

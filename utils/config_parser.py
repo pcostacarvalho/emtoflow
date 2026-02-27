@@ -173,7 +173,14 @@ def validate_config(config: Dict[str, Any]) -> None:
             raise ConfigValidationError(
                 "Lattice parameter 'c' must be provided for non-cubic lattices"
             )
-    
+
+    # Validate NL if provided (max angular momentum: 1=s, 2=p, 3=d, 4=f)
+    nl_val = config.get('NL')
+    if nl_val is not None:
+        if not isinstance(nl_val, int) or nl_val < 1 or nl_val > 4:
+            raise ConfigValidationError(
+                f"NL must be an integer between 1 and 4 (got: {nl_val})"
+            )
 
     # Validate magnetic field
     if config['magnetic'] not in ['P', 'F']:
@@ -996,6 +1003,7 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
         'magnetic': 'P',
         'user_magnetic_moments': None,
         'dmax': None,
+        'NL': None,  # Max angular momentum (1-4). If set, overrides auto from valence.
 
         # Optimization flags
         'optimize_ca': False,

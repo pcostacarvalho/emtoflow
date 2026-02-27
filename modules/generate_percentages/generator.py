@@ -76,7 +76,8 @@ def generate_percentage_configs(master_config_path: str,
         structure_pmg, _ = create_emto_structure(
             cif_file=cif_file_arg,
             substitutions=master_config.get('substitutions'),
-            user_magnetic_moments=master_config.get('user_magnetic_moments')
+            user_magnetic_moments=master_config.get('user_magnetic_moments'),
+            nl=master_config.get('NL')
         )
     else:
         structure_pmg, _ = create_emto_structure(
@@ -88,7 +89,8 @@ def generate_percentage_configs(master_config_path: str,
             beta=master_config.get('beta'),
             gamma=master_config.get('gamma'),
             sites=master_config.get('sites'),
-            user_magnetic_moments=master_config.get('user_magnetic_moments')
+            user_magnetic_moments=master_config.get('user_magnetic_moments'),
+            nl=master_config.get('NL')
         )
 
     # Determine which site(s) to vary and get element information
@@ -237,7 +239,8 @@ def preview_compositions(master_config_path: str) -> None:
         structure_pmg, _ = create_emto_structure(
             cif_file=cif_file_arg,
             substitutions=master_config.get('substitutions'),
-            user_magnetic_moments=master_config.get('user_magnetic_moments')
+            user_magnetic_moments=master_config.get('user_magnetic_moments'),
+            nl=master_config.get('NL')
         )
     else:
         structure_pmg, _ = create_emto_structure(
@@ -246,7 +249,8 @@ def preview_compositions(master_config_path: str) -> None:
             b=master_config.get('b'),
             c=master_config.get('c'),
             sites=master_config.get('sites'),
-            user_magnetic_moments=master_config.get('user_magnetic_moments')
+            user_magnetic_moments=master_config.get('user_magnetic_moments'),
+            nl=master_config.get('NL')
         )
 
     # Determine site(s) and elements

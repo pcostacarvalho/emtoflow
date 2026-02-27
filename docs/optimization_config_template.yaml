@@ -115,6 +115,9 @@ user_magnetic_moments: null          # Custom magnetic moments per element
                                      # Example: {'Fe': 2.2, 'Co': 1.7, 'Ni': 0.6}
                                      # If null: uses default database values
 
+NL: null                             # Max angular momentum (1-4). If set, overrides auto from valence:
+                                     # 1=s, 2=p, 3=d, 4=f. If null: auto from elements.
+
 functional: "GGA"                    # Exchange-correlation functional/pseudopotential:
                                      # "GGA" = Generalized Gradient Approximation (default)
                                      # "LDA" = Local Density Approximation

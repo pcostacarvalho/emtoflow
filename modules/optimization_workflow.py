@@ -662,7 +662,8 @@ class OptimizationWorkflow:
                 print(f"Creating structure from CIF: {self.config['cif_file']}")
                 structure_pmg, structure = create_emto_structure(
                     cif_file=self.config['cif_file'],
-                    user_magnetic_moments=self.config.get('user_magnetic_moments')
+                    user_magnetic_moments=self.config.get('user_magnetic_moments'),
+                    nl=self.config.get('NL')
                 )
             else:
                 print(f"Creating structure from parameters...")
@@ -675,7 +676,8 @@ class OptimizationWorkflow:
                     alpha=self.config.get('alpha', 90),
                     beta=self.config.get('beta', 90),
                     gamma=self.config.get('gamma', 90),
-                    user_magnetic_moments=self.config.get('user_magnetic_moments')
+                    user_magnetic_moments=self.config.get('user_magnetic_moments'),
+                    nl=self.config.get('NL')
                 )
 
             # Store structure_pmg in structure dict for later use
