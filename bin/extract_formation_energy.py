@@ -117,9 +117,15 @@ def extract_phase3_energy(folder_path, functional='GGA'):
 
 
 def _ax_by_regex(element_a, element_b):
-    """Build regex pattern for folder names AX_BY (e.g. Cu50_Mg50)."""
-    # Element symbols are letters only; no regex escaping needed
-    return re.compile(r"^" + re.escape(element_a) + r"(\d+)_" + re.escape(element_b) + r"(\d+)$")
+    """
+    Build regex pattern for folder names AX_BY (e.g. Cu50_Mg50, Ag45.2_Mg54.8).
+    Supports integer and decimal percentages in the name.
+    """
+    # Match numbers with optional decimal part: digits or digits.digits
+    num_pattern = r"(\d+(?:\.\d+)?)"
+    return re.compile(
+        r"^" + re.escape(element_a) + num_pattern + r"_" + re.escape(element_b) + num_pattern + r"$"
+    )
 
 
 def folder_matches_ax_by(folder_name, element_a, element_b):
@@ -134,9 +140,10 @@ def parse_composition_from_folder(folder_name, element_a, element_b):
     """
     m = _ax_by_regex(element_a, element_b).match(folder_name)
     if m:
-        pct_a = int(m.group(1))
-        pct_b = int(m.group(2))
-        if pct_a + pct_b == 100:
+        pct_a = float(m.group(1))
+        pct_b = float(m.group(2))
+        # Allow for small rounding differences when decimals are used in names
+        if abs(pct_a + pct_b - 100.0) < 1e-6:
             return pct_a, pct_b
     return None, None
 
