@@ -16,7 +16,7 @@ Config file (e.g. formation_energy_config.yaml):
   # Optional: single folder to process (otherwise discover all AX_BY in cwd)
   folder: null
   # Required when folder is set and folder name is not AX_BY (e.g. folder: TiAg)
-  composition: null   # e.g. [50, 50] for 50% A, 50% B (must sum to 100)
+  composition: null   # fractions summing to 1, e.g. [2/3, 1/3], or percentages summing to 100, e.g. [50, 50]
 """
 
 import argparse
@@ -141,6 +141,26 @@ def parse_composition_from_folder(folder_name, element_a, element_b):
     return None, None
 
 
+def _normalize_composition(composition):
+    """
+    Accept composition as either fractions (sum ≈ 1, e.g. [2/3, 1/3]) or percentages (sum ≈ 100).
+    Returns (pct_a, pct_b) as floats summing to 100.
+    """
+    if not isinstance(composition, (list, tuple)) or len(composition) != 2:
+        raise ValueError("Config 'composition' must be a list of two numbers [x_a, x_b].")
+    x_a, x_b = float(composition[0]), float(composition[1])
+    total = x_a + x_b
+    if abs(total - 1.0) < 0.01:
+        # Fractions (e.g. 2/3, 1/3)
+        return x_a * 100.0, x_b * 100.0
+    if 99.0 <= total <= 101.0:
+        # Percentages
+        return x_a, x_b
+    raise ValueError(
+        f"Config 'composition' must sum to 1 (fractions, e.g. [2/3, 1/3]) or to 100 (percentages). Got sum = {total}."
+    )
+
+
 def load_formation_energy_config(config_path):
     """
     Load and validate formation energy config from YAML.
@@ -172,6 +192,7 @@ def load_formation_energy_config(config_path):
         if not isinstance(val, (int, float)):
             raise ValueError(f"Config '{key}' must be a number (Ry/site).")
 
+    comp_out = composition
     if folder is not None:
         folder = str(folder).strip()
         folder_basename = Path(folder).name
@@ -179,13 +200,10 @@ def load_formation_energy_config(config_path):
             if composition is None:
                 raise ValueError(
                     f"Folder '{folder}' does not match pattern {element_a}X_{element_b}Y (e.g. {element_a}50_{element_b}50). "
-                    "You must set 'composition' in the formation energy config YAML (e.g. composition: [50, 50])."
+                    "You must set 'composition' in the formation energy config YAML (e.g. composition: [50, 50] or [2/3, 1/3])."
                 )
-            if not isinstance(composition, (list, tuple)) or len(composition) != 2:
-                raise ValueError("Config 'composition' must be a list of two numbers [pct_a, pct_b] that sum to 100.")
-            pct_a, pct_b = float(composition[0]), float(composition[1])
-            if abs(pct_a + pct_b - 100.0) > 1e-6:
-                raise ValueError(f"Config 'composition' must sum to 100, got {composition}.")
+            pct_a, pct_b = _normalize_composition(composition)
+            comp_out = [pct_a, pct_b]
 
     return {
         "element_a": element_a.strip(),
@@ -193,7 +211,7 @@ def load_formation_energy_config(config_path):
         "reference_energy_a": float(reference_energy_a),
         "reference_energy_b": float(reference_energy_b),
         "folder": folder,
-        "composition": composition,
+        "composition": comp_out,
     }
 
 
@@ -259,7 +277,7 @@ def main():
             print("Error: --composition must be two numbers (e.g. 50,50)")
             sys.exit(1)
 
-    # Re-validate: if folder set and not AX_BY, composition required
+    # Re-validate: if folder set and not AX_BY, composition required (fractions sum to 1 or percentages sum to 100)
     folder = cfg.get("folder")
     element_a = cfg["element_a"]
     element_b = cfg["element_b"]
@@ -269,12 +287,14 @@ def main():
             if not cfg.get("composition"):
                 print(
                     f"Error: Folder '{folder}' does not match pattern {element_a}X_{element_b}Y. "
-                    "Set 'composition' in the config YAML (e.g. composition: [50, 50]) or use --composition 50,50."
+                    "Set 'composition' in the config YAML (e.g. composition: [50, 50] or [2/3, 1/3]) or use --composition."
                 )
                 sys.exit(1)
-            comp = cfg["composition"]
-            if abs(comp[0] + comp[1] - 100.0) > 1e-6:
-                print(f"Error: composition must sum to 100, got {comp}")
+            try:
+                pct_a, pct_b = _normalize_composition(cfg["composition"])
+                cfg["composition"] = [pct_a, pct_b]
+            except ValueError as e:
+                print(f"Error: {e}")
                 sys.exit(1)
 
     E_ref_a = cfg["reference_energy_a"]
@@ -293,7 +313,7 @@ def main():
             pct_a, pct_b = parse_composition_from_folder(folder_basename, element_a, element_b)
         else:
             pct_a, pct_b = cfg["composition"][0], cfg["composition"][1]
-        entries.append((folder_path, int(round(pct_a)), int(round(pct_b))))
+        entries.append((folder_path, pct_a, pct_b))
     else:
         pattern = _ax_by_regex(element_a, element_b)
         composition_folders = sorted(
@@ -313,15 +333,18 @@ def main():
     results_per_site = {}   # pct_a -> energy_per_site
     results_total = {}     # pct_a -> total_energy
 
+    def _fmt_pct(p):
+        return f"{int(p)}" if abs(p - round(p)) < 1e-9 else f"{p:.4g}"
+
     for folder_path, pct_a, pct_b in entries:
         total_energy, energy_per_site = extract_phase3_energy(folder_path)
         if energy_per_site is not None:
             results_per_site[pct_a] = energy_per_site
             if total_energy is not None:
                 results_total[pct_a] = total_energy
-            print(f"{folder_path.name:15s} {element_a}: {pct_a:3d}%  Total: {total_energy:12.6f} Ry  Per site: {energy_per_site:12.6f} Ry/site")
+            print(f"{folder_path.name:15s} {element_a}: {_fmt_pct(pct_a)}%  Total: {total_energy:12.6f} Ry  Per site: {energy_per_site:12.6f} Ry/site")
         else:
-            print(f"{folder_path.name:15s} {element_a}: {pct_a:3d}%  Energy: NOT FOUND")
+            print(f"{folder_path.name:15s} {element_a}: {_fmt_pct(pct_a)}%  Energy: NOT FOUND")
 
     if not results_per_site:
         print("\nNo energies were extracted. Please check the file structure.")
@@ -344,14 +367,14 @@ def main():
         E_alloy = results_per_site[pct_a]
         E_form = E_alloy - E_ref_a * conc_a - E_ref_b * conc_b
         formation_energies[pct_a] = E_form
-        print(f"{element_a}{pct_a:3d}_{element_b}{pct_b:3d}  E_form = {E_form:12.6f} Ry/site")
+        print(f"{element_a}{_fmt_pct(pct_a)}_{element_b}{_fmt_pct(pct_b)}  E_form = {E_form:12.6f} Ry/site")
 
-    # Output files use "A_percent" in header (generic)
+    # Output files use "A_percent" in header (generic); support float for exact fractions (e.g. 2/3)
     output_file = "formation_energies.dat"
     with open(output_file, "w") as f:
         f.write(f"# {element_a}_percent  FormationEnergy(Ry/site)\n")
         for pct_a in sorted(formation_energies.keys()):
-            f.write(f"{pct_a:5d}  {formation_energies[pct_a]:15.8f}\n")
+            f.write(f"{pct_a:10.6f}  {formation_energies[pct_a]:15.8f}\n")
     print(f"\nFormation energies saved to: {output_file}")
 
     output_file_raw = "energies_raw.dat"
@@ -361,9 +384,9 @@ def main():
             energy_per_site = results_per_site[pct_a]
             total_energy = results_total.get(pct_a)
             if total_energy is not None:
-                f.write(f"{pct_a:5d}  {energy_per_site:15.8f}  {total_energy:15.8f}\n")
+                f.write(f"{pct_a:10.6f}  {energy_per_site:15.8f}  {total_energy:15.8f}\n")
             else:
-                f.write(f"{pct_a:5d}  {energy_per_site:15.8f}  {'N/A':>15s}\n")
+                f.write(f"{pct_a:10.6f}  {energy_per_site:15.8f}  {'N/A':>15s}\n")
     print(f"Raw energies saved to: {output_file_raw}")
 
     # Plot

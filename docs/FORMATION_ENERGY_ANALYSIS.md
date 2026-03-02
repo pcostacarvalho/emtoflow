@@ -5,7 +5,7 @@ This document describes the scripts for extracting and analyzing formation energ
 ## Overview
 
 The formation energy analysis tools work for **generic binary alloys A-B**. They extract phase 3 total energies and compute formation energies using:
-
+«
 ```
 E_form(A_x, B_{1-x}) = E(A_x, B_{1-x}) - x*E(A) - (1-x)*E(B)
 ```
@@ -19,6 +19,78 @@ where:
 - **Discovery mode:** Script finds all subfolders named **AX_BY** (e.g. `Cu50_Mg50`, `Fe30_Ni70`) and parses composition from the folder name.
 - **Single-folder mode:** You set a specific folder (e.g. `TiAg` or `TiAg_fcc`). If the folder name is **not** in the form AX_BY, you **must** provide **composition** in the config YAML (e.g. `composition: [50, 50]`).
 
+---
+
+## How to use the script
+
+### Option 1: Many compositions (folders named AX_BY)
+
+1. Put your run directory where each composition has its own subfolder named like `Cu50_Mg50`, `Cu60_Mg40`, etc. (element symbols + percentages that sum to 100).
+
+2. In that directory, create `formation_energy_config.yaml` with your elements and reference energies (Ry/site):
+   ```yaml
+   element_a: Cu
+   element_b: Mg
+   reference_energy_a: -3310.060512
+   reference_energy_b: -400.662871
+   # folder and composition left null → discovery mode
+   folder: null
+   composition: null
+   ```
+
+3. Run the script from that directory:
+   ```bash
+   cd /path/to/CuMg_fcc
+   python /path/to/EMTO_input_automation/bin/extract_formation_energy.py
+   ```
+   If you don’t create a config file, the script uses Cu–Mg defaults and looks for `Cu*_Mg*` folders.
+
+4. Outputs (in the same directory): `formation_energies.dat`, `energies_raw.dat`, and `formation_energy_vs_composition.png`.
+
+---
+
+### Option 2: One folder whose name is not AX_BY (e.g. TiAg)
+
+1. Put the folder to process in the current directory (e.g. a folder named `TiAg` or `TiAg_fcc`).
+
+2. Create `formation_energy_config.yaml` with elements, reference energies, **folder** name, and **composition** (required when the folder name is not AX_BY):
+   ```yaml
+   element_a: Ti
+   element_b: Ag
+   reference_energy_a: -1234.0    # your pure Ti energy/site (Ry)
+   reference_energy_b: -567.0     # your pure Ag energy/site (Ry)
+   folder: TiAg
+   composition: [50, 50]          # 50% Ti, 50% Ag; must sum to 100
+   ```
+
+3. Run the script:
+   ```bash
+   cd /path/to/parent_of_TiAg
+   python /path/to/EMTO_input_automation/bin/extract_formation_energy.py
+   ```
+   Or point to the config explicitly:
+   ```bash
+   python /path/to/EMTO_input_automation/bin/extract_formation_energy.py --config formation_energy_config.yaml
+   ```
+
+4. Outputs: one row in `formation_energies.dat` and `energies_raw.dat`, and a one-point plot in `formation_energy_vs_composition.png`.
+
+---
+
+### Command-line overrides
+
+You can override config values without editing the YAML:
+
+```bash
+python bin/extract_formation_energy.py --config formation_energy_config.yaml
+python bin/extract_formation_energy.py --element-a Ti --element-b Ag --E-a -1234.0 --E-b -567.0
+python bin/extract_formation_energy.py --folder TiAg --composition 50,50
+```
+
+Use `--config` to point to a config file in another location.
+
+---
+
 ## Formation energy config (YAML)
 
 The Python script reads `formation_energy_config.yaml` from the current directory (or a path given with `--config`). If the file is missing, it defaults to Cu–Mg with built-in reference energies.
@@ -27,7 +99,7 @@ The Python script reads `formation_energy_config.yaml` from the current director
 
 **Optional:**
 - **folder:** Name of a single folder to process (e.g. `TiAg`). If omitted, the script discovers all subfolders matching AX_BY.
-- **composition:** List `[pct_a, pct_b]` that sums to 100. **Required when `folder` is set and the folder name is not in the form AX_BY** (e.g. folder `TiAg` → you must set `composition: [50, 50]`).
+- **composition:** List of two numbers. **Required when `folder` is set and the folder name is not in the form AX_BY** (e.g. folder `TiAg`). You can use either **fractions that sum to 1** (e.g. `[0.6666666667, 0.3333333333]` or `[2/3, 1/3]` in YAML if your parser supports it) or **percentages that sum to 100** (e.g. `[50, 50]`).
 
 Example for a single folder not named AX_BY:
 ```yaml
@@ -211,4 +283,4 @@ open formation_energy_vs_composition.png  # macOS
 
 - Formation energy values are typically negative for stable alloys
 - Pure elements (0% and 100%) should have formation energy = 0 by definition
-- The scripts require that both pure Cu and pure Mg calculations exist
+- Reference energies E(A) and E(B) are set in the config (or CLI); they do not have to come from folders in the run directory
