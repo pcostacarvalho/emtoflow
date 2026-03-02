@@ -308,6 +308,7 @@ def create_emto_inputs(config):
     eps = cfg['eps']
     nz0 = cfg['nz0']
     strt = cfg['strt']
+    nl_override = cfg.get('NL')  # Optional override; None = auto from valence
     ca_ratios = cfg['ca_ratios']
     sws_values = cfg['sws_values']
     auto_generate = cfg['auto_generate']
@@ -370,7 +371,7 @@ def create_emto_inputs(config):
             cif_file=str(cif_file),
             substitutions=substitutions,
             user_magnetic_moments=user_magnetic_moments,
-            nl=cfg.get('NL')
+            nl=nl_override
         )
 
     elif lat is not None:
@@ -390,12 +391,15 @@ def create_emto_inputs(config):
             beta=beta,
             gamma=gamma,
             user_magnetic_moments=user_magnetic_moments,
-            nl=cfg.get('NL')
+            nl=nl_override
         )
 
     print(f"  Structure created: LAT={structure_dict['lat']} ({structure_dict['lattice_name']})")
     print(f"  Number of atoms: NQ3={structure_dict['NQ3']}")
-    print(f"  Maximum NL: {structure_dict['NL']}")
+    if nl_override is not None:
+        print(f"  Maximum NL: {structure_dict['NL']} (from config)")
+    else:
+        print(f"  Maximum NL: {structure_dict['NL']}")
 
     # Save structure to JSON file for inspection
     structure_file = os.path.join(output_path, f"{job_name}_structure.json")

@@ -4,17 +4,42 @@ This document describes the scripts for extracting and analyzing formation energ
 
 ## Overview
 
-The formation energy analysis tools extract phase 3 total energies from EMTO calculations and compute formation energies using:
+The formation energy analysis tools work for **generic binary alloys A-B**. They extract phase 3 total energies and compute formation energies using:
 
 ```
-E_form(Cu_x, Mg_{1-x}) = E(Cu_x, Mg_{1-x}) - x*E(Cu) - (1-x)*E(Mg)
+E_form(A_x, B_{1-x}) = E(A_x, B_{1-x}) - x*E(A) - (1-x)*E(B)
 ```
 
 where:
-- `E(Cu_x, Mg_{1-x})` is the total energy of the alloy
-- `E(Cu)` is the total energy of pure Cu
-- `E(Mg)` is the total energy of pure Mg
-- `x` is the concentration of Cu (between 0 and 1)
+- `E(A_x, B_{1-x})` is the energy per site of the alloy
+- `E(A)`, `E(B)` are the reference energies per site of pure A and B (Ry/site)
+- `x` is the concentration of element A (between 0 and 1)
+
+**Modes:**
+- **Discovery mode:** Script finds all subfolders named **AX_BY** (e.g. `Cu50_Mg50`, `Fe30_Ni70`) and parses composition from the folder name.
+- **Single-folder mode:** You set a specific folder (e.g. `TiAg` or `TiAg_fcc`). If the folder name is **not** in the form AX_BY, you **must** provide **composition** in the config YAML (e.g. `composition: [50, 50]`).
+
+## Formation energy config (YAML)
+
+The Python script reads `formation_energy_config.yaml` from the current directory (or a path given with `--config`). If the file is missing, it defaults to Cu–Mg with built-in reference energies.
+
+**Required (or defaults):** `element_a`, `element_b`, `reference_energy_a`, `reference_energy_b` (Ry/site).
+
+**Optional:**
+- **folder:** Name of a single folder to process (e.g. `TiAg`). If omitted, the script discovers all subfolders matching AX_BY.
+- **composition:** List `[pct_a, pct_b]` that sums to 100. **Required when `folder` is set and the folder name is not in the form AX_BY** (e.g. folder `TiAg` → you must set `composition: [50, 50]`).
+
+Example for a single folder not named AX_BY:
+```yaml
+element_a: Ti
+element_b: Ag
+reference_energy_a: -1234.0
+reference_energy_b: -567.0
+folder: TiAg
+composition: [50, 50]   # required when folder is not Ti50_Ag50 etc.
+```
+
+See `docs/formation_energy_config_example.yaml` for full examples.
 
 ## Scripts
 
@@ -22,18 +47,22 @@ where:
 
 **File:** `bin/extract_formation_energy.py`
 
-This script extracts phase 3 energies, calculates formation energies, and generates plots automatically.
+This script extracts phase 3 energies, calculates formation energies, and generates plots. It supports generic A–B alloys via config and optional single-folder mode.
 
 **Usage:**
 ```bash
-cd /path/to/CuMg_fcc  # Navigate to the folder with Cu*_Mg* subdirectories
+cd /path/to/your_run   # Directory containing AX_BY subfolders, or place formation_energy_config.yaml here
 python extract_formation_energy.py
+# Or with explicit config:
+python extract_formation_energy.py --config formation_energy_config.yaml
+# Single folder (e.g. TiAg); composition must be in config if folder name is not AX_BY:
+python extract_formation_energy.py --config formation_energy_config.yaml
 ```
 
 **Output:**
-- `energies_raw.dat` - Raw total energies for each composition
-- `formation_energies.dat` - Formation energies for each composition
-- `formation_energy_vs_composition.png` - Plot of formation energy vs Cu percentage
+- `energies_raw.dat` - Raw energies per site (and total) for each composition
+- `formation_energies.dat` - Formation energies (Ry/site)
+- `formation_energy_vs_composition.png` - Plot of formation energy vs element A percentage
 
 **Requirements:**
 - Python 3.6+
@@ -118,34 +147,38 @@ The scripts look for the `final_energy` field, which contains the optimized tota
 
 ## Output Format
 
+Column headers use the first element symbol (e.g. `Cu_percent` for Cu–Mg). For a generic A–B run they will show `A_percent`.
+
 ### energies_raw.dat
 ```
-# Cu_percent  Energy(Ry)
-    0  -123.45678901
-   10  -123.45678902
-   20  -123.45678903
+# Cu_percent  EnergyPerSite(Ry/site)  TotalEnergy(Ry)
+    0  -123.45678901  -...
+   10  -123.45678902  -...
   ...
 ```
 
 ### formation_energies.dat
 ```
-# Cu_percent  FormationEnergy(Ry)
+# Cu_percent  FormationEnergy(Ry/site)
     0   0.00000000
    10  -0.00012345
-   20  -0.00023456
   ...
 ```
 
 ## Troubleshooting
 
+### "Folder 'X' does not match pattern AX_BY ... You must set 'composition'"
+- When using **single-folder mode** with a folder name that is not in the form `AX_BY` (e.g. `TiAg` instead of `Ti50_Ag50`), you must set **composition** in `formation_energy_config.yaml`, e.g. `composition: [50, 50]` for 50% A, 50% B. The two numbers must sum to 100.
+
+### "No composition folders found matching AX_BY"
+- In discovery mode, subfolders must be named like `Cu50_Mg50` (element symbols + percentages that sum to 100). Check that `element_a` and `element_b` in the config match the folder naming.
+
 ### "No energies were extracted"
-- Check that `workflow_results.json` files exist in each composition folder
-- Verify that the JSON files contain phase 3 energy data
-- Run the Python script to see which keys are available in the JSON files
+- Check that `workflow_results.json` or fcd/*.prn files exist in each composition folder
+- Verify that the JSON/files contain phase 3 energy data
 
 ### "Missing pure element energies"
-- Ensure both `Cu0_Mg100` and `Cu100_Mg0` folders exist
-- Verify that these folders contain valid `workflow_results.json` files with phase 3 energies
+- In discovery mode, ensure both pure-endpoint folders exist (e.g. `Cu0_Mg100` and `Cu100_Mg0`) if you need formation energies at 0% and 100%. The script does not require them for the formula; reference energies come from the config.
 
 ### "Energy not found in workflow_results.json"
 The Python script will print available keys if it can't find the energy. Check the JSON structure and modify the `extract_phase3_energy()` function if needed to match your specific JSON format.

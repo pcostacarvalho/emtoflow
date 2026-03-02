@@ -535,7 +535,7 @@ def _structure_to_emto_dict(structure_pmg, user_magnetic_moments=None, user_nl=N
 
     NL = max(NLs) if NLs else 3
     if user_nl is not None:
-        NL = user_nl
+        NL = int(user_nl)
 
     # Build atom_info list with proper CPA support
     atom_info = []

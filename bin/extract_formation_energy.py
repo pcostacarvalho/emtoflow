@@ -2,9 +2,24 @@
 """
 Extract phase 3 energies from EMTO calculations and compute formation energies.
 Uses energy per site from fcd calculation outputs.
+
+Supports generic binary alloys A-B:
+- Discovery mode: finds all folders named AX_BY (e.g. Cu50_Mg50) and parses composition from the name.
+- Single-folder mode: use one folder by name (e.g. TiAg). If the folder name is not AX_BY,
+  composition must be provided in the formation energy config YAML.
+
+Config file (e.g. formation_energy_config.yaml):
+  element_a: Cu
+  element_b: Mg
+  reference_energy_a: -3310.060512
+  reference_energy_b: -400.662871
+  # Optional: single folder to process (otherwise discover all AX_BY in cwd)
+  folder: null
+  # Required when folder is set and folder name is not AX_BY (e.g. folder: TiAg)
+  composition: null   # e.g. [50, 50] for 50% A, 50% B (must sum to 100)
 """
 
-import os
+import argparse
 import re
 import json
 import numpy as np
@@ -12,9 +27,21 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import sys
 
+try:
+    import yaml
+except ImportError:
+    yaml = None
+
 # Add parent directory to path to import modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from modules.extract_results import parse_kfcd
+
+# Default config (Cu-Mg) when no config file is used
+DEFAULT_ELEMENT_A = "Cu"
+DEFAULT_ELEMENT_B = "Mg"
+DEFAULT_E_REF_A = -3310.060512
+DEFAULT_E_REF_B = -400.662871
+DEFAULT_CONFIG_FILENAME = "formation_energy_config.yaml"
 
 
 def find_fcd_prn_file(folder_path):
@@ -89,138 +116,271 @@ def extract_phase3_energy(folder_path, functional='GGA'):
     return None, None
 
 
-def parse_composition(folder_name):
+def _ax_by_regex(element_a, element_b):
+    """Build regex pattern for folder names AX_BY (e.g. Cu50_Mg50)."""
+    # Element symbols are letters only; no regex escaping needed
+    return re.compile(r"^" + re.escape(element_a) + r"(\d+)_" + re.escape(element_b) + r"(\d+)$")
+
+
+def folder_matches_ax_by(folder_name, element_a, element_b):
+    """Return True if folder name matches AX_BY for the given elements."""
+    return _ax_by_regex(element_a, element_b).match(folder_name) is not None
+
+
+def parse_composition_from_folder(folder_name, element_a, element_b):
     """
-    Parse composition from folder name like 'Cu30_Mg70'.
-    Returns: (Cu_percent, Mg_percent)
+    Parse composition from folder name like 'Cu30_Mg70' or 'Ti50_Ag50'.
+    Returns: (pct_a, pct_b) or (None, None) if folder name does not match AX_BY.
     """
-    match = re.match(r'Cu(\d+)_Mg(\d+)', folder_name)
-    if match:
-        cu_percent = int(match.group(1))
-        mg_percent = int(match.group(2))
-        return cu_percent, mg_percent
+    m = _ax_by_regex(element_a, element_b).match(folder_name)
+    if m:
+        pct_a = int(m.group(1))
+        pct_b = int(m.group(2))
+        if pct_a + pct_b == 100:
+            return pct_a, pct_b
     return None, None
 
 
+def load_formation_energy_config(config_path):
+    """
+    Load and validate formation energy config from YAML.
+    Returns dict with: element_a, element_b, reference_energy_a, reference_energy_b,
+    folder (optional), composition (optional).
+    If folder is set and folder name is not AX_BY, composition is required.
+    """
+    if yaml is None:
+        raise RuntimeError("PyYAML is required for config file support. Install with: pip install pyyaml")
+    path = Path(config_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Config file not found: {path}")
+    with open(path, "r") as f:
+        cfg = yaml.safe_load(f)
+    if not cfg or not isinstance(cfg, dict):
+        raise ValueError("Config must be a non-empty YAML object.")
+
+    element_a = cfg.get("element_a", DEFAULT_ELEMENT_A)
+    element_b = cfg.get("element_b", DEFAULT_ELEMENT_B)
+    reference_energy_a = cfg.get("reference_energy_a", DEFAULT_E_REF_A)
+    reference_energy_b = cfg.get("reference_energy_b", DEFAULT_E_REF_B)
+    folder = cfg.get("folder")
+    composition = cfg.get("composition")
+
+    for key, val in [("element_a", element_a), ("element_b", element_b)]:
+        if not isinstance(val, str) or not val.strip():
+            raise ValueError(f"Config '{key}' must be a non-empty string.")
+    for key, val in [("reference_energy_a", reference_energy_a), ("reference_energy_b", reference_energy_b)]:
+        if not isinstance(val, (int, float)):
+            raise ValueError(f"Config '{key}' must be a number (Ry/site).")
+
+    if folder is not None:
+        folder = str(folder).strip()
+        folder_basename = Path(folder).name
+        if not folder_matches_ax_by(folder_basename, element_a, element_b):
+            if composition is None:
+                raise ValueError(
+                    f"Folder '{folder}' does not match pattern {element_a}X_{element_b}Y (e.g. {element_a}50_{element_b}50). "
+                    "You must set 'composition' in the formation energy config YAML (e.g. composition: [50, 50])."
+                )
+            if not isinstance(composition, (list, tuple)) or len(composition) != 2:
+                raise ValueError("Config 'composition' must be a list of two numbers [pct_a, pct_b] that sum to 100.")
+            pct_a, pct_b = float(composition[0]), float(composition[1])
+            if abs(pct_a + pct_b - 100.0) > 1e-6:
+                raise ValueError(f"Config 'composition' must sum to 100, got {composition}.")
+
+    return {
+        "element_a": element_a.strip(),
+        "element_b": element_b.strip(),
+        "reference_energy_a": float(reference_energy_a),
+        "reference_energy_b": float(reference_energy_b),
+        "folder": folder,
+        "composition": composition,
+    }
+
+
+def _parse_args():
+    parser = argparse.ArgumentParser(
+        description="Extract phase 3 energies and compute formation energies for binary A-B alloys."
+    )
+    parser.add_argument(
+        "--config", "-c",
+        type=str,
+        default=None,
+        help=f"Path to formation energy config YAML (default: {DEFAULT_CONFIG_FILENAME} in cwd)",
+    )
+    parser.add_argument("--element-a", type=str, default=None, help="Element A (e.g. Cu)")
+    parser.add_argument("--element-b", type=str, default=None, help="Element B (e.g. Mg)")
+    parser.add_argument("--E-a", type=float, default=None, help="Reference energy A (Ry/site)")
+    parser.add_argument("--E-b", type=float, default=None, help="Reference energy B (Ry/site)")
+    parser.add_argument("--folder", type=str, default=None, help="Single folder to process (e.g. TiAg). If not AX_BY, set composition in config.")
+    parser.add_argument("--composition", type=str, default=None, help="Composition as pct_a,pct_b (e.g. 50,50). Required if folder is not AX_BY.")
+    return parser.parse_args()
+
+
 def main():
-    # Current directory
+    args = _parse_args()
     current_dir = Path.cwd()
-    
-    # Dictionary to store results: {Cu_percent: energy}
-    results = {}
-    
-    # Find all composition folders
-    composition_folders = sorted([d for d in current_dir.iterdir() 
-                                 if d.is_dir() and re.match(r'Cu\d+_Mg\d+', d.name)])
-    
-    if not composition_folders:
-        print("No composition folders found (Cu*_Mg* pattern)")
-        return
-    
+
+    # Load config: file first, then CLI overrides
+    config_path = args.config or current_dir / DEFAULT_CONFIG_FILENAME
+    if Path(config_path).exists() and yaml is not None:
+        try:
+            cfg = load_formation_energy_config(config_path)
+        except Exception as e:
+            print(f"Error loading config {config_path}: {e}")
+            sys.exit(1)
+    else:
+        cfg = {
+            "element_a": DEFAULT_ELEMENT_A,
+            "element_b": DEFAULT_ELEMENT_B,
+            "reference_energy_a": DEFAULT_E_REF_A,
+            "reference_energy_b": DEFAULT_E_REF_B,
+            "folder": None,
+            "composition": None,
+        }
+
+    if args.element_a is not None:
+        cfg["element_a"] = args.element_a
+    if args.element_b is not None:
+        cfg["element_b"] = args.element_b
+    if args.E_a is not None:
+        cfg["reference_energy_a"] = args.E_a
+    if args.E_b is not None:
+        cfg["reference_energy_b"] = args.E_b
+    if args.folder is not None:
+        cfg["folder"] = args.folder
+    if args.composition is not None:
+        parts = [x.strip() for x in args.composition.split(",")]
+        if len(parts) != 2:
+            print("Error: --composition must be two numbers separated by comma (e.g. 50,50)")
+            sys.exit(1)
+        try:
+            cfg["composition"] = [float(parts[0]), float(parts[1])]
+        except ValueError:
+            print("Error: --composition must be two numbers (e.g. 50,50)")
+            sys.exit(1)
+
+    # Re-validate: if folder set and not AX_BY, composition required
+    folder = cfg.get("folder")
+    element_a = cfg["element_a"]
+    element_b = cfg["element_b"]
+    if folder:
+        folder_basename = Path(folder).name
+        if not folder_matches_ax_by(folder_basename, element_a, element_b):
+            if not cfg.get("composition"):
+                print(
+                    f"Error: Folder '{folder}' does not match pattern {element_a}X_{element_b}Y. "
+                    "Set 'composition' in the config YAML (e.g. composition: [50, 50]) or use --composition 50,50."
+                )
+                sys.exit(1)
+            comp = cfg["composition"]
+            if abs(comp[0] + comp[1] - 100.0) > 1e-6:
+                print(f"Error: composition must sum to 100, got {comp}")
+                sys.exit(1)
+
+    E_ref_a = cfg["reference_energy_a"]
+    E_ref_b = cfg["reference_energy_b"]
+
+    # Resolve folders and (pct_a, pct_b) per folder
+    entries = []  # list of (folder_path, pct_a, pct_b)
+
+    if folder is not None:
+        folder_path = current_dir / folder if not Path(folder).is_absolute() else Path(folder)
+        if not folder_path.is_dir():
+            print(f"Error: Folder not found: {folder_path}")
+            sys.exit(1)
+        folder_basename = folder_path.name
+        if folder_matches_ax_by(folder_basename, element_a, element_b):
+            pct_a, pct_b = parse_composition_from_folder(folder_basename, element_a, element_b)
+        else:
+            pct_a, pct_b = cfg["composition"][0], cfg["composition"][1]
+        entries.append((folder_path, int(round(pct_a)), int(round(pct_b))))
+    else:
+        pattern = _ax_by_regex(element_a, element_b)
+        composition_folders = sorted(
+            [d for d in current_dir.iterdir() if d.is_dir() and pattern.match(d.name)]
+        )
+        if not composition_folders:
+            print(f"No composition folders found matching {element_a}X_{element_b}Y (e.g. {element_a}50_{element_b}50)")
+            return
+        for d in composition_folders:
+            pct_a, pct_b = parse_composition_from_folder(d.name, element_a, element_b)
+            if pct_a is not None:
+                entries.append((d, pct_a, pct_b))
+
     print("Extracting phase 3 energies from fcd/prn files...")
     print("-" * 60)
-    
-    # Dictionary to store energy per site: {Cu_percent: energy_per_site}
-    results_per_site = {}
-    # Dictionary to store total energies: {Cu_percent: total_energy}
-    results_total = {}
-    
-    for folder in composition_folders:
-        cu_percent, mg_percent = parse_composition(folder.name)
-        if cu_percent is None:
-            continue
-        
-        total_energy, energy_per_site = extract_phase3_energy(folder)
-        
+
+    results_per_site = {}   # pct_a -> energy_per_site
+    results_total = {}     # pct_a -> total_energy
+
+    for folder_path, pct_a, pct_b in entries:
+        total_energy, energy_per_site = extract_phase3_energy(folder_path)
         if energy_per_site is not None:
-            results_per_site[cu_percent] = energy_per_site
+            results_per_site[pct_a] = energy_per_site
             if total_energy is not None:
-                results_total[cu_percent] = total_energy
-            print(f"{folder.name:15s} Cu: {cu_percent:3d}%  Total: {total_energy:12.6f} Ry  Per site: {energy_per_site:12.6f} Ry/site")
+                results_total[pct_a] = total_energy
+            print(f"{folder_path.name:15s} {element_a}: {pct_a:3d}%  Total: {total_energy:12.6f} Ry  Per site: {energy_per_site:12.6f} Ry/site")
         else:
-            print(f"{folder.name:15s} Cu: {cu_percent:3d}%  Energy: NOT FOUND")
-    
-    # Use energy per site for formation energy calculations
-    results = results_per_site
-    
-    if not results:
+            print(f"{folder_path.name:15s} {element_a}: {pct_a:3d}%  Energy: NOT FOUND")
+
+    if not results_per_site:
         print("\nNo energies were extracted. Please check the file structure.")
         return
-    
-    # Calculate formation energies using energy per site
-    # Use fixed reference values for pure elements (energy per site)
-    # These are the fixed reference values provided by the user
-    E_Cu_pure = -3310.060512  # Cu 100% (Ry/site)
-    E_Mg_pure = -400.662871   # Mg 100% (Ry/site)
-    
+
     print("\n" + "=" * 60)
-    print(f"Reference energies (per site):")
-    print(f"  E(Cu 100%) = {E_Cu_pure:.6f} Ry/site")
-    print(f"  E(Mg 100%) = {E_Mg_pure:.6f} Ry/site")
+    print("Reference energies (per site):")
+    print(f"  E({element_a} 100%) = {E_ref_a:.6f} Ry/site")
+    print(f"  E({element_b} 100%) = {E_ref_b:.6f} Ry/site")
     print("=" * 60)
-    
+
     formation_energies = {}
-    
     print("\nFormation Energies:")
     print("-" * 60)
-    
-    for cu_percent in sorted(results.keys()):
-        mg_percent = 100 - cu_percent
-        conc_Cu = cu_percent / 100.0
-        conc_Mg = mg_percent / 100.0
-        
-        E_alloy = results[cu_percent]
-        
-        # Formation energy formula
-        E_form = E_alloy - E_Cu_pure * conc_Cu - E_Mg_pure * conc_Mg
-        
-        formation_energies[cu_percent] = E_form
-        
-        print(f"Cu{cu_percent:3d}_Mg{mg_percent:3d}  E_form = {E_form:12.6f} Ry/site")
-    
-    # Save to file
+
+    for pct_a in sorted(results_per_site.keys()):
+        pct_b = 100 - pct_a
+        conc_a = pct_a / 100.0
+        conc_b = pct_b / 100.0
+        E_alloy = results_per_site[pct_a]
+        E_form = E_alloy - E_ref_a * conc_a - E_ref_b * conc_b
+        formation_energies[pct_a] = E_form
+        print(f"{element_a}{pct_a:3d}_{element_b}{pct_b:3d}  E_form = {E_form:12.6f} Ry/site")
+
+    # Output files use "A_percent" in header (generic)
     output_file = "formation_energies.dat"
-    with open(output_file, 'w') as f:
-        f.write("# Cu_percent  FormationEnergy(Ry/site)\n")
-        for cu_percent in sorted(formation_energies.keys()):
-            f.write(f"{cu_percent:5d}  {formation_energies[cu_percent]:15.8f}\n")
-    
+    with open(output_file, "w") as f:
+        f.write(f"# {element_a}_percent  FormationEnergy(Ry/site)\n")
+        for pct_a in sorted(formation_energies.keys()):
+            f.write(f"{pct_a:5d}  {formation_energies[pct_a]:15.8f}\n")
     print(f"\nFormation energies saved to: {output_file}")
-    
-    # Also save raw energies (energy per site)
+
     output_file_raw = "energies_raw.dat"
-    with open(output_file_raw, 'w') as f:
-        f.write("# Cu_percent  EnergyPerSite(Ry/site)  TotalEnergy(Ry)\n")
-        for cu_percent in sorted(results.keys()):
-            energy_per_site = results[cu_percent]
-            total_energy = results_total.get(cu_percent, None)
+    with open(output_file_raw, "w") as f:
+        f.write(f"# {element_a}_percent  EnergyPerSite(Ry/site)  TotalEnergy(Ry)\n")
+        for pct_a in sorted(results_per_site.keys()):
+            energy_per_site = results_per_site[pct_a]
+            total_energy = results_total.get(pct_a)
             if total_energy is not None:
-                f.write(f"{cu_percent:5d}  {energy_per_site:15.8f}  {total_energy:15.8f}\n")
+                f.write(f"{pct_a:5d}  {energy_per_site:15.8f}  {total_energy:15.8f}\n")
             else:
-                f.write(f"{cu_percent:5d}  {energy_per_site:15.8f}  {'N/A':>15s}\n")
-    
+                f.write(f"{pct_a:5d}  {energy_per_site:15.8f}  {'N/A':>15s}\n")
     print(f"Raw energies saved to: {output_file_raw}")
-    
-    # Create plot
-    cu_percentages = np.array(sorted(formation_energies.keys()))
-    e_form_values = np.array([formation_energies[cp] for cp in cu_percentages])
-    
+
+    # Plot
+    pct_a_list = np.array(sorted(formation_energies.keys()))
+    e_form_values = np.array([formation_energies[p] for p in pct_a_list])
+
     plt.figure(figsize=(10, 6))
-    plt.plot(cu_percentages, e_form_values, 'o-', linewidth=2, markersize=8, 
-             color='royalblue', label='Formation Energy')
-    plt.axhline(y=0, color='gray', linestyle='--', linewidth=1, alpha=0.5)
-    plt.xlabel('Cu Percentage (%)', fontsize=12)
-    plt.ylabel('Formation Energy (Ry/site)', fontsize=12)
-    plt.title('Formation Energy of Cu-Mg Alloys (per site)', fontsize=14)
+    plt.plot(pct_a_list, e_form_values, "o-", linewidth=2, markersize=8, color="royalblue", label="Formation Energy")
+    plt.axhline(y=0, color="gray", linestyle="--", linewidth=1, alpha=0.5)
+    plt.xlabel(f"{element_a} Percentage (%)", fontsize=12)
+    plt.ylabel("Formation Energy (Ry/site)", fontsize=12)
+    plt.title(f"Formation Energy of {element_a}-{element_b} Alloys (per site)", fontsize=14)
     plt.grid(True, alpha=0.3)
     plt.legend(fontsize=10)
     plt.tight_layout()
-    
-    # Save plot
-    plt.savefig('formation_energy_vs_composition.png', dpi=300)
-    print(f"Plot saved to: formation_energy_vs_composition.png")
-    
-    # Show plot
+    plt.savefig("formation_energy_vs_composition.png", dpi=300)
+    print("Plot saved to: formation_energy_vs_composition.png")
     plt.show()
 
 

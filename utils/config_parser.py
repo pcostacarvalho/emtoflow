@@ -177,10 +177,15 @@ def validate_config(config: Dict[str, Any]) -> None:
     # Validate NL if provided (max angular momentum: 1=s, 2=p, 3=d, 4=f)
     nl_val = config.get('NL')
     if nl_val is not None:
-        if not isinstance(nl_val, int) or nl_val < 1 or nl_val > 4:
+        try:
+            nl_int = int(nl_val)
+        except (TypeError, ValueError):
+            nl_int = None
+        if nl_int is None or nl_int < 1 or nl_int > 4:
             raise ConfigValidationError(
                 f"NL must be an integer between 1 and 4 (got: {nl_val})"
             )
+        config['NL'] = nl_int  # Coerce to int (e.g. 4.0 from YAML)
 
     # Validate magnetic field
     if config['magnetic'] not in ['P', 'F']:
@@ -1098,6 +1103,10 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
     for key, default_value in defaults.items():
         if key not in config:
             config[key] = default_value
+
+    # Normalize lowercase 'nl' to 'NL' (YAML may provide either)
+    if config.get('NL') is None and config.get('nl') is not None:
+        config['NL'] = config['nl']
 
     # Apply loop_perc sub-defaults if loop_perc is enabled
     if config['loop_perc'] is not None and config['loop_perc'].get('enabled') is True:

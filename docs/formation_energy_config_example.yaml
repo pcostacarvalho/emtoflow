@@ -1,0 +1,25 @@
+# Formation energy config for binary alloys A-B.
+# Used by bin/extract_formation_energy.py (and optionally bin/plot_formation_energy.py).
+#
+# Discovery mode (default): leave folder and composition null.
+#   Script finds all subfolders named AX_BY (e.g. Cu50_Mg50) and parses composition from the name.
+#
+# Single-folder mode: set folder to the name of the folder to process.
+#   - If the folder name matches AX_BY (e.g. Ti50_Ag50), composition is parsed from the name.
+#   - If the folder name does NOT match AX_BY (e.g. TiAg, TiAg_fcc), you MUST set composition.
+
+# --- Example: Cu-Mg (discovery mode, no folder) ---
+# element_a: Cu
+# element_b: Mg
+# reference_energy_a: -3310.060512
+# reference_energy_b: -400.662871
+# folder: null
+# composition: null
+
+# --- Example: TiAg single folder (name not AX_BY → composition required) ---
+element_a: Ti
+element_b: Ag
+reference_energy_a: -1234.0   # Ry/site, pure Ti (replace with your value)
+reference_energy_b: -567.0     # Ry/site, pure Ag (replace with your value)
+folder: TiAg                   # or e.g. TiAg_fcc
+composition: [50, 50]          # required when folder is not AX_BY; [pct_a, pct_b], must sum to 100
