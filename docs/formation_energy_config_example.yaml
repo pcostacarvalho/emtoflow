@@ -1,7 +1,12 @@
 # Formation energy config for binary alloys A-B.
 # Used by bin/extract_formation_energy.py (and optionally bin/plot_formation_energy.py).
 #
-# Discovery mode (default): leave folder and composition null.
+# Reference energies (reference_energy_a, reference_energy_b) are ALWAYS taken from this file
+# (or from --E-a / --E-b on the command line), in BOTH modes:
+#   - Several folders (discovery): you need this YAML to provide elements and reference energies.
+#   - Single folder: same; plus folder and optionally composition.
+#
+# Discovery mode: leave folder and composition null.
 #   Script finds all subfolders named AX_BY (e.g. Cu50_Mg50) and parses composition from the name.
 #
 # Single-folder mode: set folder to the name of the folder to process.

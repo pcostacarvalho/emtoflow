@@ -25,6 +25,8 @@ where:
 
 ### Option 1: Many compositions (folders named AX_BY)
 
+When you have several composition folders (e.g. `Cu50_Mg50`, `Cu60_Mg40`, …), you **still need the YAML file** to provide the two elements and their **reference energies** (Ry/site). The script does not infer reference energies from the run; they must come from the config (or from the command line).
+
 1. Put your run directory where each composition has its own subfolder named like `Cu50_Mg50`, `Cu60_Mg40`, etc. (element symbols + percentages that sum to 100).
 
 2. In that directory, create `formation_energy_config.yaml` with your elements and reference energies (Ry/site):
@@ -33,7 +35,7 @@ where:
    element_b: Mg
    reference_energy_a: -3310.060512
    reference_energy_b: -400.662871
-   # folder and composition left null → discovery mode
+   # folder and composition left null → discovery mode (finds all AX_BY folders)
    folder: null
    composition: null
    ```
@@ -43,7 +45,7 @@ where:
    cd /path/to/CuMg_fcc
    python /path/to/EMTO_input_automation/bin/extract_formation_energy.py
    ```
-   If you don’t create a config file, the script uses Cu–Mg defaults and looks for `Cu*_Mg*` folders.
+   If you don’t create a config file, the script falls back to Cu–Mg defaults and looks for `Cu*_Mg*` folders. For any other alloy, provide the YAML with `element_a`, `element_b`, `reference_energy_a`, and `reference_energy_b`.
 
 4. Outputs (in the same directory): `formation_energies.dat`, `energies_raw.dat`, and `formation_energy_vs_composition.png`.
 
@@ -95,7 +97,9 @@ Use `--config` to point to a config file in another location.
 
 The Python script reads `formation_energy_config.yaml` from the current directory (or a path given with `--config`). If the file is missing, it defaults to Cu–Mg with built-in reference energies.
 
-**Required (or defaults):** `element_a`, `element_b`, `reference_energy_a`, `reference_energy_b` (Ry/site).
+**In both modes** (several folders or a single folder), the YAML is where you provide **reference energies** (and elements) for the formation energy formula. The script never infers reference energies from the run; they must be set in the config or via `--E-a` / `--E-b`.
+
+**Required in YAML (or use defaults only for Cu–Mg):** `element_a`, `element_b`, `reference_energy_a`, `reference_energy_b` (Ry/site).
 
 **Optional:**
 - **folder:** Name of a single folder to process (e.g. `TiAg`). If omitted, the script discovers all subfolders matching AX_BY.
