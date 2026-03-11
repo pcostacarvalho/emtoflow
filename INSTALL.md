@@ -10,7 +10,7 @@ This guide will help you install all dependencies needed to run the EMTO Input A
 
 ## Installation Methods
 
-### Method 1: Using pip (Recommended)
+### Method 1: Using Conda environment (Recommended)
 
 1. **Clone or download this repository**:
    ```bash
@@ -18,34 +18,22 @@ This guide will help you install all dependencies needed to run the EMTO Input A
    cd EMTO_input_automation
    ```
 
-2. **Install dependencies**:
+2. **Create a new conda environment from `env.yaml`**:
    ```bash
-   pip install -r requirements.txt
+   conda env create -f env.yaml
    ```
 
-   Or install directly:
-   ```bash
-   pip install numpy scipy pymatgen pandas matplotlib pyyaml
-   ```
-
-### Method 2: Using conda
-
-1. **Create a new conda environment**:
-   ```bash
-   conda env create -f environment.yml
-   ```
-
-2. **Activate the environment**:
+3. **Activate the environment**:
    ```bash
    conda activate emto-input-automation
    ```
 
-3. **Verify installation**:
+4. **Verify installation**:
    ```bash
    python -c "import numpy, scipy, pymatgen, pandas, matplotlib, yaml; print('All packages installed successfully!')"
    ```
 
-### Method 3: Manual Installation
+### Method 2: Manual Installation (advanced users)
 
 If you prefer to install packages individually:
 
@@ -119,15 +107,16 @@ pip list | grep -E "numpy|scipy|pymatgen|pandas|matplotlib|pyyaml"
 
 ### Issue: Permission errors during installation
 
-**Solution**: Use `--user` flag or a virtual environment:
+**Solution**: Use a virtual environment or Conda environment:
 ```bash
-# Option 1: Install for current user only
-pip install --user -r requirements.txt
+# Option 1: Use Conda (recommended)
+conda env create -f env.yaml
+conda activate emto-input-automation
 
-# Option 2: Use virtual environment (recommended)
+# Option 2: Use a virtual environment with pip
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+pip install numpy>=1.19.0 scipy>=1.5.0 pymatgen>=2022.0.0 pandas>=1.3.0 matplotlib>=3.3.0 pyyaml>=5.4.0
 ```
 
 ## Next Steps

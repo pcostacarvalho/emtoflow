@@ -1034,13 +1034,16 @@ def apply_config_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
         'job_mode': 'serial',
         'job_system': 'tetralith',  # Options: 'tetralith' or 'pelle'
 
-        # Executable paths (with default paths)
-        'kstr_executable': "/home/x_pamca/postdoc_proj/emto/bin/kstr.exe",
-        'shape_executable': "/home/x_pamca/postdoc_proj/emto/bin/shape.exe",
-        'kgrn_executable': "/home/x_pamca/postdoc_proj/emto/bin/kgrn_mpi.x",
-        'kfcd_executable': "/home/x_pamca/postdoc_proj/emto/bin/kfcd.exe",
-        'eos_executable': "/home/x_pamca/postdoc_proj/emto/bin/eos.exe",
-        'atom_file': "/home/x_pamca/postdoc_proj/emto/jij_EMTO/kgrn_new2020/ATOM.cfg",  # Path to ATOM.cfg file
+        # Executable paths (must be provided explicitly by the user in YAML)
+        # These defaults are intentionally None to avoid hard-coding
+        # installation-specific paths in the public repository.
+        'kstr_executable': None,
+        'shape_executable': None,
+        'kgrn_executable': None,
+        'kfcd_executable': None,
+        'eos_executable': None,
+        # Path to ATOM.cfg file used by KGRN input generation
+        'atom_file': None,
 
         # EOS defaults
         'eos_type': 'MO88',

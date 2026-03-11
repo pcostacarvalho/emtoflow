@@ -36,72 +36,106 @@ EMTO requires multiple input files (KSTR, SHAPE, KGRN, KFCD) for each calculatio
 git clone https://github.com/pcostacarvalho/EMTO_input_automation.git
 cd EMTO_input_automation
 
-# Install dependencies
-pip install pymatgen numpy matplotlib
+# Create and activate Conda environment
+conda env create -f env.yaml
+conda activate emto-input-automation
 ```
 
-**Requirements:** Python 3.7+, pymatgen, numpy, matplotlib
+**Requirements:** Python 3.7+, numpy, scipy, pandas, matplotlib, pyyaml, pymatgen
 
 ---
 
-## Quick Start
+## Quick Start (Python API)
 
-### Optimization Workflow (Recommended)
+The recommended way to use this repository is as a **Python library**: you write a YAML config file, load it in Python, and run the optimization workflow.
 
-The optimization workflow is the main entry point for automated c/a and SWS optimization:
+### 1. Create a minimal configuration file
 
-**1. Create configuration file** (copy from template):
-```bash
-cp refs/optimization_config_template.yaml my_structure.yaml
-```
+Create `fept_example.yaml` in the repository root:
 
-**2. Edit configuration** (minimal example):
 ```yaml
 # Basic settings
-output_path: "./Cu2Mg_calc"
-job_name: "cu2mg"
+output_path: "./FePt_example"
+job_name: "fept_example"
 
-# Structure (choose one)
-cif_file: "files/systems/Cu2Mg_laves.cif"  # From CIF
-# OR
-lat: 2                                      # From parameters (2=FCC)
-a: 7.2                                      # Lattice parameter (Å)
-sites: [{'position': [0,0,0], 'elements': ['Cu','Mg'], 'concentrations': [0.67, 0.33]}]
+# Structure from lattice parameters (L1₀ FePt)
+lat: 5                 # Body-centered tetragonal
+a: 3.70                # Å
+c: 3.552               # Å (c/a ≈ 0.96)
+sites:
+  - position: [0.0, 0.0, 0.0]
+    elements: ['Fe']
+    concentrations: [1.0]
+  - position: [0.5, 0.5, 0.5]
+    elements: ['Pt']
+    concentrations: [1.0]
 
 # EMTO parameters
 dmax: 1.8
-magnetic: "P"
+magnetic: "F"
 
-# K-mesh (optional - rescales automatically based on lattice size)
-rescale_k: true
+# K-mesh
+nkx: 21
+nky: 21
+nkz: 21
+rescale_k: false
 
-# Optimization flags
-optimize_ca: false   # Enable c/a optimization
-optimize_sws: false  # Enable SWS optimization
-prepare_only: true   # Just create inputs, don't run calculations
+# Optimization / execution
+optimize_ca: false
+optimize_sws: false
+prepare_only: true        # Only generate inputs, do not run EMTO
 
-# Ranges (auto-generated if single values provided)
-ca_ratios: [1.0]
-sws_values: [2.6]
+# Executable paths (must be set if you later run EMTO / EOS)
+eos_executable: null
+kstr_executable: null
+shape_executable: null
+kgrn_executable: null
+kfcd_executable: null
+atom_file: null
 ```
 
-**3. Run workflow**:
-```bash
-python bin/run_optimization.py my_structure.yaml
+This minimal example focuses on **input generation** (no EMTO executables are required as long as `prepare_only: true`).
+
+### 2. Run the workflow from Python
+
+In a Python script or notebook:
+
+```python
+from utils.config_parser import load_and_validate_config
+from modules.optimization_workflow import OptimizationWorkflow
+
+# Load and validate YAML configuration
+config = load_and_validate_config("fept_example.yaml")
+
+# Create and run the optimization workflow
+workflow = OptimizationWorkflow(config=config)
+results = workflow.run()
+
+print("Phases completed:", list(results.keys()))
+print("Output written to:", workflow.base_path)
 ```
 
-**Output structure**:
-```
-Cu2Mg_calc/
-├── cu2mg_structure.json           # Structure information
-├── smx/                            # KSTR inputs
-├── shp/                            # SHAPE inputs
-├── pot/                            # Potential directory
-├── chd/                            # Charge density directory
-├── fcd/                            # KFCD outputs
-├── cu2mg_1.00_2.60.dat            # KGRN input
-└── run_cu2mg.sh                   # SLURM job script
-```
+This will:
+- Build the EMTO structure using `modules.structure_builder`
+- Generate all input files in `./FePt_example/`
+- Write `fept_example_structure.json` with detailed structure information
+
+---
+
+## Public Python API Surface
+
+The main, stable entry points intended for users are:
+
+- **`OptimizationWorkflow`** (`modules.optimization_workflow.OptimizationWorkflow`):  
+  High-level orchestration of c/a + SWS optimization and final calculation, driven by a validated config dictionary.
+- **`create_emto_structure`** (`modules.structure_builder.create_emto_structure`):  
+  Create an EMTO-ready structure dictionary either from a CIF file or from lattice parameters + sites.
+- **`create_emto_inputs`** (`modules.create_input.create_emto_inputs`):  
+  Generate EMTO input files for c/a and SWS sweeps from a config (without running EMTO itself).
+- **`load_and_validate_config`** (`utils.config_parser.load_and_validate_config`):  
+  Load a YAML/JSON config file (or dict), apply defaults, and enforce validation rules in one step.
+
+Other modules in `modules/` and `utils/` are considered internal implementation details and may change more frequently.
 
 ---
 
@@ -210,7 +244,7 @@ export_csv: true
 plot_format: "png"
 ```
 
-**Full template**: `refs/optimization_config_template.yaml`
+**Full template**: `docs/optimization_config_template.yaml`
 
 ---
 
@@ -272,7 +306,7 @@ sites:
 
 ### Ordered Intermetallics
 
-**L10 FePt:**
+**L1₀ FePt:**
 ```yaml
 lat: 5              # Body-centered tetragonal
 a: 3.7
@@ -286,7 +320,7 @@ sites:
     concentrations: [1.0]
 ```
 
-**See**: `ALLOY_WORKFLOW_GUIDE.md` for detailed examples
+For more alloy composition loops and master configs, see `docs/ALLOY_COMPOSITION_LOOPS.md`.
 
 ---
 
@@ -294,9 +328,6 @@ sites:
 
 ```
 EMTO_input_automation/
-├── bin/
-│   ├── run_optimization.py          # Main CLI tool for optimization workflow
-│   └── generate_percentages.py      # Generate YAML files for composition loops
 ├── modules/
 │   ├── optimization_workflow.py     # Main optimization workflow orchestrator
 │   ├── optimization/                # Optimization submodules
@@ -309,7 +340,6 @@ EMTO_input_automation/
 │   ├── dmax_optimizer.py            # DMAX cutoff optimization
 │   ├── dos.py                       # DOS parsing and plotting
 │   ├── extract_results.py           # Results parsing (KGRN/KFCD)
-│   ├── alloy_loop.py                # Legacy composition loop (automatic)
 │   ├── generate_percentages/        # Composition YAML generation
 │   │   ├── generator.py
 │   │   ├── composition.py
@@ -327,14 +357,11 @@ EMTO_input_automation/
 │   ├── config_parser.py             # Configuration validation and defaults
 │   ├── aux_lists.py                 # K-point rescaling
 │   ├── file_io.py                   # File utilities
-│   └── running_bash.py               # Job execution (SLURM/local)
-├── refs/
-│   ├── optimization_config_template.yaml  # Complete config template
-│   ├── DEVELOPMENT_GUIDELINES.md          # Development guidelines
-│   ├── LATTICE_TYPES.md                    # Lattice type reference
-│   └── [module summaries]                  # Brief summaries of each module
-├── files/systems/                   # Example configurations
-└── code-tests/                     # Test suite
+│   └── running_bash.py              # Job execution (SLURM/local)
+├── docs/                            # Documentation (see below)
+├── files/systems/                   # Example configurations, CIFs, example YAMLs
+├── tests/                           # Simple tests (portfolio / development)
+└── code-tests/                      # Extended tests and examples
 ```
 
 ---
@@ -391,25 +418,25 @@ sws_values: [2.6]
 
 ## Documentation
 
-All documentation is in the `refs/` directory:
+All documentation is in the `docs/` directory:
 
-- **`optimization_config_template.yaml`** - Complete configuration template with all options
-- **`DEVELOPMENT_GUIDELINES.md`** - Code development guidelines and best practices
-- **`LATTICE_TYPES.md`** - EMTO lattice type reference (LAT 1-14) with primitive vectors
-- **`WORKFLOW_DIAGRAMS.md`** - Visual workflow diagrams showing module connections
+- **`optimization_config_template.yaml`** – Complete configuration template with all options
+- **`DEVELOPMENT_GUIDELINES.md`** – Code development guidelines and best practices
+- **`LATTICE_TYPES.md`** – EMTO lattice type reference (LAT 1–14) with primitive vectors
+- **`WORKFLOW_DIAGRAMS.md`** – Visual workflow diagrams showing module connections
 
 ### Module Summaries
 
-- **`OPTIMIZATION_WORKFLOW.md`** - Optimization workflow module (`modules/optimization_workflow.py`)
-- **`STRUCTURE_BUILDER.md`** - Structure builder module (`modules/structure_builder.py`)
-- **`INPUT_GENERATION.md`** - Input file generation (`modules/create_input.py`)
-- **`DMAX_OPTIMIZATION.md`** - DMAX optimizer module (`modules/dmax_optimizer.py`)
-- **`DOS.md`** - DOS module (`modules/dos.py`)
-- **`EOS.md`** - EOS module (`modules/inputs/eos_emto.py`)
-- **`ALLOY_COMPOSITION_LOOPS.md`** - Alloy composition loops (`modules/alloy_loop.py`, `modules/generate_percentages/`)
-- **`GENERATE_PERCENTAGES.md`** - Generate percentages module
-- **`CIF_SUBSTITUTIONS.md`** - CIF element substitutions feature
-- **`OPTIMIZATION_REFACTORING.md`** - Optimization module refactoring notes
+- **`OPTIMIZATION_WORKFLOW.md`** – Optimization workflow module (`modules/optimization_workflow.py`)
+- **`STRUCTURE_BUILDER.md`** – Structure builder module (`modules/structure_builder.py`)
+- **`INPUT_GENERATION.md`** – Input file generation (`modules/create_input.py`)
+- **`DMAX_OPTIMIZATION.md`** – DMAX optimizer module (`modules/dmax_optimizer.py`)
+- **`DOS.md`** – DOS module (`modules/dos.py`)
+- **`EOS.md`** – EOS module (`modules/inputs/eos_emto.py`)
+- **`ALLOY_COMPOSITION_LOOPS.md`** – Alloy composition loops (`modules/generate_percentages/`)
+- **`GENERATE_PERCENTAGES.md`** – Generate percentages module
+- **`CIF_SUBSTITUTIONS.md`** – CIF element substitutions feature
+- **`FORMATION_ENERGY_ANALYSIS.md`** – Formation energy extraction and analysis tools
 
 ---
 
@@ -456,7 +483,7 @@ run_mode: "sbatch"
 
 ### Development Guidelines
 
-See `refs/DEVELOPMENT_GUIDELINES.md` for:
+See `docs/DEVELOPMENT_GUIDELINES.md` for:
 - Centralized validation and defaults
 - Modular code organization
 - Template synchronization
@@ -464,12 +491,14 @@ See `refs/DEVELOPMENT_GUIDELINES.md` for:
 
 ### Testing
 
-```bash
-# Test k-point rescaling
-python tests/test_rescale_k.py
+For lightweight example tests (suitable for CI or local checks), you can run:
 
-# Test DMAX optimization
-python tests/test_fast_dmax_extraction.py
+```bash
+python -m pytest tests/test_rescale_k.py
+
+python -m pytest tests/test_structure_builder_fept.py
+
+python -m pytest tests/test_minimal_config_validation.py
 ```
 
 ---
