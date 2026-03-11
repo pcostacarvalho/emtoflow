@@ -1,4 +1,4 @@
-from utils.config_parser import load_and_validate_config
+from emtoflow.utils.config_parser import load_and_validate_config
 
 
 def test_minimal_parameter_config_validation():
@@ -6,8 +6,8 @@ def test_minimal_parameter_config_validation():
     Minimal in-memory config that should validate successfully.
 
     This uses the parameter workflow (lat, a, sites) and avoids any
-    dependency on EMTO executables by setting create_job_script=False
-    and not enabling optimization features that require eos/kstr paths.
+    dependency on EMTO executables by setting prepare_only=True so that
+    no external EMTO binaries (including ATOM.cfg) are required.
     """
     config_dict = {
         "output_path": "./test_output",
@@ -26,6 +26,7 @@ def test_minimal_parameter_config_validation():
         "optimize_sws": False,
         "optimize_dmax": False,
         "create_job_script": False,
+        "prepare_only": True,
     }
 
     # Should not raise and should return a dict with defaults applied

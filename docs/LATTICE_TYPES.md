@@ -132,39 +132,12 @@ v3 = (c/a*cos(beta), c/a*(cos(alpha)-cos(beta)*cos(gamma))/sin(gamma),
 Note: All angles may differ from 90°
 ```
 
-### Notes on Vectors
-
-- All vectors are normalized to lattice parameter `a`
-- Ratios like `b/a`, `c/a` define the unit cell shape
-- For cubic systems (LAT 1-3): `b/a = c/a = 1`
-- Angles are in radians for calculations (converted from degrees)
-- EMTO internally uses these primitive vectors to construct the crystal
-
-## Common Examples
-
-### Cubic Systems
-- **SC (1)**: Po (Polonium)
-- **FCC (2)**: Cu, Al, Ag, Au, Ni, Pt, Pb
-- **BCC (3)**: Fe, Cr, Mo, W, V
-
-### Tetragonal Systems
-- **ST (5)**: TiO₂ (rutile)
-- **BCT (6)**: In, Sn (white tin)
-
-### Hexagonal Systems
-- **HCP (4)**: Mg, Ti, Co, Zn, Cd
-
-### Others
-- **RHL (7)**: Bi, Sb, As
-- **ORCF (11)**: α-U (uranium)
-- **TRI (14)**: K₂Cr₂O₇
-
 ## Auto-Detection
 
 When using CIF files, the toolkit automatically detects the lattice type:
 
 ```python
-from modules.workflows import create_emto_inputs
+from emtoflow import create_emto_inputs
 
 # LAT is auto-detected from CIF
 create_emto_inputs(
@@ -212,10 +185,11 @@ create_emto_inputs(
 
 ### Notes
 
-- For cubic systems: `b=a`, `c=a` (automatically set)
-- For HCP (LAT=4): `c/a` ratio typically ~1.633, gamma=120°
-- For tetragonal: `c/a` ratio defines distortion from cubic
-- For trigonal (LAT=7): All three angles are equal (alpha = beta = gamma)
+- All vectors are normalized to lattice parameter `a`
+- Ratios like `b/a`, `c/a` define the unit cell shape
+- For cubic systems (LAT 1-3): `b/a = c/a = 1`
+- Angles are in radians for calculations (converted from degrees)
+- EMTO internally uses these primitive vectors to construct the crystal
 - All angles default to 90° except:
   - HCP (LAT=4): gamma=120°
   - Trigonal (LAT=7): alpha=beta=gamma≠90° (all angles equal)
@@ -223,38 +197,3 @@ create_emto_inputs(
   - Base-centered monoclinic (LAT=13): beta≠90°
   - Triclinic (LAT=14): All angles may differ from 90°
 
-## Quick Reference
-
-### By Symmetry
-
-**Highest symmetry (cubic):**
-- LAT 1, 2, 3: One parameter (a)
-
-**Medium symmetry:**
-- LAT 4, 5, 6, 7: Two parameters (a, c)
-- LAT 8-11: Three parameters (a, b, c)
-
-**Lower symmetry:**
-- LAT 12-13: Three parameters + angle (a, b, c, gamma/beta)
-- LAT 14: Three parameters + three angles (a, b, c, alpha, beta, gamma)
-
-## Validation
-
-The toolkit validates lattice parameters during input generation:
-
-```python
-# This will raise an error (missing 'c' for HCP)
-create_emto_inputs(
-    lat=4,  # HCP
-    a=3.0,  # Missing c!
-    # Error: HCP requires both 'a' and 'c' parameters
-)
-
-# Correct usage
-create_emto_inputs(
-    lat=4,  # HCP
-    a=3.0,
-    c=4.9,  # c/a = 1.633
-    # ✓ Valid
-)
-```

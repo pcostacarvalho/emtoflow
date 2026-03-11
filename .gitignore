@@ -19,6 +19,7 @@ sdist/
 var/
 wheels/
 *.egg-info/
+emtoflow.egg-info/
 .installed.cfg
 *.egg
 

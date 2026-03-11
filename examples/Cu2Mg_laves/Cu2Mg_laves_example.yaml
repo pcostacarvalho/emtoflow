@@ -1,0 +1,82 @@
+output_path: "emto_inputs_Cu2Mg_laves"     # Structure from Materials Project, mp-1038
+job_name: "Cu2Mg"
+
+# Structure from CIF (Laves Cu2Mg)
+cif_file: "Cu2Mg.cif"
+lat: null
+a: null
+b: null
+c: null
+alpha: null
+beta: null
+gamma: null
+sites: null
+
+# CIF substitutions: treat Cu2Mg as a random Cu–Mg alloy
+substitutions:
+  Cu:
+    elements: ["Cu", "Mg"]
+    concentrations: [1.0, 0.0]
+  Mg:
+    elements: ["Cu", "Mg"]
+    concentrations: [0.0, 1.0]
+
+# Parameter ranges (single-point, auto from structure)
+ca_ratios: null
+sws_values: null
+initial_sws: null
+auto_generate: false
+ca_step: 0.02
+sws_step: 0.05
+n_points: 7
+
+# EMTO calculation parameters
+dmax: 1.8
+magnetic: "P"
+user_magnetic_moments: {"Cu": 0.0, "Mg": 0.0}
+functional: "GGA"
+
+# Optimization settings (disabled for minimal example)
+optimize_ca: false
+optimize_sws: false
+optimize_dmax: false
+dmax_initial: 2.0
+dmax_target_vectors: 100
+dmax_vector_tolerance: 15
+
+# K-mesh
+nkx: 21
+nky: 21
+nkz: 21
+rescale_k: false
+
+# Alloy percentage loop: vary Cu content from 0–100% in Cu–Mg
+loop_perc:
+  enabled: true
+  start: 0
+  end: 100
+  step: 10
+  site_index: null
+  substitution_elements: ["Cu", "Mg"]
+  phase_diagram: false
+  percentages: null
+
+# Execution / workflow
+prepare_only: true
+run_mode: "local"
+prcs: 4
+slurm_account: "name_of_project"
+slurm_time: "02:00:00"
+slurm_partition: "main"
+create_job_script: false
+job_mode: "serial"
+create_master_job_script: false
+
+# Executable paths (not required when optimizations & job scripts are disabled)
+eos_executable: Null
+kstr_executable: Null
+shape_executable: Null
+kgrn_executable: Null
+kfcd_executable: Null
+atom_file: Null  # Set this to your real ATOM.cfg when running KGRN
+

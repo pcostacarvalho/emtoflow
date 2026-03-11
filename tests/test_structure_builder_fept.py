@@ -1,6 +1,6 @@
 import pathlib
 
-from modules.structure_builder import create_emto_structure
+from emtoflow.modules.structure_builder import create_emto_structure
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]

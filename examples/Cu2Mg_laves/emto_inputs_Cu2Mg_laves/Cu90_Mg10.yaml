@@ -1,0 +1,108 @@
+output_path: Cu90_Mg10
+job_name: Cu2Mg
+cif_file: Cu2Mg.cif
+lat: null
+a: null
+b: null
+c: null
+alpha: null
+beta: null
+gamma: null
+sites: null
+substitutions:
+  Cu:
+    elements:
+    - Cu
+    - Mg
+    concentrations:
+    - 0.9
+    - 0.1
+  Mg:
+    elements:
+    - Cu
+    - Mg
+    concentrations:
+    - 0.9
+    - 0.1
+ca_ratios: null
+sws_values: null
+initial_sws: null
+auto_generate: false
+ca_step: 0.02
+sws_step: 0.05
+n_points: 7
+dmax: 1.8
+magnetic: P
+user_magnetic_moments:
+  Cu: 0.0
+  Mg: 0.0
+functional: GGA
+optimize_ca: false
+optimize_sws: false
+optimize_dmax: false
+dmax_initial: 2.0
+dmax_target_vectors: 100
+dmax_vector_tolerance: 15
+nkx: 21
+nky: 21
+nkz: 21
+rescale_k: false
+loop_perc:
+  enabled: false
+  start: 0
+  end: 100
+  step: 10
+  site_index: null
+  substitution_elements:
+  - Cu
+  - Mg
+  phase_diagram: false
+  percentages: null
+prepare_only: true
+run_mode: local
+prcs: 4
+slurm_account: name_of_project
+slurm_time: 02:00:00
+slurm_partition: main
+create_job_script: false
+job_mode: serial
+create_master_job_script: false
+eos_executable: null
+kstr_executable: null
+shape_executable: null
+kgrn_executable: null
+kfcd_executable: null
+atom_file: null
+NL: null
+job_system: tetralith
+eos_type: MO88
+depth: 1.1
+efmix: 0.9
+tolcpa: 1.0e-06
+tolef: 1.0e-08
+efgs: 0.0
+hx: 0.101
+nx: 5
+amix: 0.01
+vmix: 0.7
+imagz: 0.005
+eps: 0.2
+nz0: 16
+strt: A
+generate_plots: true
+export_csv: true
+plot_format: png
+generate_dos: false
+dos_plot_range:
+- -0.8
+- 0.15
+reference_ca: null
+reference_sws: null
+reference_volume: null
+poll_interval: 30
+max_wait_time: 7200
+timeout_action: stop
+skip_existing: false
+save_intermediate: true
+cleanup_temp: false
+log_level: INFO

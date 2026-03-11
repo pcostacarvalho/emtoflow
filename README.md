@@ -1,4 +1,4 @@
-# EMTO Input Automation
+# EMTOFlow
 
 Python toolkit for automating EMTO (Exact Muffin-Tin Orbitals) input file generation and optimization workflows for electronic structure calculations.
 
@@ -31,14 +31,44 @@ EMTO requires multiple input files (KSTR, SHAPE, KGRN, KFCD) for each calculatio
 
 ## Installation
 
+### Option 1: Install as a library (recommended)
+
+```bash
+pip install git+https://github.com/pcostacarvalho/emtoflow.git
+```
+
+After installation you can:
+
+- Use the **CLI**:
+
+  ```bash
+  emtoflow-opt path/to/config.yaml
+  emtoflow-generate-percentages path/to/master_config.yaml
+  ```
+
+- Or the **Python API**:
+
+  ```python
+  from emtoflow import OptimizationWorkflow, load_and_validate_config
+
+  config = load_and_validate_config("config.yaml")
+  workflow = OptimizationWorkflow(config="config.yaml")
+  results = workflow.run()
+  ```
+
+### Option 2: Local clone + editable install
+
 ```bash
 # Clone repository
-git clone https://github.com/pcostacarvalho/EMTO_input_automation.git
-cd EMTO_input_automation
+git clone https://github.com/pcostacarvalho/emtoflow.git
+cd emtoflow
 
 # Create and activate Conda environment
 conda env create -f env.yaml
-conda activate emto-input-automation
+conda activate emtoflow
+
+# Install in editable/development mode
+pip install -e .
 ```
 
 **Requirements:** Python 3.7+, numpy, scipy, pandas, matplotlib, pyyaml, pymatgen
@@ -101,14 +131,13 @@ This minimal example focuses on **input generation** (no EMTO executables are re
 In a Python script or notebook:
 
 ```python
-from utils.config_parser import load_and_validate_config
-from modules.optimization_workflow import OptimizationWorkflow
+from emtoflow import OptimizationWorkflow, load_and_validate_config
 
 # Load and validate YAML configuration
 config = load_and_validate_config("fept_example.yaml")
 
 # Create and run the optimization workflow
-workflow = OptimizationWorkflow(config=config)
+workflow = OptimizationWorkflow(config="fept_example.yaml")
 results = workflow.run()
 
 print("Phases completed:", list(results.keys()))
@@ -116,7 +145,7 @@ print("Output written to:", workflow.base_path)
 ```
 
 This will:
-- Build the EMTO structure using `modules.structure_builder`
+- Build the EMTO structure using `emtoflow.modules.structure_builder`
 - Generate all input files in `./FePt_example/`
 - Write `fept_example_structure.json` with detailed structure information
 
@@ -126,16 +155,16 @@ This will:
 
 The main, stable entry points intended for users are:
 
-- **`OptimizationWorkflow`** (`modules.optimization_workflow.OptimizationWorkflow`):  
+- **`OptimizationWorkflow`** (`emtoflow.OptimizationWorkflow`):  
   High-level orchestration of c/a + SWS optimization and final calculation, driven by a validated config dictionary.
-- **`create_emto_structure`** (`modules.structure_builder.create_emto_structure`):  
+- **`create_emto_structure`** (`emtoflow.create_emto_structure`):  
   Create an EMTO-ready structure dictionary either from a CIF file or from lattice parameters + sites.
-- **`create_emto_inputs`** (`modules.create_input.create_emto_inputs`):  
+- **`create_emto_inputs`** (`emtoflow.create_emto_inputs`):  
   Generate EMTO input files for c/a and SWS sweeps from a config (without running EMTO itself).
-- **`load_and_validate_config`** (`utils.config_parser.load_and_validate_config`):  
+- **`load_and_validate_config`** (`emtoflow.load_and_validate_config`):  
   Load a YAML/JSON config file (or dict), apply defaults, and enforce validation rules in one step.
 
-Other modules in `modules/` and `utils/` are considered internal implementation details and may change more frequently.
+Other modules in `emtoflow.modules` and `emtoflow.utils` are considered internal implementation details and may change more frequently.
 
 ---
 
@@ -172,7 +201,7 @@ sites:
 
 ```yaml
 dmax: 1.8                            # Neighbor shell cutoff distance
-magnetic: "P"                        # P=Paramagnetic, F=Ferromagnetic, A=Antiferromagnetic
+magnetic: "P"                        # P=Paramagnetic, F=Ferromagnetic (A not currently supported)
 user_magnetic_moments: {'Fe': 2.2}  # Custom magnetic moments (optional)
 functional: "GGA"                    # GGA, LDA, or LAG
 
@@ -327,8 +356,8 @@ For more alloy composition loops and master configs, see `docs/ALLOY_COMPOSITION
 ## Project Structure
 
 ```
-EMTO_input_automation/
-├── modules/
+emtoflow/
+├── emtoflow/modules/
 │   ├── optimization_workflow.py     # Main optimization workflow orchestrator
 │   ├── optimization/                # Optimization submodules
 │   │   ├── execution.py              # Calculation execution
@@ -353,15 +382,16 @@ EMTO_input_automation/
 │   │   └── jobs_tetralith.py        # SLURM script generation
 │   ├── lat_detector.py              # Lattice type detection
 │   └── element_database.py          # Element properties
-├── utils/
+├── emtoflow/utils/
 │   ├── config_parser.py             # Configuration validation and defaults
 │   ├── aux_lists.py                 # K-point rescaling
 │   ├── file_io.py                   # File utilities
 │   └── running_bash.py              # Job execution (SLURM/local)
-├── docs/                            # Documentation (see below)
-├── files/systems/                   # Example configurations, CIFs, example YAMLs
+├── docs/                            # Core docs (config template, lattices, diagrams)
+├── features_documentation/          # Detailed feature-level documentation
+├── examples/                        # Example configurations, CIFs, example YAMLs
 ├── tests/                           # Simple tests (portfolio / development)
-└── code-tests/                      # Extended tests and examples
+└── extra_scripts/                   # Extra helper scripts (optional usage)
 ```
 
 ---
@@ -418,25 +448,25 @@ sws_values: [2.6]
 
 ## Documentation
 
-All documentation is in the `docs/` directory:
+- **`docs/optimization_config_template.yaml`** – Complete configuration template with all current options
+- **`docs/LATTICE_TYPES.md`** – EMTO lattice type reference (LAT 1–14) with primitive vectors
+- **`docs/WORKFLOW_DIAGRAMS.md`** – Visual workflow diagrams (high-level and phase-level views)
 
-- **`optimization_config_template.yaml`** – Complete configuration template with all options
-- **`DEVELOPMENT_GUIDELINES.md`** – Code development guidelines and best practices
-- **`LATTICE_TYPES.md`** – EMTO lattice type reference (LAT 1–14) with primitive vectors
-- **`WORKFLOW_DIAGRAMS.md`** – Visual workflow diagrams showing module connections
+Detailed feature documentation lives in the `features_documentation/` directory:
 
-### Module Summaries
-
-- **`OPTIMIZATION_WORKFLOW.md`** – Optimization workflow module (`modules/optimization_workflow.py`)
-- **`STRUCTURE_BUILDER.md`** – Structure builder module (`modules/structure_builder.py`)
-- **`INPUT_GENERATION.md`** – Input file generation (`modules/create_input.py`)
-- **`DMAX_OPTIMIZATION.md`** – DMAX optimizer module (`modules/dmax_optimizer.py`)
-- **`DOS.md`** – DOS module (`modules/dos.py`)
-- **`EOS.md`** – EOS module (`modules/inputs/eos_emto.py`)
-- **`ALLOY_COMPOSITION_LOOPS.md`** – Alloy composition loops (`modules/generate_percentages/`)
-- **`GENERATE_PERCENTAGES.md`** – Generate percentages module
-- **`CIF_SUBSTITUTIONS.md`** – CIF element substitutions feature
-- **`FORMATION_ENERGY_ANALYSIS.md`** – Formation energy extraction and analysis tools
+- **`OPTIMIZATION_AND_INPUT_GENERATION.md`** – Main optimization workflow and input generation  
+  (`emtoflow.OptimizationWorkflow`, `emtoflow.create_emto_inputs`)
+- **`STRUCTURE_BUILDER.md`** – Structure builder and lattice detection  
+  (`emtoflow.create_emto_structure`, `emtoflow.modules.lat_detector`)
+- **`DMAX_OPTIMIZATION.md`** – DMAX optimizer and cutoff-distance workflow  
+  (`emtoflow.modules.dmax_optimizer`)
+- **`DOS.md`** – Density of states utilities and analysis  
+  (`emtoflow.modules.dos`, DOS-related parts of `optimization.analysis`)
+- **`EOS.md`** – Equation-of-state fitting and range expansion  
+  (`emtoflow.modules.inputs.eos_emto`, EOS-related parts of `optimization.analysis`)
+- **`ALLOYS_AND_PERCENTAGE_LOOPS.md`** – Alloy definition, `loop_perc`, and CLI-based percentage generation  
+  (`emtoflow.modules.generate_percentages.*`)
+- **`FORMATION_ENERGY.md`** – Optional formation energy analysis helpers in `extra_scripts/`
 
 ---
 
@@ -479,19 +509,16 @@ run_mode: "sbatch"
 
 ---
 
-## Development
-
-### Development Guidelines
-
-See `docs/DEVELOPMENT_GUIDELINES.md` for:
-- Centralized validation and defaults
-- Modular code organization
-- Template synchronization
-- Configuration best practices
-
 ### Testing
 
-For lightweight example tests (suitable for CI or local checks), you can run:
+For lightweight example tests (suitable for CI or local checks), first install
+`pytest` into your environment:
+
+```bash
+pip install pytest
+```
+
+Then you can run:
 
 ```bash
 python -m pytest tests/test_rescale_k.py
@@ -505,21 +532,21 @@ python -m pytest tests/test_minimal_config_validation.py
 
 ## Contributing
 
-Contributions welcome! Please:
-1. Follow existing code style
-2. Add docstrings to functions
-3. Update configuration template for new parameters
-4. See `DEVELOPMENT_GUIDELINES.md` for detailed guidelines
+Contributions are welcome! 
+For questions or support, please open an issue on GitHub.
+Or send me an email: pamelacosta.res@gmail.com
+
+**Last Updated:** January 2026
 
 ---
 
 ## Citation
 
 ```
-EMTO Input Automation Toolkit
+EMTOFlow Toolkit
 Author: Pamela Costa Carvalho
 Year: 2025
-URL: https://github.com/pcostacarvalho/EMTO_input_automation
+URL: https://github.com/pcostacarvalho/emtoflow
 ```
 
 ---
@@ -530,8 +557,5 @@ MIT License - See [LICENSE](LICENSE) file
 
 ---
 
-## Contact
 
-For questions or support, please open an issue on GitHub.
 
-**Last Updated:** January 2026

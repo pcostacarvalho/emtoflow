@@ -9,7 +9,7 @@ constant k-point density in reciprocal space when lattice parameters change.
 import sys
 sys.path.insert(0, '/home/user/EMTO_input_automation')
 
-from utils.aux_lists import rescale_kpoints
+from emtoflow.utils.aux_lists import rescale_kpoints
 
 def test_rescale_kpoints():
     """Test the rescale_kpoints function with various lattice parameters."""
