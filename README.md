@@ -533,8 +533,7 @@ python -m pytest tests/test_minimal_config_validation.py
 ## Contributing
 
 Contributions are welcome! 
-For questions or support, please open an issue on GitHub.
-Or send me an email: pamelacosta.res@gmail.com
+For questions or support, please open an issue on GitHub, or send me an email: pamelacosta.res@gmail.com
 
 **Last Updated:** January 2026
 
