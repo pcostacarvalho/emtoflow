@@ -2,7 +2,7 @@
 
 ![EMTOFlow logo](logo.png)
 
-Python toolkit for automating EMTO (Exact Muffin-Tin Orbitals) input file generation and optimization workflows for electronic structure calculations.
+Python toolkit for automating EMTO (Exact Muffin-Tin Orbitals) input file generation and optimization workflows for electronic structure calculations. This toolkit targets the **Lyngby version** of the EMTO code; for the method and code, see [Ruban and Dehghani, *Phys. Rev. B* **94**, 104111 (2016)](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.94.104111).
 
 ---
 
