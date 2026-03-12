@@ -1,5 +1,7 @@
 # EMTOFlow
 
+![EMTOFlow logo](assets/logo.png)
+
 Python toolkit for automating EMTO (Exact Muffin-Tin Orbitals) input file generation and optimization workflows for electronic structure calculations.
 
 ---
